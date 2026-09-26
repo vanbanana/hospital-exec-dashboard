@@ -599,7 +599,7 @@
       { "label": "执业医师", "value": "812", "delta": "+1.8%", "dir": "up" },
       { "label": "注册护士", "value": "1,046", "delta": "+2.2%", "dir": "up" },
       { "label": "医护比", "value": "1 : 1.29", "note": "目标 ≥1:1.25" },
-      { "label": "高级职称占比", "value": "18.2", "unit": "%", "delta": "+0.6%", "dir": "up" },
+      { "label": "高级职称占比", "value": "12.0", "unit": "%", "delta": "+0.6%", "dir": "up" },
       { "label": "人员经费占比", "value": "32.5", "unit": "%", "delta": "+1.1%", "dir": "up" }
     ],
     "structure": {
@@ -717,7 +717,7 @@
       { "label": "本月投诉", "value": "24", "unit": "件", "delta": "-6件", "dir": "down" },
       { "label": "本月表扬", "value": "86", "unit": "件", "delta": "+12件", "dir": "up" },
       { "label": "平均候诊", "value": "18", "unit": "分钟", "delta": "-3分钟", "dir": "down" },
-      { "label": "网约挂号率", "value": "88.6", "unit": "%", "delta": "+4.2%", "dir": "up" }
+      { "label": "网约挂号率", "value": "82.0", "unit": "%", "delta": "+4.2%", "dir": "up" }
     ],
     "satisfaction_trend": {
       "unit": "%",
@@ -1021,7 +1021,7 @@
     { "label": "医保基金支付", "value": "9,860", "unit": "万元", "delta": "+3.8%", "dir": "up" },
     { "label": "基金结余率", "value": "6.8", "unit": "%", "delta": "+0.4%", "dir": "up" },
     { "label": "拒付/扣款率", "value": "0.8", "unit": "%", "delta": "-0.2%", "dir": "down" },
-    { "label": "次均医保费用", "value": "8,640", "unit": "元", "delta": "+1.6%", "dir": "up" },
+    { "label": "次均医保费用", "value": "11,652", "unit": "元", "delta": "+1.6%", "dir": "up" },
     { "label": "异地就医结算", "value": "486", "unit": "人次", "delta": "+12.4%", "dir": "up" }
   ],
   "chart": {
@@ -1030,7 +1030,7 @@
     "type": "line",
     "unit": "万元",
     "months": ["5月", "6月", "7月", "8月", "9月", "10月"],
-    "values": [886, 920, 946, 968, 942, 986]
+    "values": [8860, 9150, 9620, 9840, 9560, 9860]
   },
   "table": {
     "title": "分险种结算情况",
@@ -1105,7 +1105,7 @@
   "stats": [
     { "label": "门诊统筹结算人次", "value": "6,248", "delta": "+18.6%", "dir": "up" },
     { "label": "统筹基金支付", "value": "486", "unit": "万元", "delta": "+22.4%", "dir": "up" },
-    { "label": "人均统筹费用", "value": "78", "unit": "元", "delta": "+3.2%", "dir": "up" },
+    { "label": "人均统筹费用", "value": "778", "unit": "元", "delta": "+3.2%", "dir": "up" },
     { "label": "个人账户支出", "value": "326", "unit": "万元", "delta": "-4.6%", "dir": "down" },
     { "label": "慢特病结算", "value": "1,846", "unit": "人次", "delta": "+8.4%", "dir": "up" },
     { "label": "处方外流率", "value": "12.4", "unit": "%", "delta": "+2.8%", "dir": "up" }
@@ -1256,6 +1256,7 @@
   > 2. 日业务量量级与工作台月累计完全自洽：门急诊日均约 420 人次（月累计约 12,300），手术日均约 45 台（月累计约 1,286）。
   > 3. `profit` 统一为万元单位浮点数值（如 `124.6` 万元）；`bed_use_rate` 统一为展示百分比口径（`96.0`）；未闭环告警数 `alert_open.urgent = 1`，与告警列表首条紧急事件一致。
   > 4. 告警时间字段使用 `occurred_at` ISO 格式。
+  > 5. `dept_ranking.eff_score` 为展示示意值（归一公式见 §10 注），API 出参以服务端按当前分布实算为准；`rank` 序与 `cmi/profit` 事实列一致即可。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ---
