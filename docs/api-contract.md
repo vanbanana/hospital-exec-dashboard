@@ -74,7 +74,7 @@
    ```ts
    interface WbStatItem {
      label: string                    // 指标名称，如 "门急诊人次"
-     value: string | number           // 核心展示值，如 "12,300" 或 12300
+     value: string | number           // 核心展示值，如 "123,000" 或 12300
      unit?: string                    // 单位，如 "万元"、"天"、"%"
      delta?: string                   // 环同比变动幅度，如 "+3.6%"、"-0.3"、"+12项"
      delta_label?: string             // 变动文案说明，如 "较上月"、"同比"
@@ -160,7 +160,7 @@
   {
     "period": "本月",
     "list": [
-      { "key": "outpatient", "label": "门急诊人次", "value": "12,300", "unit": "", "delta": "+3.6%", "dir": "up", "icon": "Stethoscope", "tone": "primary" },
+      { "key": "outpatient", "label": "门急诊人次", "value": "123,000", "unit": "", "delta": "+3.6%", "dir": "up", "icon": "Stethoscope", "tone": "primary" },
       { "key": "inpatient", "label": "住院人次", "value": "8,120", "unit": "", "delta": "+5.1%", "dir": "up", "icon": "BedDouble", "tone": "primary" },
       { "key": "surgery", "label": "手术台次", "value": "1,286", "unit": "", "delta": "+4.8%", "dir": "up", "icon": "Scissors", "tone": "teal" },
       { "key": "revenue", "label": "医疗总收入", "value": "14,800", "unit": "万元", "delta": "+2.9%", "dir": "up", "icon": "Banknote", "tone": "green" },
@@ -180,8 +180,8 @@
     "series": {
       "门急诊人次": {
         "unit": "人次",
-        "current": [5400, 4600, 6800, 7000, 8500, 9000, 10800, 9700, 10500, 12300, 12200, 12000],
-        "last": [4600, 3900, 5200, 5200, 6800, 7200, 9000, 9200, 8700, 10200, 10100, 9900]
+        "current": [54000, 46000, 68000, 70000, 85000, 90000, 108000, 97000, 105000, 123000, 122000, 120000],
+        "last": [46000, 39000, 52000, 52000, 68000, 72000, 90000, 92000, 87000, 102000, 101000, 99000]
       },
       "住院人次": {
         "unit": "人次",
@@ -305,7 +305,7 @@
   {
     "range": "本年",
     "stats": [
-      { "label": "门急诊人次", "value": "84,700", "delta": "+3.6%", "dir": "up" },
+      { "label": "门急诊人次", "value": "846,000", "delta": "+3.6%", "dir": "up" },
       { "label": "出院人数", "value": "71,310", "delta": "+5.1%", "dir": "up" },
       { "label": "手术台次", "value": "10,606", "delta": "+4.8%", "dir": "up" },
       { "label": "医疗收入", "value": "120,260", "unit": "万元", "delta": "+2.9%", "dir": "up" },
@@ -350,7 +350,7 @@
   }
   ```
   > **字段注**：
-  > 1. `range="本年"` 下核心指标的 `value` 统一为本年 1~10 月累计值（门急诊 8.47 万、出院 7.13 万、手术 1.06 万、医疗收入 12.03 亿元），严格等于月度走势数组前 10 个月求和。
+  > 1. `range="本年"` 下核心指标的 `value` 统一为本年 1~10 月累计值（门急诊 84.6 万、出院 7.13 万、手术 1.06 万、医疗收入 12.03 亿元），严格等于月度走势数组前 10 个月求和。
   > 2. `dept_share_top8` 明确度量为“住院收入（万元）”，`value` 改为纯数值型（方便前端计算），`bar_pct` 表示条形宽度归一化百分比（`val / max * 100`）。
   > 3. `live_inpatient` 项集与视图对齐为 6 项实时运营数据，十六进制色值改由 `tone` 语义色彩定义。
 - **可返回错误码**：`10001` (INVALID_PARAM)
@@ -375,10 +375,10 @@
   "tab": "门急诊",
   "range": "本年",
   "stats": [
-    { "label": "门急诊总人次", "value": "12,482", "delta": "+3.6%", "dir": "up" },
-    { "label": "普通门诊", "value": "8,236", "delta": "+2.1%", "dir": "up" },
-    { "label": "专家门诊", "value": "3,114", "delta": "+6.4%", "dir": "up" },
-    { "label": "急诊人次", "value": "1,132", "delta": "+4.2%", "dir": "up" },
+    { "label": "门急诊总人次", "value": "124,820", "delta": "+3.6%", "dir": "up" },
+    { "label": "普通门诊", "value": "82,360", "delta": "+2.1%", "dir": "up" },
+    { "label": "专家门诊", "value": "31,140", "delta": "+6.4%", "dir": "up" },
+    { "label": "急诊人次", "value": "11,320", "delta": "+4.2%", "dir": "up" },
     { "label": "次均费用", "value": "300", "unit": "元", "delta": "+1.8%", "dir": "up" },
     { "label": "平均候诊", "value": "18", "unit": "分钟", "delta": "-3分钟", "dir": "down" }
   ],
@@ -387,7 +387,7 @@
     "name": "门急诊人次",
     "unit": "人次",
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
-    "values": [5400, 4600, 6800, 7000, 8500, 9000, 10800, 9700, 10500, 12300, 12200, 12000]
+    "values": [54000, 46000, 68000, 70000, 85000, 90000, 108000, 97000, 105000, 123000, 122000, 120000]
   },
   "distribution": {
     "title": "就诊高峰时段分布",
@@ -395,7 +395,7 @@
     "type": "bar",
     "unit": "人次",
     "categories": ["7时", "8时", "9时", "10时", "11时", "14时", "15时", "16时", "17时", "19时"],
-    "values": [620, 1480, 1960, 1750, 1180, 1380, 1240, 960, 540, 380]
+    "values": [6200, 14800, 19600, 17500, 11800, 13800, 12400, 9600, 5400, 3800]
   },
   "table": {
     "columns": [
@@ -407,14 +407,14 @@
       { "key": "drug", "title": "药占比", "align": "right", "num": true }
     ],
     "rows": [
-      { "dept": "心血管内科", "cnt": "1,286", "yoy": "+6.2%", "share": "10.3%", "avg": "352元", "drug": "26.1%" },
-      { "dept": "呼吸与危重症医学科", "cnt": "1,158", "yoy": "+8.7%", "share": "9.3%", "avg": "318元", "drug": "31.2%" },
-      { "dept": "消化内科", "cnt": "1,042", "yoy": "+4.1%", "share": "8.4%", "avg": "296元", "drug": "33.5%" },
-      { "dept": "神经内科", "cnt": "968", "yoy": "+3.5%", "share": "7.8%", "avg": "342元", "drug": "29.8%" },
-      { "dept": "内分泌科", "cnt": "826", "yoy": "+2.9%", "share": "6.6%", "avg": "274元", "drug": "35.4%" },
-      { "dept": "儿科", "cnt": "792", "yoy": "-1.2%", "share": "6.3%", "avg": "198元", "drug": "22.6%" },
-      { "dept": "骨科", "cnt": "716", "yoy": "+5.4%", "share": "5.7%", "avg": "412元", "drug": "18.9%" },
-      { "dept": "皮肤科", "cnt": "654", "yoy": "+2.2%", "share": "5.2%", "avg": "186元", "drug": "41.3%" }
+      { "dept": "心血管内科", "cnt": "12,860", "yoy": "+6.2%", "share": "10.3%", "avg": "352元", "drug": "26.1%" },
+      { "dept": "呼吸与危重症医学科", "cnt": "11,580", "yoy": "+8.7%", "share": "9.3%", "avg": "318元", "drug": "31.2%" },
+      { "dept": "消化内科", "cnt": "10,420", "yoy": "+4.1%", "share": "8.4%", "avg": "296元", "drug": "33.5%" },
+      { "dept": "神经内科", "cnt": "9,680", "yoy": "+3.5%", "share": "7.8%", "avg": "342元", "drug": "29.8%" },
+      { "dept": "内分泌科", "cnt": "8,260", "yoy": "+2.9%", "share": "6.6%", "avg": "274元", "drug": "35.4%" },
+      { "dept": "儿科", "cnt": "7,920", "yoy": "-1.2%", "share": "6.3%", "avg": "198元", "drug": "22.6%" },
+      { "dept": "骨科", "cnt": "7,160", "yoy": "+5.4%", "share": "5.7%", "avg": "412元", "drug": "18.9%" },
+      { "dept": "皮肤科", "cnt": "6,540", "yoy": "+2.2%", "share": "5.2%", "avg": "186元", "drug": "41.3%" }
     ]
   }
 }
@@ -917,7 +917,7 @@
       ]
     },
     "benchmarks": [
-      { "name": "年门急诊量（万人次）", "ours": "10.9", "region": "9.0", "bench": "12.8", "gap": "+1.9" },
+      { "name": "年门急诊量（万人次）", "ours": "109.0", "region": "90.0", "bench": "128.0", "gap": "+19.0" },
       { "name": "年出院人数（万人）", "ours": "9.73", "region": "8.22", "bench": "11.58", "gap": "+1.51" },
       { "name": "平均住院日（天）", "ours": "6.8", "region": "7.9", "bench": "6.2", "gap": "-1.1" },
       { "name": "三四级手术占比（%）", "ours": "58.6", "region": "48.2", "bench": "65.0", "gap": "+10.4" },
@@ -936,12 +936,12 @@
         { "key": "sat", "title": "满意度", "align": "right", "num": true }
       ],
       "rows": [
-        { "rank": 1, "dept": "心血管内科", "metric": "1,860", "bar_pct": 100, "yoy": "+6.2%", "outp": 1286, "inpt": 1405, "days": 9.2, "sat": 96.2 },
-        { "rank": 2, "dept": "骨科", "metric": "1,724", "bar_pct": 93, "yoy": "+5.8%", "outp": 716, "inpt": 1266, "days": 8.6, "sat": 95.4 },
-        { "rank": 3, "dept": "呼吸与危重症医学科", "metric": "1,615", "bar_pct": 87, "yoy": "+8.7%", "outp": 1158, "inpt": 1112, "days": 10.4, "sat": 94.8 },
-        { "rank": 4, "dept": "普通外科", "metric": "1,480", "bar_pct": 80, "yoy": "+3.4%", "outp": 542, "inpt": 1032, "days": 7.8, "sat": 94.2 },
-        { "rank": 5, "dept": "神经内科", "metric": "1,342", "bar_pct": 72, "yoy": "+4.1%", "outp": 968, "inpt": 901, "days": 11.2, "sat": 93.6 },
-        { "rank": 6, "dept": "肿瘤科", "metric": "1,208", "bar_pct": 65, "yoy": "+5.9%", "outp": 412, "inpt": 829, "days": 12.6, "sat": 92.8 }
+        { "rank": 1, "dept": "心血管内科", "metric": "1,860", "bar_pct": 100, "yoy": "+6.2%", "outp": 12860, "inpt": 1405, "days": 9.2, "sat": 96.2 },
+        { "rank": 2, "dept": "骨科", "metric": "1,724", "bar_pct": 93, "yoy": "+5.8%", "outp": 7160, "inpt": 1266, "days": 8.6, "sat": 95.4 },
+        { "rank": 3, "dept": "呼吸与危重症医学科", "metric": "1,615", "bar_pct": 87, "yoy": "+8.7%", "outp": 11580, "inpt": 1112, "days": 10.4, "sat": 94.8 },
+        { "rank": 4, "dept": "普通外科", "metric": "1,480", "bar_pct": 80, "yoy": "+3.4%", "outp": 5420, "inpt": 1032, "days": 7.8, "sat": 94.2 },
+        { "rank": 5, "dept": "神经内科", "metric": "1,342", "bar_pct": 72, "yoy": "+4.1%", "outp": 9680, "inpt": 901, "days": 11.2, "sat": 93.6 },
+        { "rank": 6, "dept": "肿瘤科", "metric": "1,208", "bar_pct": 65, "yoy": "+5.9%", "outp": 4120, "inpt": 829, "days": 12.6, "sat": 92.8 }
       ]
     }
   }
@@ -1205,7 +1205,7 @@
       "alert_open": { "urgent": 1, "major": 2, "minor": 2 }
     },
     "kpis": [
-      { "code": "OP_DAILY_VISITS", "name": "今日门急诊", "value": 420, "unit": "人", "prev_value": 395, "delta_pct": 6.3, "direction": 1, "spark": [380, 395, 410, 390, 405, 395, 420], "status": "normal" },
+      { "code": "OP_DAILY_VISITS", "name": "今日门急诊", "value": 4200, "unit": "人", "prev_value": 3950, "delta_pct": 6.3, "direction": 1, "spark": [3800, 3950, 4100, 3900, 4050, 3950, 4200], "status": "normal" },
       { "code": "IP_IN_HOSP", "name": "在院患者", "value": 1846, "unit": "人", "prev_value": 1820, "delta_pct": 1.4, "direction": 1, "spark": [1780, 1800, 1810, 1825, 1830, 1820, 1846], "status": "normal" },
       { "code": "BED_USE_RATE", "name": "床位使用率", "value": 92.1, "unit": "%", "prev_value": 90.8, "delta_pct": 1.4, "direction": 1, "spark": [88.5, 89.2, 90.1, 91.0, 91.5, 90.8, 92.1], "status": "warn" },
       { "code": "SURG_DAILY_CNT", "name": "今日手术", "value": 45, "unit": "台", "prev_value": 42, "delta_pct": 7.1, "direction": 1, "spark": [38, 40, 42, 39, 41, 42, 45], "status": "normal" }
@@ -1223,7 +1223,7 @@
       ]
     },
     "buildings": [
-      { "code": "mz", "name": "门诊楼", "status": "normal", "badge": "420 人", "badge_level": "info", "anchor": { "x": 32, "y": 58 }, "metrics": { "today_visit": 420, "queue_avg_min": 18 } },
+      { "code": "mz", "name": "门诊楼", "status": "normal", "badge": "4,200 人", "badge_level": "info", "anchor": { "x": 32, "y": 58 }, "metrics": { "today_visit": 4200, "queue_avg_min": 18 } },
       { "code": "wk", "name": "外科楼", "status": "busy", "badge": "96% 负荷", "badge_level": "warn", "anchor": { "x": 50, "y": 30 }, "metrics": { "bed_use_rate": 96.0, "bed_used": 192, "bed_open": 200 } },
       { "code": "jz", "name": "急诊楼", "status": "alert", "badge": "留观超时", "badge_level": "alert", "anchor": { "x": 66, "y": 42 }, "metrics": { "obs_over6h": 3, "obs_cnt": 11, "obs_max_min": 560 } },
       { "code": "yj", "name": "医技楼", "status": "normal", "badge": "设备正常", "badge_level": "ok", "anchor": { "x": 60, "y": 66 }, "metrics": { "device_run": 12, "device_alert": 0 } }
@@ -1243,7 +1243,7 @@
       "days": 7,
       "dates": ["10-22", "10-23", "10-24", "10-25", "10-26", "10-27", "10-28"],
       "series": {
-        "OP_DAILY_VISITS": [380, 395, 410, 390, 405, 395, 420],
+        "OP_DAILY_VISITS": [3800, 3950, 4100, 3900, 4050, 3950, 4200],
         "IP_IN_HOSP": [1780, 1800, 1810, 1825, 1830, 1820, 1846],
         "SURG_DAILY_CNT": [38, 40, 42, 39, 41, 42, 45],
         "BED_USE_RATE": [88.5, 89.2, 90.1, 91.0, 91.5, 90.8, 92.1]
@@ -1253,7 +1253,7 @@
   ```
   > **字段注**：
   > 1. `server_time` 统一使用基准日 `"2026-10-28T08:30:00+08:00"`，`dates` 序列对齐为 `10-22 ~ 10-28`；演示基准日 `BASE_DATE=2026-10-28`（周三工作日），KPI/月累计均锚定 10 月。
-  > 2. 日业务量量级与工作台月累计完全自洽：门急诊日均约 420 人次（月累计约 12,300），手术日均约 45 台（月累计约 1,286）。
+  > 2. 日业务量量级与工作台月累计完全自洽：门急诊日均约 4,200 人次（月累计约 123,000），手术日均约 45 台（月累计约 1,286）。
   > 3. `profit` 统一为万元单位浮点数值（如 `124.6` 万元）；`bed_use_rate` 统一为展示百分比口径（`96.0`）；未闭环告警数 `alert_open.urgent = 1`，与告警列表首条紧急事件一致。
   > 4. 告警时间字段使用 `occurred_at` ISO 格式。
   > 5. `dept_ranking.eff_score` 为展示示意值（归一公式见 §10 注），API 出参以服务端按当前分布实算为准；`rank` 序与 `cmi/profit` 事实列一致即可。
