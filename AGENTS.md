@@ -4,7 +4,22 @@
 
 ## 0. 项目本质
 
-医院运营决策大屏。前期全靠模拟数据；`docs/api-contract.md` 是冻结契约——前后端各自对着它实现，将来接真实 HIS/ETL **只换数据源，契约与前端不动**。每行代码都为"契约可落地"服务。
+**院长查询与决策支持系统**（演示/作业项目），双形态、单一前端工程：
+
+- **工作台 `/workbench`（主形态）**：浅色医疗专业风格的 Web 管理台，侧栏 11 个业务页 + 首页。院长/主任日常用，重"管"——筛选、下钻、督办、报表。
+- **大屏 `/screen`（展示形态）**：深色科技风演示大屏，参考设计稿 `smart-hospital-cockpit/`（尚未整合进主工程，当前 /screen 为过渡旧稿）。重"看"——宏观态势、告警跑马灯。
+
+**前期全靠模拟数据；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，将来接 mock server / 真实后端只换数据源，契约与页面不动。
+
+### 0.1 设计资产定位（重要，别搞反）
+
+| 资产 | 定位 |
+| :--- | :--- |
+| `design/workbench-home.png` | 工作台首页**视觉参考图**——对风格、布局、密度用，不是像素核对唯一标准 |
+| `smart-hospital-cockpit/` | 大屏**视觉参考工程**——取其设计语言与交互形态，代码不并入主工程 |
+| `src/` 现有前端代码 | **v0 参考实现**：由 AI 复刻+审查 agent 产出，供视觉对照与快速迭代用；**不视为工程基准**。后续重写/整改以 `docs/` 规范为准，发现其违反 §3.4 红线或工程规范时应修复而非照抄 |
+
+**铁律**：`docs/` 规范 > 视觉参考 > 现有代码。三者冲突时按此序裁决（文档矛盾仍停下报告）。
 
 ## 1. 事实源顺序
 
@@ -12,20 +27,22 @@
 | :--- | :--- | :--- |
 | 1 | `docs/api-contract.md` | 端点、字段名、枚举、单位、null、权限——代码里只出现契约内的端点与字段 |
 | 2 | `docs/error-codes.md` | 响应包络、错误码、HTTP 映射 |
-| 3 | `docs/database-schema.md` | 表结构、约束、指标字典 |
-| 4 | `docs/frontend-architecture.md` | Store 边界、路由、点击地图、反馈矩阵 |
-| 5 | `docs/simulation-plan.md` | 时钟纪律、生成模型、ETL 切换、演示 runbook |
-| 6 | `docs/architecture.md` / `docs/acceptance.md` | 技术栈白名单、验收门禁 |
+| 3 | `docs/frontend-architecture.md` | 路由、布局、设计系统（token/原语）、设计红线、mock 数据纪律 |
+| 4 | `docs/architecture.md` | 技术栈白名单、系统拓扑、分期路线 |
+| 5 | `docs/simulation-plan.md` | 数据供给分层（mock→契约层→仿真）、演示 runbook |
+| 6 | `docs/acceptance.md` | 验收门禁 |
+| 7 | `docs/database-schema.md` | 后端库表设计（**未实施**，后端动工时启用） |
 
 ## 2. 硬规则
 
 1. **契约演进唯一方式**：新需求 → 先改 `api-contract.md`（加端点或加可选字段）→ 再写代码。已有路径/字段名/枚举值/语义保持原样。
 2. **包管理一律 npm**：`package-lock.json` 是唯一锁文件。
-3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。
-4. **文件边界**：`output/`、设计稿图片只读；`src/components/*.vue` 视觉稿按 `frontend-architecture.md` 迁移表一次接管一个，接管前保持原样。
+3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/axios/element-plus——需要时先确认再装。
+4. **文件边界**：`output/`、`design/`、`smart-hospital-cockpit/` 只读（视觉参考）；`src/components/*.vue`（非 workbench 目录）是旧大屏组件，在 /screen 整合前保持原样。
 5. **密钥只写进 `.env`**（已在 `.gitignore`）。
-6. **唯一时间源**：后端一律 `clock.Now(ctx)`，前端时钟读 `useAppStore` 偏移——仿真可复现靠这一条。
+6. **数据纪律**：当前页面数据为组件内 mock；**抽 mock → `src/mock/` 集中管理，字段名对齐契约 snake_case**，禁止在视图里散落不可对回契约的字段。接 store/api 层时 mock 数据整体迁移，页面不改字段。
 7. **commit**：每条信息说明"为什么"；`git status` 里每个文件都能对回用户指令。
+8. **agy 产物原则**：AI 复刻 agent（agy/pixel 类）的产出是参考素材，代码工程性不保证——合并前按本文件标准审查，能用的用，不达标的重写。
 
 ## 3. 工作方式
 
@@ -34,16 +51,16 @@
 注释写**不读代码就想不到的"为什么"**：业务规则出处、契约节号、非显然取舍。
 
 - 正确示例：`// 院级汇总用 dept_id=0 哨兵键，见 database-schema §dws`
-- 函数名已表达的内容不写注释；`TODO` 带责任人和依据：`// TODO(devin): P2 接 SSE，simulation-plan §7`
+- 函数名已表达的内容不写注释；`TODO` 带责任人和依据：`// TODO(devin): 接 api 层后替换 mock，见 api-contract §3`
 - 判断标准：注释全删后代码依然自解释 = 命名合格
 
 ### 3.2 完成定义（汇报照此格式）
 
 "做完" = 五项全过：
 
-1. 端点返回契约形状的**真实数据**
-2. 实际发过请求并记录响应（curl / 测试 / 浏览器）
-3. 空数据、null 字段、分页末页、无权限角色、非法参数——各试过一次
+1. 功能返回契约形状的**真实/契约化数据**（mock 期 = 契约形状的 mock）
+2. 实际验证过渲染/响应（截图 / curl / 测试）
+3. 空数据、null 字段、分页末页、非法参数——各试过一次（有权限体系后加无权限角色）
 4. 重跑了相关既有检查
 5. 汇报分三栏如实写：**过了什么 / 没过什么 / 没测什么**
 
@@ -51,24 +68,26 @@
 
 ### 3.3 数据缺失时的路径
 
-契约即边界，缺失数据渲染空态组件：
-
 | 情况 | 唯一路径 |
 | :--- | :--- |
-| API 失败 | panel 错误态 + 重试按钮（反馈矩阵），旧数据标 stale |
-| 字段缺失/类型不符 | 修类型定义或后端响应，两侧对齐契约 |
+| API 失败 | 面板/页面错误态 + 重试入口，旧数据标 stale |
+| 字段缺失/类型不符 | 修类型定义或数据源，两侧对齐契约 |
 | env/配置缺失 | 启动 fail-fast，打印缺失项名 |
 | 未知错误码 | 兜底错误提示 + trace_id |
-| 接口未实现 | 视觉稿占位数据在迁移时删到 grep 不到 |
-| `drill.type` 未知 | 隐藏按钮（契约规定动作） |
+| 接口未实现 | mock 数据标记来源；接真接口时删除到 grep 不到 |
+| 图表数据为空 | 画空坐标或空态组件，不报错不白屏 |
 
-### 3.4 改前端
+### 3.4 改前端（工作台）
 
-- 动共享组件/`variables.css`/全局样式前：grep 全部消费方，逐个确认影响
-- 色值/字号/间距一律取 `variables.css` token
-- 修复限定作用域：scoped 选择器只覆盖目标面板
-- 定位根因后改源头：样式问题改 token 或源选择器
-- 组件迁移一次一个，按表走
+- **设计系统唯一入口 `src/styles/workbench.css`**：色值/字号/间距/圆角一律取 `--wb-*` token，改样式先想"是不是 token 该加/改"
+- **共享原语优先**：`WbPageHead / WbSeg / WbStatStrip / WbTable / WbChart` + `chartPresets`；新页面用原语拼，不从零写
+- **设计红线（违反即返工）**：
+  - 禁卡片套卡片、禁圆角矩形堆叠——分区用留白/hairline/表格/列表等手法
+  - 禁"AI 感"风格：廉价渐变、滥用发光、风格混搭、不统一的图标/圆角
+  - 写实/装饰图片素材用生图产出（png 存 `src/assets/`），不用 SVG 硬画照片感内容
+  - 符合医院管理系统场景：专业、克制、高信息密度
+- 动共享组件/`workbench.css`/全局样式前：grep 全部消费方，逐个确认影响
+- 新页面标准流程：建 `src/views/workbench/XxxView.vue` → `src/router/index.ts` 注册 → WbPageHead + 原语拼装 → 无头截图自验（见 §5）
 
 ### 3.5 执行指令
 
@@ -79,51 +98,51 @@
 ### 3.6 简单优先
 
 - 选能满足当前需求的最简写法；一个函数能写完就一个函数
-- 扩展点只用文档已设计的：双轨写侧、`drill.type`、可选字段、env 矩阵
+- 扩展点只用文档已设计的：契约可选字段、预留端点、env 矩阵
 - 第三次重复才抽象，两次以内直接重复
 - 自检："删掉这段代码，当前需求还满足吗？" 满足 → 删
 
 ### 3.7 错误处理路径
 
-- 后端：错误 → 错误码映射 → 统一包络；内部细节留服务端日志，客户端只收 code + trace_id
-- 前端：接口错误 → http 拦截器 → 反馈矩阵；`try/catch` 只处理本地逻辑
-- 每个 `catch` 有明确去向；每个 Promise 有 rejection 处理；goroutine 错误有回收处
+- 后端（启用后）：错误 → 错误码映射 → 统一包络；内部细节留服务端日志，客户端只收 code + trace_id
+- 前端：接口错误 → http 拦截器 → 统一处理矩阵（error-codes §4）；`try/catch` 只处理本地逻辑
+- 每个 `catch` 有明确去向；每个 Promise 有 rejection 处理
 
 ## 4. 技术栈要点
 
-### 后端（Go + Gin + GORM）
+### 前端（Vue3 + TS + Vite + VueRouter + ECharts + lucide）
 
-- 响应一律经包络 helper——它是唯一出口
-- 多表写放事务；`ctx` 透传到 GORM/Redis
-- 列表查询用 Preload/JOIN 一次取齐
-- tick/批量写走事务；时钟跳变后清相关缓存
-
-### 前端（Vue3 + TS + Pinia）
-
-- `src/api/types.ts` 照抄契约 snake_case 字段名
-- 数据流单向：组件 → store → api 模块 → axios
-- 轮询：in-flight 去重 + `onUnmounted` 里清 `setInterval`；ECharts 卸载时 `dispose()`
-- 金额渲染先读 `unit` 字段（raw=元，聚合按声明单位）
+- `src/api/types.ts`（建立后）照抄契约 snake_case 字段名
+- 数据流单向：组件 → store → api 模块 → http（**当前为 mock 直读，见 §2.6**）
+- 轮询/定时器：`onUnmounted` 里清理；ECharts 卸载时 `dispose()`（`WbChart` 已封装，优先复用）
+- 金额/比率渲染先读单位声明
 - count-up 等动效只在值真实变化时触发
 
-### 数据库
+### 后端（目标态，未实施）
 
-- 顺序固定：`database-schema.md` → migration → 代码
-- 已建表只加列/表/索引，旧列语义不动
-- PK 全 NOT NULL；机构级/无组维度用哨兵 `0`
+- 技术栈与分层见 `architecture.md §3`（Go + Gin + GORM + PG16 + Redis 为候选目标；动工时复核裁剪）
+- 响应一律经包络 helper；多表写放事务；唯一时间源 `clock.Now(ctx)`
+
+### 数据库（目标态，未实施）
+
+- `database-schema.md` 为设计参考；动工时按"已建表只加列/表/索引"纪律执行
 
 ## 5. 交付门禁（结果写进汇报）
 
 ```bash
-# 前端
+# 前端（当前唯一常跑门禁）
 npx vue-tsc -b && npm run build
-# 后端（代码存在后）
-go vet ./... && go build ./... && go test ./... -run Contract
-# 数据自洽（代码存在后）
-sim validate
+
+# 页面自验（无头截图，1568×880）
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+  --screenshot=/tmp/shot.png --window-size=1568,880 --hide-scrollbars \
+  http://localhost:5173/workbench/<路由>
+
+# 后端（启用后）
+# go vet ./... && go build ./... && go test ./... -run Contract
+
 # 机械自查（输出应为空）
 grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ cmd/ 2>/dev/null
-# 契约对齐：端点覆盖率 100%，字段名 diff 为空
 ```
 
 ## 6. 拿不准时
