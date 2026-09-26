@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+backend/edss
+backend/*.exe
+coverage.out
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,115 @@
+@import url('./variables.css');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-family-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Number display font */
+.font-number {
+  font-family: var(--font-family-number);
+}
+
+/* Dashboard screen container */
+.screen-wrapper {
+  position: relative;
+  width: 2048px;
+  height: 1152px;
+  background-color: #021428;
+  background-image: 
+    radial-gradient(ellipse at 50% 15%, rgba(10, 45, 95, 0.45) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 85%, rgba(4, 25, 55, 0.5) 0%, transparent 70%);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Standard Tech Panel/Card */
+.tech-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  position: relative;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Card Header with vertical cyan accent bar and right arrow link */
+.panel-header {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: relative;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-accent-bar {
+  width: 3.5px;
+  height: 14px;
+  background: #0091ff;
+  border-radius: 2px;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+.panel-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.panel-more-link {
+  font-size: 12px;
+  color: #38bdf8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.2s;
+}
+
+.panel-more-link:hover {
+  color: #0091ff;
+}
+
+/* Pulse animation for emergency items */
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.7);
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2s infinite ease-in-out;
+}

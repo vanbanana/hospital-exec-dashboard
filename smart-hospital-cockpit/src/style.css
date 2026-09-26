@@ -1,0 +1,374 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+:root {
+  /* Restrained Medical Dark Navy Palette (Accurately sampled from medical-hospital-display-screen-templates-6.jpg) */
+  --bg-dark: #0b1325;
+  --bg-dark-deep: #060b17;
+  --bg-panel: rgba(14, 23, 42, 0.92);
+  --bg-panel-solid: #0e172a;
+  --bg-card: rgba(18, 30, 54, 0.82);
+  --bg-card-solid: #121e36;
+  --bg-card-hover: rgba(26, 44, 78, 0.9);
+
+  /* Subtle Understated Deep Navy Borders */
+  --border-panel: rgba(30, 64, 115, 0.45);
+  --border-panel-light: rgba(56, 189, 248, 0.25);
+  --border-blue: rgba(30, 101, 235, 0.4);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-card: rgba(28, 48, 82, 0.6);
+
+  /* Classic Corporate / Medical Tech Blues & Accents */
+  --primary-blue: #1e65eb;
+  --primary-blue-bright: #2563eb;
+  --primary-royal: #1d4ed8;
+  --primary-cyan: #00b4d8;
+  --accent-sky: #38bdf8;
+  --accent-ice: #bae6fd;
+  --accent-amber: #f59e0b;
+  --alert-red: #ef4444;
+  --success-green: #10b981;
+
+  /* Crisp Typography Colors */
+  --text-white: #ffffff;
+  --text-light: #e2e8f0;
+  --text-dim: #8fa0bf;
+  --text-muted: #64748b;
+  --text-blue: #38bdf8;
+
+  /* Font Families */
+  --font-base: 'Rajdhani', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-number: 'Rajdhani', 'DIN Alternate', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Restrained Shadows & Micro Glass Insets */
+  --shadow-panel: 0 8px 24px rgba(0, 4, 15, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-modal: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(56, 189, 248, 0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-dark-deep);
+  color: var(--text-white);
+  font-family: var(--font-base);
+  user-select: none;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-dark-deep);
+}
+
+/* Fine Understated Medical Scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(11, 19, 37, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1c2b46;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1e65eb;
+}
+
+/* Elegant Solid/Matte Dark Navy Cockpit Panels with Micro-Glass Texture */
+.tech-panel {
+  background: linear-gradient(135deg, rgba(16, 26, 48, 0.95) 0%, rgba(11, 18, 34, 0.96) 100%);
+  border: 1px solid var(--border-panel);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(12px);
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Restrained Header Bar with Characteristic Triple-Bar Equalizer */
+.tech-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(30, 101, 235, 0.12) 0%, transparent 80%);
+  border-bottom: 1px solid rgba(28, 43, 70, 0.8);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  position: relative;
+}
+
+/* Characteristic triple-bar equalizer marker (|||) matching reference template header design */
+.tech-header::before {
+  content: '';
+  display: inline-block;
+  width: 13px;
+  height: 14px;
+  background:
+    linear-gradient(#00b4d8, #00b4d8) 0% 50% / 2.5px 8px no-repeat,
+    linear-gradient(#38bdf8, #38bdf8) 50% 50% / 2.5px 14px no-repeat,
+    linear-gradient(#1e65eb, #1e65eb) 100% 50% / 2.5px 10px no-repeat;
+  border-radius: 1px;
+  flex-shrink: 0;
+  margin-right: 3px;
+}
+
+/* Hide bulky icon box in headers to keep titles clean and aligned with reference template */
+.tech-header .header-icon-box {
+  display: none;
+}
+
+/* Digital Bold Numbers - Pure crisp white / calm blue, NO blurry text shadow */
+.digital-number {
+  font-family: var(--font-number);
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.electric-number {
+  font-family: var(--font-number);
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+/* Subtle Functional Animations */
+@keyframes techPulse {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+}
+
+@keyframes alertPulseRed {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes radarSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Professional Medical Dashboard Table (Solid Royal Blue Header) */
+.tech-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tech-table th {
+  background: linear-gradient(180deg, #1e65eb 0%, #1546af 100%);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 7px 10px;
+  text-align: left;
+  border: none;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tech-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+}
+
+.tech-table tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.tech-table tr:hover td {
+  background: rgba(30, 101, 235, 0.16);
+  color: #ffffff;
+}
+
+/* Status Badges & Pills */
+.status-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.tag-done {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.tag-pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.tag-process {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+/* Central Tactical KPI Hero Ribbon (Eliminates large-screen void, balances 3D twin space) */
+.center-hero-ribbon {
+  position: absolute;
+  top: 16px;
+  left: 462px;
+  right: 16px;
+  height: 56px;
+  background: linear-gradient(90deg, rgba(14, 24, 46, 0.94) 0%, rgba(18, 34, 64, 0.92) 50%, rgba(14, 24, 46, 0.94) 100%);
+  border: 1px solid rgba(30, 64, 115, 0.55);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 4, 15, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  z-index: 25;
+  pointer-events: auto;
+}
+
+.hero-metric-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.hero-metric-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(30, 101, 235, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+.hero-metric-icon.icon-green {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.hero-metric-icon.icon-amber {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.hero-metric-icon.icon-red {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.hero-metric-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-metric-label {
+  font-size: 11px;
+  color: #8fa0bf;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+
+.hero-metric-val-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.hero-metric-value {
+  font-family: var(--font-number);
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.hero-metric-unit {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.hero-metric-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.badge-up {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.badge-stable {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.badge-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.hero-divider {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+  margin: 0 10px;
+  flex-shrink: 0;
+}
+

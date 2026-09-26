@@ -1,0 +1,1 @@
+{"root":["./src/main.ts","./src/vite-env.d.ts","./src/app.vue","./src/components/headernav.vue","./src/components/techicon.vue","./src/views/epidemiccontrolview.vue","./src/views/logisticsview.vue","./src/views/overviewview.vue","./src/views/securityview.vue"],"version":"5.9.3"}
