@@ -33,7 +33,7 @@ src/
 │   └── index.ts                    # 路由定义表（/ 重定向、/workbench 嵌套路由、/screen）
 ├── styles/                         # 样式系统
 │   ├── index.css                   # 全局重置、深色大屏基础变量与过渡类
-│   ├── variables.css               # 大屏 CSS 变量体系
+│   ├── variables.css               # 大屏变量体系 + 跨形态共享字体 Token（--font-family-base/number）
 │   └── workbench.css               # 工作台设计令牌（--wb-*）与全局共享 CSS 基元
 ├── components/                     # 组件层
 │   ├── workbench/                  # 工作台专属组件库
@@ -76,17 +76,19 @@ src/
 │       ├── CompareView.vue         # /workbench/compare      对比分析
 │       ├── TopicsView.vue          # /workbench/topics       专题分析
 │       └── SettingsView.vue        # /workbench/settings     系统设置
-├── assets/                         # 静态静态资源
+├── assets/                         # 静态资源
 │   ├── campus_3d.png               # 大屏 3D 院区图
-│   ├── hospital_logo.png           # 默认院徽矢量徽章
+│   ├── hospital_logo.svg           # 大屏顶部 HeaderBanner 引用矢量院徽
+│   ├── hospital_logo.png           # 默认院徽（未引用孤儿资产，待清理）
 │   └── workbench/                  # 工作台 AI 生成写实素材（严禁用 SVG 手搓）
-│       ├── hospital_logo_new.png   # 权威深海蓝月桂叶白十字官方院徽
+│       ├── hospital_logo.png       # 权威深海蓝月桂叶白十字官方院徽（WorkbenchSidebar 引用）
 │       ├── hero_building.png       # 现代门诊综合楼仰拍实景（带透明羽化渐变）
 │       ├── building_sketch.png     # 医院主楼正立面蓝图线描（底栏半透明水印）
 │       ├── director_avatar.png     # 资深院长专业西装肖像（圆形头像）
 │       ├── slogan_col1.png         # 「人民至上」透明底真迹毛笔书法
 │       ├── slogan_col2.png         # 「生命至上」透明底真迹毛笔书法
-│       └── slogan_col3.png         # 「健康至上」透明底真迹毛笔书法
+│       ├── slogan_col3.png         # 「健康至上」透明底真迹毛笔书法
+│       └── calligraphy_slogan.png  # 历史单幅横版书法（未引用孤儿资产，待清理）
 └── mock/                           # [目标演进] 集中契约 Mock 数据源（按节划分）
 ```
 
@@ -104,19 +106,20 @@ src/
 
 | 路由路径 Path | 路由名称 Name | 视图组件 Component | 加载方式 | 业务口径与功能定位 |
 | :--- | :--- | :--- | :--- | :--- |
-| `/` | — | 重定向到 `/workbench` | 静态 | 默认着陆页 |
-| `/workbench` | `wb-home` | `views/workbench/HomeView.vue` | 同步加载 | 院长驾驶舱首页：KPI、趋势、TOP10、指标、预警、待办 |
+| `/` | — | 重定向到 `/workbench` | 静态 | 默认根重定向着陆页 |
+| `/workbench`（父） | — | `layouts/WorkbenchLayout.vue` | 布局承载 | 工作台框架容器（固定侧栏 + Header + 子路由视口） |
+| `/workbench`（子） | `wb-home` | `views/workbench/HomeView.vue` | 同步加载 | `path: ''` 子路由。院长驾驶舱首页：KPI、趋势、TOP10、指标、预警、待办 |
 | `/workbench/overview` | `wb-overview` | `views/workbench/OverviewView.vue` | 懒加载 | 综合概览：全院运营大盘、收入结构饼图、服务量构成、实时在院动态 |
 | `/workbench/medical` | `wb-medical` | `views/workbench/MedicalView.vue` | 懒加载 | 医疗业务：门急诊/住院/手术三项细分、分时高峰、科室业务明细表 |
 | `/workbench/operations` | `wb-operations` | `views/workbench/OperationsView.vue` | 懒加载 | 运营管理：月度收支趋势、百元医疗收入消耗费用红线、科室运营指标表 |
-| `/workbench/hr` | `wb-hr` | `views/workbench/HrView.vue` | 懒加载 | 人力资源：医护人员构成、职称与学历梯队、重点科室人均服务当量 |
-| `/workbench/research` | `wb-research` | `views/workbench/ResearchView.vue` | 懒加载 | 科研教学：立项课题经费、SCI/核心论文、重点学科建设进度 |
-| `/workbench/patient` | `wb-patient` | `views/workbench/PatientView.vue` | 懒加载 | 患者服务：门急诊/住院满意度、线上挂号渠道占比、投诉表扬记录台账 |
-| `/workbench/quality` | `wb-quality` | `views/workbench/QualityView.vue` | 懒加载 | 质量与安全：院感发生率趋势、不良事件分级、18项核心制度达标表 |
-| `/workbench/assets` | `wb-assets` | `views/workbench/AssetsView.vue` | 懒加载 | 资产与后勤：月度水电能耗、物资库存警戒、CT/MRI 大型设备效益表 |
-| `/workbench/compare` | `wb-compare` | `views/workbench/CompareView.vue` | 懒加载 | 对比分析：科室横向当量、同级三甲医院雷达对标、国考核心对标表 |
-| `/workbench/topics` | `wb-topics` | `views/workbench/TopicsView.vue` | 懒加载 | 专题分析：DRG病组入组与CMI、医保基金监管、门诊共济专项 |
-| `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：HIS/EMR 数据源、指标阈值调整、账号权限管理、偏好设置 |
+| `/workbench/hr` | `wb-hr` | `views/workbench/HrView.vue` | 懒加载 | 人力资源：岗位人员构成、职称结构分段、重点科室人员配置表 |
+| `/workbench/research` | `wb-research` | `views/workbench/ResearchView.vue` | 懒加载 | 科研教学：立项课题经费、论文发表分级、重点学科建设进度 |
+| `/workbench/patient` | `wb-patient` | `views/workbench/PatientView.vue` | 懒加载 | 患者服务：门急诊/住院满意度趋势、挂号渠道占比、投诉表扬记录台账 |
+| `/workbench/quality` | `wb-quality` | `views/workbench/QualityView.vue` | 懒加载 | 质量与安全：院感发生率趋势、不良事件类型分布、8 项核心制度抽查合格率表 |
+| `/workbench/assets` | `wb-assets` | `views/workbench/AssetsView.vue` | 懒加载 | 资产与后勤：月度能耗费用、物资库存预警、大型设备使用效益表 |
+| `/workbench/compare` | `wb-compare` | `views/workbench/CompareView.vue` | 懒加载 | 对比分析：科室多维横向对比、与区域同级医院雷达对标、核心指标差距明细表 |
+| `/workbench/topics` | `wb-topics` | `views/workbench/TopicsView.vue` | 懒加载 | 专题分析：DRG病组入组与CMI、医保基金监管、公立医院国考、门诊统筹专项 |
+| `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：HIS/EMR 数据源管理、指标预警阈值、用户与权限、5项系统偏好 |
 | `/workbench/:pathMatch(.*)*` | — | 重定向到 `/workbench` | 静态 | 404 兜底回落 |
 | `/screen` | `Screen` | `views/ScreenView.vue` | 同步加载 | 深海蓝过渡大屏（2048×1152 居中等比自适应缩放） |
 
@@ -142,11 +145,11 @@ src/
 ### 4.1 布局特性规范
 1. **侧边栏（`WorkbenchSidebar.vue`）**：
    - 宽度固定 `204px`，背景为专用浅蓝底色 `--wb-sidebar-bg: #f1f6fd`，右侧描边 `1px solid --wb-border`。
-   - 顶部品牌区展示官方圆形徽章（`38px`）及中英文院名。
-   - 导航项高度 `38px`，间距 `2px`，内边距 `8px 14px`；激活项呈现蓝色渐变底与微发光投影。
-   - 底部定位建筑正立面线稿底纹（透明度 `0.65`），底端水平居中排布「厚德 精医 仁爱 创新」院训。
+   - 顶部品牌区展示官方圆形徽章（`38px`）及中英文院名（XX市人民医院）。
+   - 导航项无固定高度（自动高度约 `37px`），间距 `2px`，内边距 `9px 12px`；激活项呈现 `--wb-accent` 纯色背景填充与 `rgba(37,99,235,0.25)` 柔和投影（非渐变）。
+   - 底部定位建筑正立面线稿底纹（透明度 `0.7`），底端水平居中排布「厚德 精医 仁爱 创新」院训。
 2. **顶部栏（`WorkbenchHeader.vue`）**：
-   - 高度固定 `64px`，顶层悬浮对齐，右侧排布圆角药丸搜索输入框（`320px` 宽）、消息提醒铃铛（带红色未读角标）、院长个人信息下拉卡及当日标准中文日期（`2024年10月28日 星期一`）。
+   - 高度固定 `64px`，顶层悬浮对齐，右侧排布圆角药丸搜索输入框（`320px` 宽）、消息提醒铃铛（带红色未读角标）、院长个人信息展示区（包含头像、角色称谓与折叠角标，当前为静态展示，无交互下拉菜单）以及标准中文日期（演示期硬编码为 `2024年10月28日 星期一`）。
 3. **滚动工作区（`WorkbenchLayout.vue .workbench-scroll`）**：
    - 采用弹性自适应高度 `flex: 1; min-height: 0; overflow-y: auto;`。
    - 统一页面级外边距与纵向节奏：`padding: 2px 16px 14px;`。
@@ -156,7 +159,7 @@ src/
 
 ## 5. 设计系统规范（Design System v2.0）
 
-设计系统主入口为 `src/styles/workbench.css`，所有规则严格限定于 `.workbench-layout` 作用域下，杜绝与大屏深色样式冲突。
+设计系统主入口为 `src/styles/workbench.css`。CSS 变量 Token 定义限定于 `.workbench-layout` 作用域下，杜绝与大屏深色样式冲突；公共 UI 原语与工具类采用 `.wb-*` 统一前缀进行全局命名隔离。
 
 ### 5.1 CSS 变量 Token 清单（真实代码映射）
 
@@ -188,6 +191,12 @@ src/
 --wb-red: #ef4444;           /* 高危异常、重要待办 */
 ```
 
+#### 跨形态共享字体令牌（定义于 variables.css :root）
+```css
+--font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+--font-family-number: "DIN Alternate", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+```
+
 #### 间距、圆角与阴影令牌（Metric & Geometry Tokens）
 ```css
 --wb-radius-card: 10px;      /* 面板外层主圆角 */
@@ -200,15 +209,18 @@ src/
 ```
 
 #### 字体阶梯规范（Typography Scale）
-| 阶梯层级 | 字号 | 字重 | Token / 类名 | 典型应用场景 |
+| 阶梯层级 | 字号 | 字重 | 样式来源 | 典型应用场景 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Hero 标语** | 24px - 26px | 700 Bold | `slogan-line` | 首页横幅核心口号 |
-| **核心指标大数** | 22px - 25px | 700 Bold | `.wb-stat-value`, `.wb-num` | KPI 卡片数值、统计大指标 |
-| **页面大标题** | 18px | 700 Bold | `.wb-page-title` | 各二级页顶栏主标题 |
-| **面板区块标题** | 15px | 700 Bold | `.wb-panel-title` | 卡片头部标题（带竖直 Accent 装饰线） |
-| **正文/菜单/表单**| 13px - 14px | 500 Medium | `.wb-table`, `.nav-item` | 表格单元格、侧栏导航、正文说明 |
-| **辅助说明/副标题**| 12px | 400 Regular | `.wb-panel-sub`, `th` | 图表单位、表头列名、次级说明 |
-| **状态标签/微备注**| 11px | 500 Medium | `.wb-tag`, `.axisLabel` | 胶囊状态签、ECharts 坐标轴刻度 |
+| **Hero 标语** | 24px - 26px | 700 Bold | `slogan-line`（`WorkbenchHero.vue` Scoped 类） | 首页横幅核心口号 |
+| **核心指标大数** | 22px - 25px | 700 Bold | `.wb-stat-value`, `.wb-num`（`workbench.css` 全局基元类） | KPI 卡片数值、统计大指标 |
+| **页面大标题** | 18px | 700 Bold | `.wb-page-title`（`workbench.css` 全局基元类） | 各二级页顶栏主标题 |
+| **面板区块标题** | 15px | 700 Bold | `.wb-panel-title`（`workbench.css` 全局基元类） | 卡片头部标题（带竖直 Accent 装饰线） |
+| **正文/菜单/表单**| 13px - 14px | 500 Medium | `.wb-table`（全局基元类）, `.nav-item`（`WorkbenchSidebar.vue` Scoped 类） | 表格单元格、侧栏导航、正文说明 |
+| **辅助说明/副标题**| 12px | 400 Regular | `.wb-panel-sub`, `th`（全局基元类） | 图表单位、表头列名、次级说明 |
+| **状态标签/微备注**| 11px | 500 Medium | `.wb-tag`（全局基元类）, `axisLabel`（`chartPresets.ts` 常量） | 胶囊状态签、ECharts 坐标轴刻度 |
+
+> [!NOTE] 共享基元未 Token 化字面量说明  
+> 共享基元层存在少量未 Token 化的字面色（如表头底色 `#f8fafd`、状态标签底色系 `#e8f6ee`/`#feecec`/`#fdf3e3`/`#eef2f7`、分段控制器底色 `#eef3fa`、开关未激活态 `#cbd5e1`、进度条底色 `#f1f5f9`），已列入 P0.5 阶段 Token 化整改计划，在验收中基元内部样式予以豁免。
 
 ---
 
@@ -255,8 +267,10 @@ export interface WbStatItem {
   unit?: string            // 单位，如"人次"、"万元"、"%"
   delta?: string           // 环比浮动量，如"+3.6%"
   dir?: 'up' | 'down' | 'flat' // 浮动方向，决定红/绿/灰箭头上色
-  deltaLabel?: string      // 默认"较上月"
-  note?: string            // 无浮动时的替代说明
+  deltaLabel?: string      // 浮动描述标签，缺省默认"较上月"
+  note?: string            // 无浮动时的替代说明文本
+  icon?: string            // 图标标识（展示提示，可选）
+  tone?: 'default' | 'warn' | 'alarm' // 表现层色调倾向（展示提示，可选）
 }
 ```
 
@@ -286,7 +300,7 @@ export interface WbStatItem {
   - `wbPalette`：官方调色板（Primary `#2563eb`、Teal `#0d9488`、Amber `#f59e0b`、Green `#10b981` 等）。
   - `wbDonutColors`：环形图推荐配色序列。
   - `wbCategoryAxis(data, extra)`：预设好灰蓝刻度线与 11px 字号的 X 轴工厂函数。
-  - `wbValueAxis(extra)`：预设好网格虚线 `#eef3f9` 与无轴线的 Y 轴工厂函数。
+  - `wbValueAxis(extra)`：预设好细分隔线 #eef3f9、无轴线的 Y 轴工厂函数（ECharts 默认实线）。
   - `wbTooltip(trigger)`：预设 96% 高透明度纯白浮层、细腻阴影与精准文本样式的 Tooltip。
   - `wbGrid(extra)`：微调边界的图表定位坐标。
   - `wbAreaGradient(color)`：平滑面积渐变生成器。
@@ -303,7 +317,7 @@ export interface WbStatItem {
 2. **绝对禁止圆角矩形无序堆叠（No Rounded-Rectangle Stacking）**：
    - 避免满屏圆角块造成的视觉钝化与“玩具感”。所有微型标签必须遵循 `--wb-radius-tag: 4px`，输入框使用 `--wb-radius-inner: 6px`，面板使用 `--wb-radius-card: 10px`。
 3. **绝对禁止“AI 感”混搭与廉价渐变（No AI-Slop Visual Styles）**：
-   - 禁止在 Web 工作台界面滥用暗黑荧光霓虹描边、高饱和度彩虹色渐变、发光投影（Glow Effect）。
+   - 禁止在 Web 工作台界面滥用暗黑荧光霓虹描边、高饱和度彩虹色渐变、发光投影（Glow Effect）。侧栏导航激活项的微投影（`rgba(37,99,235,0.25)`）属于白名单视觉规范豁免，除此以外页面主体面板禁止滥用发光与弥散大投影。
    - 图标一律使用 `lucide-vue-next` 的线性极简风格（`stroke-width="1.8~2.0"`），禁止不同粗细、不同圆角图标混杂。
 4. **写实与装饰素材严格采用生成资产（Assets Must Be Real Images）**：
    - 建筑实景、权威院徽、历史院训底纹、人物肖像等写实/装饰性内容，必须使用图像生成工具生成高质量 PNG，存放于 `src/assets/workbench/` 并以 `import` 方式引用。
@@ -320,22 +334,22 @@ export interface WbStatItem {
 
 | 页面名称 | 路由路径 | 数据区块 1 | 数据区块 2 | 数据区块 3 | 数据区块 4 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **首页** | `/workbench` | 5 张顶层 KPI 指标卡 | 业务趋势双曲线图（Tab切换） | 科室业务量 TOP10 水平柱 | 运营指标 / 预警 / 待办 / 进度 |
-| **综合概览** | `/workbench/overview` | 6 核心指标条（人次/床位/收入） | 业务规模与收入双轴趋势图 | 收入结构环形占比图 | 科室当量 TOP8 进度 + 实时在院动态 |
-| **医疗业务** | `/workbench/medical` | 门急诊/住院/手术动态指标条 | 12 个月规模趋势平滑面积图 | 分时高峰分布柱状图 / 手术分级环图 | 科室医疗业务明细大表 |
-| **运营管理** | `/workbench/operations`| 收入/结余/药耗比指标条 | 月度收支趋势与结余率折线图 | 费用控制红线监测条形对比 | 科室全要素运营核算表格 |
-| **人力资源** | `/workbench/hr` | 总人数/医师/护士/高级职称指标 | 人员构成圆环分布图 | 职称晋升梯队分布条形图 | 重点科室床人比与人均负荷明细表 |
-| **科研教学** | `/workbench/research` | 国自然/在研经费/SCI篇数指标 | 近5年立项课题与到账经费双轴图 | 论文分级分布与被引排行 | 重点学科评估进度与经费执行表格 |
-| **患者服务** | `/workbench/patient` | 门诊/住院满意度、接听率指标 | 季度满意度走势对比线图 | 挂号渠道分布占比图 | 投诉表扬工单明细与处理状态表 |
-| **质量与安全** | `/workbench/quality` | 院感率/甲级病案/非计划重返指标 | 院感发生率趋势平滑折线图 | 不良事件等级占比圆环图 | 18 项医疗核心制度执行合格率表 |
-| **资产与后勤** | `/workbench/assets` | 设备总值/万元产出/故障率指标 | 月度水电气暖综合能耗趋势图 | 关键物资耗材库存警戒进度列表 | 大型医用设备（CT/MRI）机时效益表 |
-| **对比分析** | `/workbench/compare` | 全院平均/先进科室差异指标条 | 标杆科室核心指标雷达对比图 | 与区域同级医院三维综合对标柱图 | 全院科室国考核心指标横向对标表 |
-| **专题分析** | `/workbench/topics` | DRG/医保/国考专项动态指标条 | 4 类专题专属趋势与象限图 | 专题明细数据与控费评估表格 | — |
-| **系统设置** | `/workbench/settings` | HIS/LIS/PACS 数据源同步状态 | 核心指标预警上下限阈值配置表 | 用户角色授权与操作审计台账 | 系统偏好与缓存管理选项 |
+| **首页** | `/workbench` | 5 张顶层 KPI 指标卡（门急诊/出院/手术/收入/床位率） | 业务趋势双折线图（支持门急诊/出院/手术/收入 4 Tab 切换） | 科室业务量 TOP10 水平条形进度卡 | 底部运营关键指标 / 重点工作进度 / 风险预警 / 通知与待办四联卡片 |
+| **综合概览** | `/workbench/overview` | 6 项全院核心指标条（门急诊/出院/手术/收入/床位/住院日） | 业务规模与收入双轴趋势图（门急诊柱 × 医疗收入折线） | 收入结构环形占比图（医疗/药品/耗材/检查化验 + 图例列表） | 科室服务量构成 TOP8 进度列表 + 实时在院动态列表（5分钟刷新） |
+| **医疗业务** | `/workbench/medical` | 门急诊/住院/手术 3 Tab 动态联动指标条（各 6 项核心指标） | 近 12 个月规模趋势平滑面积折线图（随 Tab 切换人次/台数） | 业务特征分布图（门急诊分时高峰柱 / 住院重点病种柱 / 手术分级环形） | 科室医疗业务明细表（WbTable，按当前 Tab 口径排序展示） |
+| **运营管理** | `/workbench/operations`| 6 项收支与费用指标条（医疗总收入/门诊/住院/结余率/次均费用） | 月度收支趋势双轴图（12 个月医疗收入柱 × 收支结余率折线） | 费用控制监测（药耗比、次均费用等 4 项指标对标红线值进度条列表） | 科室运营指标表格（WbTable，收入/结余率/药占比/耗材占比/达标状态） |
+| **人力资源** | `/workbench/hr` | 6 项人力资源指标条（在岗职工/执业医师/护士/医护比/高职占比/人员经费） | 人员构成环形占比图（按岗位类别 + 结构明细列表） | 职称结构堆叠柱状图（医师/护理/医技分段梯队） | 重点科室人员配置表（WbTable，编制 vs 在岗、床人比、缺口预警） |
+| **科研教学** | `/workbench/research` | 6 项科教指标条（在研课题/新立项/科研经费/SCI论文/住培/继教率） | 近 5 年立项课题与科研经费双轴图（课题数柱 × 经费折线） | 近 5 年论文发表分级堆叠柱状图（SCI / 中文核心 / 统计源期刊） | 重点学科建设进展表（WbTable，学科级别/带头人/课题/经费/进展） |
+| **患者服务** | `/workbench/patient` | 6 项患者服务指标条（门诊/住院满意度、投诉/表扬件数、候诊时长、网约率） | 满意度趋势近 6 个月双折线走势图（门诊 vs 住院） | 挂号渠道分布环形占比图（微信小程序/自助机/人工窗口等） | 投诉与表扬记录台账表（WbTable，日期/科室/类型/诉求/状态） |
+| **质量与安全** | `/workbench/quality` | 6 项质量安全指标条（甲级病案率/院感率/危急值及时率/不良事件/切口感染/抗生素强度） | 院感发生率趋势平滑双折线图（院感发生率 + I类切口感染率） | 不良事件类型分布水平条形图（跌倒/用药/管路等按频次排序） | 医疗核心制度执行监测表（WbTable，8 项核心制度抽查合格率与环比） |
+| **资产与后勤** | `/workbench/assets` | 6 项资产后勤指标条（固定资产总额/大型设备/开机率/库存周转/能耗/工单） | 月度能耗费用平滑折线面积图（近 6 个月趋势） | 物资库存预警列表（周转天数偏长品类与警戒级别标注） | 大型设备使用效益表（WbTable，CT/MRI/DSA 等机时/人次/收入/评级） |
+| **对比分析** | `/workbench/compare` | 科室横向对比表（WbTable，业务量/收入/效率/质量 4 维度分段器切换，内嵌水平条形） | 与区域同级医院对标雷达图（6 维度综合评分：本院 vs 区域均值） | 核心指标对标明细表（WbTable，本院值/区域均值/差距差额） | —（本页无顶部 WbStatStrip 指标条，亦无柱状图） |
+| **专题分析** | `/workbench/topics` | 4 类专题动态切换专属 5 项指标条（DRG / 医保 / 国考 / 门诊统筹） | 专题趋势与分布分析图（DRG入组率线图 / 医保支出线图 / 国考完成度柱图 / 门诊统筹人次线图） | 专题明细数据监测表（WbTable，重点病组DRG / 险种基金 / 国考核心指标 / 常见慢病统筹） | 4 类专题卡片导航选择器（DRG付费 / 医保基金 / 三级国考 / 门诊统筹） |
+| **系统设置** | `/workbench/settings` | 数据源管理表格（WbTable，HIS/LIS/PACS/EMR/HRP 对接状态、延迟与同步时间） | 指标预警阈值配置表（WbTable，5 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
 
 ### 8.2 Mock 数据集中治理纪律
 1. **统一抽离目录**：当前分散在各 Vue 组件 `<script setup>` 中的 Mock 数据，后续统一迁移至 `src/mock/` 目录，按业务域分文件拆解（如 `src/mock/medical.ts`、`src/mock/overview.ts` 等）。
-2. **命名强行对齐契约**：Mock 数据对象的属性名称**必须全量使用 snake_case**，与 `docs/api-contract.md` 字段完全一致（如 `dept_name`、`inpatient_cnt`、`bed_utilization_rate`）。禁止在视图中使用私有或随意的驼峰命名。
+2. **命名强行对齐契约**：Mock 数据对象的属性名称**必须全量使用 snake_case**，与 `docs/api-contract.md` 字段完全一致（如 `dept_name`、`bed_use_rate`、`case_cnt`）。禁止在视图中使用私有或随意的驼峰命名。
 3. **零成本对接后端**：未来接入 Pinia Store 或真实 Axios 接口时，只需在 Store 中将数据源由 `src/mock/` 切换至 API 请求，组件内部的字段引用保持一行不改。
 
 ---
@@ -359,10 +373,11 @@ export interface WbStatItem {
 <WbPageHead> -> <WbStatStrip> -> 面板栅格（.wb-grid-2-1 等） -> <WbChart> / <WbTable>
 
 [步骤 5: 交付门禁验证]
-运行构建检查与无头截屏对比：
+运行构建检查与无头截屏对比（必须与 acceptance.md 门禁一致）：
 npx vue-tsc -b && npm run build
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
-  --screenshot=/tmp/shot.png --window-size=1568,880 http://localhost:5173/workbench/<新路由>
+  --screenshot=/tmp/shot.png --window-size=1568,880 --hide-scrollbars \
+  http://localhost:5173/workbench/<新路由>
 ```
 
 ---
@@ -371,7 +386,7 @@ npx vue-tsc -b && npm run build
 
 ### 10.1 现状与过渡定位
 - 当前工程中的 `src/views/ScreenView.vue` 以及根下 `src/components/*.vue` 为**过渡旧稿**。
-- 其采用固定 `2048×1152` 坐标系与 `useScale` 等比缩放方案，承载深蓝色旧版综合监控画面，供既有演示备用，在正式重构前保持原样。
+- 其采用固定 `2048×1152` 坐标系与组件内联 scale 等比缩放实现（未抽 composable），承载深蓝色旧版综合监控画面，供既有演示备用，在正式重构前保持原样。
 
 ### 10.2 目标形态：`smart-hospital-cockpit/`
 本仓库根目录下的 `smart-hospital-cockpit/` 为大屏专属的**设计参考工程**，确立了下一代指挥大屏的视觉语言与模块形态：

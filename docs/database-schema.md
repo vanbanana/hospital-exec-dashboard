@@ -5,6 +5,12 @@
 
 > PostgreSQL 16 单实例，6 个 schema：`sys`（系统）/ `dim`（维度）/ `dwd`（明细事实）/ `dws`（日汇总）/ `ads`（应用集市）/ `sim`（仿真控制）。
 > 迁移文件 `backend/migrations/*.sql` 为唯一事实来源；本文件为冻结的结构契约，改表必须走 migration + 同步本文档。
+
+> **v2.0 对齐注记**（docs 大改版审查裁决，后端动工时执行；冻结正文不改）：
+> 1. `sys.user.role` CHECK 需补 `dept_leader`（契约 §2.1 演示角色"骨科主任"）；`admin`/`viewer` 保留与否动工时复核。
+> 2. `ads.alert_rule` 种子需补登契约 §3.6 特有规则码：`INPT_FEE_SURGE`（住院费用增幅）、`DRUG_RATIO_WARN`（药占比）、`STOCK_TURN_SLOW`（库存周转）；注意勿与 `DRUG_STOCK_LOW` 混淆（语义不同）。
+> 3. `sys.dict` `dict_type='hospital'` 键集需补 `english_name`、`pillars`（契约 §2.2）。
+> 4. API 面序列化约定：`dept_id=0`（院级哨兵）出参统一为 `null`；率值列存 0~1，出参按 metric_def.unit 换算展示值（已有约定，契约 §14.1 曾违规透出 0~1，已修）。
 >
 > **全局约定（修订 v1.1）**
 > - 主键：`id bigint generated always as identity`（复合主键表单独注明）
