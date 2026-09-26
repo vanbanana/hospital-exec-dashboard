@@ -1,349 +1,214 @@
-# 数据库设计 — EDSS（目标态，未实施）
+# 数据库设计 — EDSS（v2.0 终装配版）
 
-> 版本：v1.1 冻结保留
-> 状态：**本文件描述的后端库表设计尚未实施**（项目当前为纯前端 mock 阶段）。后端动工时以本文为设计输入，执行"已建表只加列/表/索引、旧列语义不动"纪律。
-
-> PostgreSQL 16 单实例，6 个 schema：`sys`（系统）/ `dim`（维度）/ `dwd`（明细事实）/ `dws`（日汇总）/ `ads`（应用集市）/ `sim`（仿真控制）。
-> 迁移文件 `backend/migrations/*.sql` 为唯一事实来源；本文件为冻结的结构契约，改表必须走 migration + 同步本文档。
-
-> **v2.0 对齐注记**（docs 大改版审查裁决，后端动工时执行；冻结正文不改）：
-> 1. `sys.user.role` CHECK 需补 `dept_leader`（契约 §2.1 演示角色"骨科主任"）；`admin`/`viewer` 保留与否动工时复核。
-> 2. `ads.alert_rule` 种子需补登契约 §3.6 特有规则码：`INPT_FEE_SURGE`（住院费用增幅）、`DRUG_RATIO_WARN`（药占比）、`STOCK_TURN_SLOW`（库存周转）；注意勿与 `DRUG_STOCK_LOW` 混淆（语义不同）。
-> 3. `sys.dict` `dict_type='hospital'` 键集需补 `english_name`、`pillars`（契约 §2.2）。
-> 4. API 面序列化约定：`dept_id=0`（院级哨兵）出参统一为 `null`；率值列存 0~1，出参按 metric_def.unit 换算展示值（已有约定，契约 §14.1 曾违规透出 0~1，已修）。
->
-> **全局约定（修订 v1.1）**
-> - 主键：`id bigint generated always as identity`（复合主键表单独注明）
-> - 时间：时刻一律 `timestamptz`；日期一律 `date`
-> - 金额：一律 `numeric(14,2)` 单位**元**，无例外（字典 unit=万元 的指标值存万元数值，见 §9）
-> - 率值：列名含 `_rate`/`_ratio` 一律存 **0~1 小数**；API 指标值按字典 unit 给展示值（unit='%' → 90.8）
-> - 可空外键/混合类型目标键统一 `varchar(64)`
-> - 枚举值同时落 `sys.dict` 与 CHECK，应用层再校验一道
+> **版本**：v2.0　**日期**：2026-10-28　**取代**：v1.1（全文重写）
+> **状态**：设计与种子已装配至 `backend/migrations/` + `backend/seed/`（文件名序即执行序，见 `backend/README.md`）；经三轮独立审核收敛至 0 BLOCKER/0 MAJOR，干净库（PG15）全链 apply 与幂等重跑实证通过。
+> **适用范围**：PostgreSQL 16（语法兼容验证至 PG15.15）；服务 `/workbench` 工作台与 `/screen` 大屏两套形态。
 
 ---
 
-## 1. 分层定位与读写纪律
+## 1. 六 schema 分层总览
 
 ```
-仿真器(Fact Producer)      未来真实ETL             派生流水线(双模式常驻)      API 只读
-        │                      │                        │                    │
-        ▼                      ▼                        ▼                    ▼
-┌──────────┐ 逐例/逐时事实 ┌──────────┐   ┌──────────────────┐   ┌────────────────┐
-│   DWD    │ ◄─────────── │ HIS/EMR  │   │ DayAgg → DWS/ADS  │   │  GET /api/v1    │
-│ (明细层) │              │ /HRP CDC │   │ TodayKpi→ads.today│ ◄─┤  (默认读 dws/   │
-└────┬─────┘              └──────────┘   │ AlertScan→alert   │   │   ads)          │
-     │ 聚合SQL(两模式共用) ──────────────►│ _kpi/campus_status│   └────────────────┘
-     ▼                                   └──────────────────┘
-┌──────────┐
-│   DWS    │ 院级/科室级/病组级 日·周期汇总
-└──────────┘
+写入方                     层          职责                          读取方
+─────────────────────────────────────────────────────────────────────────
+仿真器/未来ETL     ──►   dwd  明细事实（逐例/逐时/逐日事件行）
+派生流水线(常驻)   ──►   dws  日/周期汇总（院级、科室级、病组级）
+派生流水线(常驻)   ──►   ads  应用集市（页面直读快照/榜单/告警）
+L1 系统域          ──►   sys  账号/字典/指标定义/通知/审计/数据源/偏好
+L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/人员/病组/病区/设备…）
+仿真控制           ──►   sim  虚拟时钟/作业日志/参数（生产可按 env 跳过）
 ```
 
-**读纪律**：API 默认只读 `dws/ads/sys`。**白名单例外**：① realtime 今日指标（dwd 当日行累计）；② Level-5 病例穿透（dwd.drg_case）；③ 告警事实回溯（dwd.emergency_stay 等）。除此之外禁止 API 查 dwd。
+**读写纪律**（与 architecture.md 派生流水线一致）：
 
-**写纪律**：
-- 仿真器只写 `dwd` 事实与 `sim` 控制表——**禁止直接写 dws/ads 数字**（剧本钩子也只能注入 dwd 事实行）。
-- 派生流水线（DayAgg/TodayKpi/AlertScan，见 architecture.md）独占 `dws/ads` 写入，**模拟/真实两种模式都运行**——这是"切真实 ETL 后大屏不死"的关键。
+- **API 默认只读 `dws/ads/sys`**；白名单例外：realtime 今日指标（dwd 当日累计）、Level-5 病例穿透（dwd.drg_case）、告警事实回溯。
+- **仿真器只写 `dwd`+`sim`**，禁直写 dws/ads；dws/ads 由派生流水线独占写入——这是"切真实 ETL 后大屏不死"的关键。
+- **依赖方向不可逆**：`sys → dim → dwd → dws → ads`（sim 旁挂末位）。种子相位装配见 §5。
 
----
+## 2. 表总目录（57 表 × lane × 粒度 × 种子规模）
 
-## 2. sys — 系统域
+> 行数列为 lane 种子实测/规格值（BASE_DATE=2026-10-28，窗口 2025-01-01~2026-12-31）；"—"=空表/缓建。
 
-### sys.user
-| 列 | 类型 | 说明 |
-| :--- | :--- | :--- |
-| id | bigint PK | |
-| username | varchar(32) UQ | 登录名 |
-| password_hash | varchar(128) | bcrypt |
-| real_name | varchar(32) | |
-| emp_no | varchar(20) | 工号（水印用；种子=username） |
-| role | varchar(20) | `admin`/`president`/`ops_director`/`viewer`，CHECK |
-| dept_id | bigint FK→dim.department NULL | 院级账号为空 |
-| status | smallint | 1 启用 0 停用 |
-| last_login_at | timestamptz | |
-| created_at / updated_at | timestamptz | |
+### sys（7 表 · L1 sys-org）
 
-种子：`admin/Admin@123`、`president/President@123`、`ops/Ops@123`、`viewer/Viewer@123`（仅本地演示，README 标注）。
+| 表 | 粒度 | 种子行数 | 服务面 |
+| :-- | :-- | :-- | :-- |
+| sys.dict | dict_type×key | 310（69 类） | 全枚举值域 |
+| sys.metric_def | 一指标一行 | 141（L1 91+L8hr 18+L8pat 32） | metric_code FK 正本、api_key/unit/direction |
+| sys.user | 一账号一行 | 7（dept_id 回填 3） | 登录/角色/水印 |
+| sys.notice | 一通知一行 | 5 | 工作台消息 |
+| sys.data_source | 一来源一行 | 6 | ETL 登记 |
+| sys.user_pref | 用户×键 | 5 | 个性化 |
+| sys.audit_log | 事件行 | 0（框架） | 审计 |
 
-### sys.audit_log
-| id | user_id | username | action varchar(40) | target_type varchar(32) | target_id varchar(64) | detail jsonb | ip inet | created_at |
-索引 `(created_at)`。写操作全量记录：登录、督办派发、告警 ack/close、规则启停、脱敏访问、sim 时钟操作。
+### dim（12 表 · L2 dim-public + L8 补 2）
 
-### sys.dict
-| dict_type varchar(40) | dict_key varchar(40) | dict_label varchar(64) | sort int | extra jsonb |
-PK(dict_type, dict_key)。枚举注册：`dept_category`/`alert_level`/`alert_status`/`todo_status`/`surgery_level`/`triage_level`/`building_func`/`ward_type`/`fee_cat`/`drill_type`/`badge_level`/`metric_category`。
-`dict_type='hospital'` 承载机构信息（name/motto/slogan/level）——`/hospital/profile` 的数据源。
+| 表 | 粒度 | 种子行数 | 锚点 |
+| :-- | :-- | :-- | :-- |
+| dim.date | 日 | 1,461（2024~2027） | 全域驱动表 |
+| dim.campus | 院区 | 2 | main+east |
+| dim.building | 楼 | 7 | 大屏浮标 map_anchor |
+| dim.department | 科室/组 | 81 | id=0 院级哨兵+行政 12+科室 32+医疗组 36 |
+| dim.dept_alias | 别名 | 18 | 契约/视图/archive 映射 |
+| dim.staff | 员工 | 2,368 | 医 812/护 1,046/技 202/行政 308 |
+| dim.drg_group | 病组 | 60 | RW 0.38~12.86，low20/mid21/midhigh10/high9 |
+| dim.ward | 病区 | 31 | **Σbed_open=2,004** ↔ 在院 1,846÷92.1% |
+| dim.device | 设备 | 68 | id PK+code UQ（实体组），全 active |
+| dim.drug | 药品 | 0 | P1 缓建 DDL only |
+| dim.material | 物资（L8e） | 24 | 库存预警明细键 |
+| dim.discipline | 重点学科（L8b） | 4（3+哨兵） | leader_id 回填自 staff |
 
-### sys.metric_def —— ★指标字典（"一数一源"核心）
-| 列 | 类型 | 说明 |
-| code | varchar(40) PK | 如 `OP_DAILY_VISITS` |
-| name | varchar(64) | 今日门急诊人次 |
-| unit | varchar(16) | 人 / % / 万元 / 天 / 分 |
-| category | varchar(20) | `operation`/`quality`/`finance`/`insurance`/`hr` |
-| formula | text | 口径说明（人读，含分子分母定义） |
-| source_table | varchar(64) | 计算来源表 |
-| direction | smallint | 1 越高越好 -1 越低越好 0 中性（涨跌红绿依据） |
-| warn_low / warn_high | numeric NULL | 红绿灯阈值（按展示量纲：%=90 而非 0.9） |
-| drill_route | jsonb NULL | `{"type":"route","path":"/metric/OP_DAILY_VISITS","label":"指标详情"}`，type 与契约 DrillCmd 一致 |
-| owner | varchar(64) | 业务归口科室（白皮书"唯一归口"要求） |
-| version | int NOT NULL DEFAULT 1 | 口径版本，公式变更 +1 不覆盖 |
-| period | varchar(8) | `day`/`month`/`realtime`/`hour` |
-| sort / enabled | | |
+### dwd（18 表 · L3/L4/L8）
 
----
+| 表 | lane | 粒度 | 种子行数/规模 |
+| :-- | :-- | :-- | :-- |
+| dwd.outpatient_hourly | L3 | 30min×科室×门/急诊 | ~40 万 |
+| dwd.reg_channel_day | L3 | 日×渠道 | 窗口×5 |
+| dwd.inpatient_move | L3 | 入/出/转事件行 | 年出院量级 ×~2.4 事件 |
+| dwd.bed_state_day | L3 | 日×病区快照 | 31×730≈2.3 万 |
+| dwd.emergency_stay | L3 | 留观事件行 | 月 ~30+ |
+| dwd.charge_day | L3 | 日×科室×fee_cat(7) | 费用**唯一真源** |
+| dwd.insurance_settle_day | L3 | 日×科室×险种×业务 | 5 险种×2 biz |
+| dwd.surgery_case | L4 | 一台手术一行 | **24,266** |
+| dwd.drg_case | L4 | 一例出院一行 | **103,934**（14 月窗，R3 裁决） |
+| dwd.critical_value | L8d | 一危急值一行 | 24 月规格（锚月 109/110） |
+| dwd.infection_case | L8d | 一院感例一行 | 率驱动（锚月 ≈101） |
+| dwd.adverse_event | L8d | 一不良事件一行 | 锚月 36/百床 1.95 |
+| dwd.feedback_event | L8c | 一投诉/表扬一行 | 锚月 24/86+样例 |
+| dwd.hr_cost_month | L8a | 月×科室 | 24×44≈1,056 |
+| dwd.research_project | L8b | 一课题一行 | 在研 186/新立 42 等 |
+| dwd.device_run_day | L8e | 日×设备 | 68×730≈5.0 万 |
+| dwd.material_stock_day | L8e | 日×物资 | 24×730≈1.8 万 |
+| dwd.logistics_order | L8e | 一工单一行 | 锚月 156（完结 92%） |
 
-## 3. dim — 维度域（主数据 MDM）
+### dws（9 表 · L5 + L6/L8 自有表）
 
-### dim.campus（院区，多院区预留）
-| code varchar(20) PK | name | sort | 种子 `main` 本部、`east` 东院区（预留） |
+| 表 | lane | 粒度 | 规模 |
+| :-- | :-- | :-- | :-- |
+| dws.hospital_oper_day | L5 | 日×院级 | 730 |
+| dws.dept_oper_day | L5 | 日×科室（含医疗组） | ~2.9 万 |
+| dws.drg_dept_period | L5 | 期×科室×病组 | ~6.5k |
+| dws.metric_value | L5 表，L5+L8 供稿 | 期×码(×科室/病组) | ~7k + L8 供稿 535 |
+| dws.benchmark_peer | L6 | 期×指标 | ≤6（ours 派生） |
+| dws.exam_indicator | L6 | 期×指标 | 23 |
+| dws.quality_rule_audit | L8d | 期×制度 | 8×24=192 |
+| dws.energy_month | L8e | 月×分项 | 3×24=72 |
+| dws.research_paper_period | L8b | 年×分区×学科 | 三年谱系 |
 
-### dim.building
-| code varchar(20) PK | name | func_type varchar(16)（`outpt`/`inpt`/`emerg`/`tech`/`adm`/`other`） | campus_code FK | map_anchor jsonb `{x,y}` 容器百分比 0~100 |
-种子：门诊楼/外科楼/急诊楼/医技楼/住院部/停车场/行政楼。
+### ads（8 表 · L6/L7）
 
-### dim.department ★
-| id | code varchar(20) UQ | name | category | parent_id NULL | level smallint 1~3 | campus_code FK | building_code FK NULL | leader_id FK→dim.staff NULL | eff_base numeric(4,3) | sort | active |
-- `category`：`med`内科 / `surg`外科 / `tech`医技 / `nurse`医辅 / `adm`行政（大屏图例映射：med→内科、surg→外科、tech→医技、nurse+adm→其他）
-- `level`：1 院区 2 科室 3 医疗组——树形支撑 L2→L3 下钻
-- `building_code`：科室→楼宇映射（门诊楼 today_visit、ETL 期必需）
-- `leader_id`：医疗组组长（`/departments/{id}/groups` 的 leader 字段）
-- `eff_base`：仿真效率基线 0~1，真实环境 NULL
-- 种子：~16 临床科室 + 4 医技 + 每临床科 2~3 医疗组
+| 表 | lane | 粒度 | 规模 |
+| :-- | :-- | :-- | :-- |
+| ads.dept_rank_day | L6 | 日×期×科室 | ~20（d30 快照） |
+| ads.work_item | L6 | 一事项一行 | 5 |
+| ads.radar_score | L6 | 期×维度 | 6 维双序列 |
+| ads.today_kpi | L7 | 快照行 | 11（院级 4+楼宇归口 7，dwd 派生） |
+| ads.campus_status | L7 | 楼宇快照 | 4 栋 metrics jsonb（0~1 规范化） |
+| ads.alert_rule | L7 | 一规则一行 | 13（11 rule+2 scenario） |
+| ads.alert_event | L7 | 一事件一行 | open 5+历史 |
+| ads.todo_order | L7 | 督办行 | 0（空表预案） |
 
-### dim.staff
-| id | code UQ | name | dept_id FK | title | staff_type(`doc`/`nur`/`tec`/`adm`) | active |
-索引 `(dept_id)`。种子 ~400 人。
+### sim（3 表 · L9，env 可跳）
 
-### dim.drg_group ★
-| code varchar(16) PK | name | adrg_code | mdc | rw numeric(8,4)（权重） | base_rate numeric(14,2)（基准费率·元） | pay_type `DRG`/`DIP` |
-种子 ~60 组，含 IF15 腰椎融合术等白皮书示例。
+| 表 | 粒度 | 种子 |
+| :-- | :-- | :-- |
+| sim.clock | 单行 | virtual_now=2026-10-28 09:00+08 |
+| sim.job_log | 作业日志 | 骨架数行 |
+| sim.profile | 参数键值 | 含 outpt_daily_base=4200 |
 
-### dim.ward（病区）
-| code varchar(20) PK | name | dept_id FK | building_code FK | ward_type varchar(16)（`general`/`icu`/`obs`/`or` 手术室虚拟病区） | bed_open int |
-- `ward_type='icu'` 是 ICU_USE_RATE 指标与 ICU 告警规则的识别依据（**必填**）
-- `or`：手术室虚拟病区行使楼宇抽屉 `today.surg_*` 有 join 落点
+## 3. 核心约定（生产级硬规则）
 
-### dim.device（P2 预留，MVP 种子 4 台）
-| code PK | name | dtype(`CT`/`MRI`/`DSA`/`ROBOT`) | dept_id | building_code | value_yuan numeric(14,2) | active |
+| 主题 | 裁决 |
+| :-- | :-- |
+| 金额 | 一律 `numeric(14,2)` 单位**元**；万元/亿元只在 API/展示层换算 |
+| 率值 | 一律存 **0~1** `numeric(7,4)`（含 `campus_status.metrics`——无例外）；满意度为 0~100 分制 |
+| 时间 | 时刻 `timestamptz`；日期 `date`；周期二元组 `period_type`+`period_start`（废 char(7)） |
+| 主键 | `id bigint generated always as identity`；大事实表 PK 含时间键；编码组表 code 为主键，实体组 id PK+code UQ |
+| 哨兵 | `dim.department id=0` 实体哨兵行承接"院级"聚合；API 序列化 `dept_id=0→null`；事件归属缺失=`NULL`（与聚合哨兵并存） |
+| 外键 | `sys.user.dept_id→dim.department(id)` 后挂迁移 **0113 `fk_user_department` + `ON DELETE RESTRICT`**（防账号静默升格院级）；事实层 dept FK 默认 NO ACTION |
+| 枚举 | `sys.dict` 注册 + 列 CHECK **同 migration 双写**；69 个 dict_type 冻结 |
+| 指标 | `metric_code` 全列 FK→`sys.metric_def`；direction=好坏极性（升好 1/降好 -1/中性 0），涨跌符号走 delta 列；page-only 字段（icon/tone）不落库 |
+| 命名 | PK `pk_<表>` / FK `fk_<子>_<父>` / UQ `uq_<表>_<列>` / IDX `idx_<表>_<列>` / CK `ck_<表>_<列>` |
+| 基准日 | **BASE_DATE=2026-10-28（周三）**；种子窗 2025-01-01~2026-12-31；`dim.date` 预生成 2024~2027 |
+| 年累计 | `range=本年` 月粒度指标=趋势数组 **Jan–Oct 全月求和**（锚月整月计入，不做 ≤BASE_DATE 截断） |
+| 种子 | 确定性（md5/setseed 派生，禁裸 `random()`/`now()`）+ 幂等（ON CONFLICT/键域 DELETE）；规模偏差 <±10% 须标注 |
+| 屏值 | 契约字面仅形态示例；**屏显数值为事实层实算，±10% 容差**（v2.2 §6.7） |
 
-### dim.date（2024-01-01~2027-12-31 预生成）
-| date PK | year | month | day | week | weekday | is_weekend | is_holiday | holiday_name |
+## 4. 关键勾稽锚点表（目标 vs lane 实测，R3 轮）
 
-### dim.drug / dim.material：P2 再建（届时 migration 追加，本版不落表）
+| 锚点 | 目标（scale-decision v2.2） | lane 实测 | 判定 |
+| :-- | :-- | :-- | :-- |
+| 月出院（2026-10） | 8,120 | L3 **8,117**；L4 科室字面 8,478（+4.4%⊆带） | ✅ |
+| 在院患者 | 1,846 | 床态 Σ=1,846；move 净存 1,875（+1.6%） | ✅ Little：8,120×6.8÷30≈1,841 |
+| 床位 | 使用率 0.921 / 开放 ~2,004 | ward Σbed_open=2,004 精确 | ✅ |
+| 月门急诊（E9×10） | 123,000（急诊 ~11,300） | L3 **123,350~123,443** | ✅ |
+| 今日门急诊（10-28） | ~4,200 | **4,437**（+5.6%，确定性抖动上限） | ✅ |
+| 年累计（Jan–Oct） | 出院 71,310 / 门急诊 846,000 / 收入 120,260 万 / 手术 10,606 | 门急诊实测 845,780（-0.14%） | ✅ |
+| 月医疗总收入 | 14,800 万 | **14,800.0 万精确**（门诊 3,690.0/住院 10,508.0/其他 602.0=4.07%） | ✅ |
+| 门诊费勾稽 | hourly.fee_total≡charge_day.out_fee | Σ3,690.0 万、次均 299.1 元、日偏差 max 0.048% | ✅ |
+| 次均费用 | 住院 13,000 / 门诊 300 | 住院实测 12,430（-4.4%⊆勾稽余量） | ✅ |
+| 结余 | 10月 622 万 / 率 4.2% | 成本合成系数收敛 [0.9307,0.9997] | ✅ |
+| 医保基金月结算 | 9,860 万 | ≈住院收入×93.6% 自洽 | ✅ |
+| 手术 | 月 1,286 / 日 ~45 | 1,286 精确；全年 24,266 | ✅ |
+| ALOS / CMI | 6.8 / 1.08±0.02 | 6.8 / **1.0870** | ✅ |
+| DRG | 入组率 98.5%；RW 六段 870/3350/3060/662/128/37 | drg_case 103,934；RW 实测 942/3652/2915/681/128/34（±10% 盒内）；RW≥2=10.2% | ✅ |
+| 低风险死亡率 | ≤0.024% | 0.021%（16/75,107） | ✅ |
+| 科室出院 TOP10 | ip_sh：1250/1120/990/920/800/735/715/655/380/340+尾~215 | 实测 TOP8=7,202、尾 214 | ✅ ±10% |
+| 大屏 KPI | 4,200 / 1,846 / 0.921 / 45 | today_kpi 自 dwd 派生复现 | ✅ ±10% |
+| compare ours | 门急诊 **108.8 万**（全年 Σ1,088,000）/ 出院 8.64 万（Σ86,410） | 派生实算；契约字面 109.0/9.73 为近似 | ✅ |
+| 人力 | 2,368（医 812/护 1,046/技 202/行政 308）；高职 12.0% | staff 矩阵严格锚定；经费占比 32.5%（10 月 46,078,500 元） | ✅ |
+| 科研 | 在研 186/新立 42(+6)/经费 3,480 万/SCI 98 | 逐年精确 | ✅ |
+| 患者 | 投诉 24/表扬 86/满意度 96.4/97.2 | 精确 | ✅ |
+| 质安 | 危急值 99.1%/院感 1.24%/不良 36/百床 1.95/切口 0.38% | 0.9909、1.245%、36、1.9502、随分母自适应 | ✅ |
+| 资产 | 设备 68/开机率 94.2%/库存 28 天/能耗 186 万/工单 156·92% | 0.9420、28.0、Σ186 万、0.9231 | ✅ |
 
----
+**勾稽恒等式**（建库验收断言用）：在院≈出院×ALOS÷30；门诊收入=人次×300；住院收入≈出院×13,000；RW≥2%=(662+128+37)/8,107=10.2%；年累计=趋势数组 Jan–Oct Σ；屏 KPI=dwd 当日派生 ±10%。
 
-## 4. dwd — 明细事实层（仿真器/未来ETL 独占写入）
+## 5. 迁移与种子装配
 
-### dwd.outpatient_hourly（门急诊分时事实）
-| stat_time timestamptz（**≤30min 粒度**） | dept_id | visit_cnt | reg_cnt | cancel_cnt int DEFAULT 0 | appt_cnt int DEFAULT 0 | emerg_flag bool | fee_total numeric(14,2) |
-PK(stat_time, dept_id, emerg_flag)。`cancel_cnt`/`appt_cnt` 是 P2 退号率/预约率的落点列（先建先填0）。
-索引 `(stat_time)`。
+### 5.1 迁移（`backend/migrations/`，59 文件）
 
-### dwd.inpatient_move（出入院事件）
-| id | patient_masked varchar(32)（生成即脱敏 `P100234`） | dept_id | ward_code | event `admit`/`discharge`/`transfer` | event_time | los_days int NULL（出院时填） |
-索引 `(event_time)`、`(dept_id,event_time)`、`(patient_masked,event_time)`。
+| 序号段 | 内容 |
+| :-- | :-- |
+| `0000` | **bootstrap**：六 schema `CREATE SCHEMA IF NOT EXISTS` 唯一属主 + pgcrypto 预留（lane 文件头 IF NOT EXISTS 仅防御性兜底） |
+| `0001~0007` | sys 7 表 |
+| `0101~0112` | dim 12 表（0109 device=实体组 id PK） |
+| `0113` | `sys.user.dept_id→dim.department(id)` 延迟 FK（RESTRICT，须在 dim 后） |
+| `0201~0218` | dwd 18 事实表 |
+| `0301~0309` | dws 9 表（含 L6 benchmark_peer/exam_indicator、L8 quality_rule_audit/energy_month/research_paper_period） |
+| `0401~0408` | ads 8 表（含 0408 todo_order 空表预案） |
+| `0501~0503` | sim 3 表（末批，env 可跳） |
 
-### dwd.surgery_case（手术台次）
-| id | case_no UQ | patient_masked | dept_id | ward_code（or 虚拟病区） | surg_level smallint CHECK 1~4 | status `sched`/`doing`/`done`/`pacu` | plan_start | actual_start NULL | actual_end NULL | room_no | date（=COALESCE(actual_start,plan_start)::date，一致性由生成器保证） |
-索引 `(date)`、`(date,status)`、`(dept_id,date)`。
+命名 `NNNN_<schema>_<对象>.sql` 全局单调；一文件一对象；dict 行与 CHECK 同文件。
 
-### dwd.bed_state_day（床位日态）
-| date | ward_code | dept_id | bed_open | bed_used | borrow_in int DEFAULT 0 | borrow_out int DEFAULT 0 |
-PK(date, ward_code)。
-**借床口径（冻结）**：借入侧 `bed_used ≤ bed_open + borrow_in`；借出侧 `bed_used ≤ bed_open − borrow_out`；全院日粒度 `Σborrow_in = Σborrow_out`（跨行校验放 sim validate，不写跨表 CHECK）。
-CHECK：`bed_used>=0 AND bed_used<=bed_open+borrow_in AND borrow_in>=0 AND borrow_out>=0`。
-索引 `(ward_code,date)`。
+### 5.2 种子装配（`backend/seed/`，正本=`seed-manifest.md`）
 
-### dwd.emergency_stay（急诊留观逐例）★
-| id | patient_masked | arrive_at | leave_at NULL | stay_minutes int（**仅归档值**：observing 行不更新，实时时长=now−arrive_at） | status `observing`/`admitted`/`left` | triage_level smallint 1~4 | dept_id |
-索引 `(status,arrive_at)`——60s 告警扫描热路径。
-注：白皮书口径"留观>24h 预警"，本系统采用 **>6h**（晨会演示密度需要），为有意偏离，阈值在 alert_rule 可配。
-
-### dwd.charge_day（费用日汇总）
-| date | dept_id | fee_cat | out_fee numeric(14,2) | in_fee numeric(14,2) | insurance_fee numeric(14,2) NULL | self_fee numeric(14,2) NULL |
-`fee_cat`：`drug`/`material`/`exam`/`treat`/`surg`/`bed`/`other`。PK(date,dept_id,fee_cat)。
-insurance/self 两列含门诊口径，支撑 SELF_PAY_RATIO/INS_SETTLE。
-
-### dwd.drg_case（病案首页/DRG结算病例）★L5 穿透终点
-| 列 | 说明 |
-| id PK / case_no UQ | |
-| patient_masked | 脱敏姓名 `王**` |
-| patient_name | **实名**（仿真期=NULL 或同 masked；真实期 ETL 写入，`?unmask=1` 的唯一数据源，service 层控制输出） |
-| gender / age | |
-| dept_id / group_id→dim.department | 科室/医疗组 |
-| attending_id→dim.staff | 主治医生（doctor 字段来源） |
-| drg_code FK | |
-| admit_date date / discharge_date date | 纯日期 |
-| los_days int | |
-| total_fee / drug_fee / material_fee / exam_fee / surg_fee / other_fee | 费用分项（合计=total_fee） |
-| insurance_pay / cost_total / profit（=insurance_pay−cost_total） | 结算与盈亏 |
-| rw numeric(8,4) / surg_level smallint NULL / surg_date date NULL | ★surg_level=四级手术过滤列（flag=l4），preop_alos=surg_date−admit_date |
-| death_flag / readmit15_flag / spec_flag bool | 死亡/15日再入院/特例单议候选 |
-| emr_json jsonb NULL | 脱敏结构化病案（主诉/诊断/手术/关键医嘱），**仅 L5 展示载荷，不承担过滤**；ETL 期可 NULL→前端空态 |
-索引 `(dept_id,discharge_date)`、`(drg_code)`、`(group_id,discharge_date)`、`(dept_id,surg_level)`、`(dept_id,discharge_date) WHERE profit<0`。
-
-### dwd.critical_value（危急值，P2）
-| id | patient_masked | item | result_value varchar(64) | report_at | notice_at | close_at | status `open`/`closed` | dept_id |
-
-### dwd.device_run_day（P2）
-| date | device_code | run_hours | exam_cnt | positive_cnt | income | opex_total numeric(14,2)（折旧+维保+能耗+人力分摊） |
-PK(date, device_code)。`opex_total` 为 ROI/保本点口径落点。
-
-### dwd.hr_cost_month（P2 预留·人员支出占比指标落点）
-| month char(7) | dept_id | staff_cost numeric(14,2) |
-
----
-
-## 5. dws — 汇总层（派生流水线独占写入，两模式共用同一套聚合 SQL）
-
-### dws.hospital_oper_day ★（院级运营日表）
-| date | campus_code | outpt_cnt（门诊，**不含急诊**） | emerg_cnt（急诊） | reg_cnt | in_hosp_cnt | admit_cnt | discharge_cnt | surg_cnt | surg_l4_cnt | bed_open | bed_used | bed_use_rate(0~1) | alos | preop_alos | longstay_cnt | revenue | cost | profit（全院收支结余） | **drg_profit**（=Σdrg_case.profit，象限对账口径） | drug_fee | drug_ratio(0~1) | material_fee | material_per_100rev | insurance_settle | self_pay_ratio(0~1) | cmi | emerg_obs_over6h | critical_unclosed | satisfaction | updated_at |
-PK(date, campus_code)。
-口径钉死：`OP_DAILY_VISITS = outpt_cnt + emerg_cnt`；校验 #3 对账用 `drg_profit` 而非 `profit`。
-
-### dws.dept_oper_day ★（科室·医疗组运营日表）
-| date | dept_id | outpt_cnt | in_hosp_cnt | surg_cnt | surg_l4_cnt | alos | bed_use_rate | revenue | cost | profit | drg_profit | case_cnt int | cmi | material_per_100rev | eff_score numeric(5,2) |
-PK(date, dept_id)。
-**本表同时承载 level=2 科室行与 level=3 医疗组行**（dept_id 即 dim.department.id，组级行 group 指标同构）——`/departments/{id}/groups` 的 cmi/profit/case_cnt/alos 由此出。
-注：daily cmi 仅供趋势参考（小科室日出院少噪声大），排名一律用 d30 快照。
-
-### dws.drg_dept_period（病组×科室×周期盈亏，四象限源）
-| period_type `month`/`d30` | period varchar(10)（month=`2026-09`；d30=`YYYY-MM-DD` 截止日） | dept_id | drg_code | case_cnt | rw_avg | cmi_equiv | total_profit | profit_avg | fee_avg | cost_avg | insure_avg | los_avg | material_ratio | quadrant smallint CHECK 1~4 |
-PK(period_type, period, dept_id, drg_code)。
-
-### dws.metric_value ★（通用指标长表）
-| metric_code FK→sys.metric_def | date | **dept_id NOT NULL DEFAULT 0** | **group_id NOT NULL DEFAULT 0** | value numeric(18,4) | extra jsonb |
-PK(metric_code, dept_id, group_id, date)。**哨兵约定：0=院级/无医疗组**（可空列进 PK 在 PG 不成立，故用 0 而非 NULL）。
-值按 metric_def.unit 量纲存储（unit='万元'→存万元数值；unit='%'→存 90.8）。
-索引 `(metric_code,dept_id,date)`。
-
----
-
-## 6. ads — 应用集市（API 直读，派生流水线写入）
-
-### ads.alert_rule（告警规则）
-| code PK | name | level `urgent`/`major`/`minor` | metric_code NULL | op `>`/`<`/`>=`/`<=` | threshold | scope `hospital`/`dept`/`building` | dedup_min | drill_route jsonb | source `rule`/`scenario` | enabled |
-- `source='scenario'`：无事实表可扫的剧本型规则（药品库存低/设备待维护——P2 表未建），由场景注入器直接产 alert_event，规则扫描器跳过。
-- **去重语义（冻结）**：去重键=`(rule_code,target_type,target_id)`；同键存在 open 态（pending/processing）事件时**不新建、仅刷新 payload**；`dedup_min` 仅在事件关闭后抑制再触发。
-- 种子规则：OBS_OVER_6H(urgent,rule)、BED_OVER_95(major,rule)、SURG_TURN_OVER(major,rule)、ICU_USE_90(urgent,rule)、CRIT_UNCLOSED_30M(major,rule→P2 enabled=0)、DRUG_STOCK_LOW(minor,scenario)、DEVICE_MAINTAIN(minor,scenario)。
-
-### ads.alert_event ★
-| id | rule_code | level | title | dept_id NULL | building_code varchar(20) NULL | target_type varchar(32) | target_id varchar(64) | payload jsonb | drill_route jsonb | status `pending`/`processing`/`done`/`closed` | source `rule`/`scenario`/`test` | occurred_at | ack_at NULL | done_at NULL | closed_at NULL | close_note text NULL |
-- `payload` 约定：`{"value":触发值, "evidence_ids":[事实行id], "stay_list":[快照]…}`——支撑 /alerts/{id}.related 与校验 #5 回溯；非事实来源事件（scenario/test 注入）统一带 `payload.stub=true` 作为校验豁免标记（`source` 字段区分来源）。
-- 约束：open 态去重唯一索引 `UNIQUE(rule_code,target_type,target_id) WHERE status IN ('pending','processing')`。
-- 索引 `(status,occurred_at desc)`、`(dept_id,status)`、`(building_code,status)`、`(rule_code,target_type,target_id,occurred_at)`。
-
-### ads.todo_order（督办工单 PDCA）
-| id | alert_id FK | title | assignee_id→staff | dispatcher_id→user | deadline | note text NULL（派发备注） | status `open`/`doing`/`done`/`expired` | result_note NULL | baseline_value numeric(18,4) NULL（派发时触发值快照） | target_value numeric(18,4) NULL（派发时阈值快照，防规则漂移） | metric_code NULL（复原指标） | escalated bool | created_at/updated_at |
-- 状态机：`open→doing→done`；`expired` 由系统置位（deadline 过仍未 done）。
-- `progress{metric,baseline,current,target}` = metric_code + baseline_value + 实时值 + target_value 组装。
-- 索引 `(alert_id)`、`(assignee_id,status)`。
-
-### ads.dept_rank_day（排名快照）
-| date | period varchar(8) `d30` | dept_id | cmi | surg_cnt | alos | profit numeric(14,2) | eff_score | eff_delta numeric(5,2)（较前一周期分差） | rank_no |
-UQ(date, period, dept_id)。
-
-### ads.today_kpi（今日实时快照，Intraday 写）
-| metric_code | **dept_id NOT NULL DEFAULT 0**（0=院级；科室驾驶舱 kpis 落点） | value | yesterday_same_time（昨日同时刻累计，prev_value 来源） | spark jsonb | updated_at |
-PK(metric_code, dept_id)。
-
-### ads.campus_status（楼宇浮标状态）
-| building_code PK | status `normal`/`busy`/`alert` | badge_text | badge_level `info`/`ok`/`warn`/`alert` | metrics jsonb | updated_at |
-- `badge_level` 仅驱动徽标颜色（info青/ok绿/warn黄/alert红），`status` 驱动楼态图标——两套语义各司其职。
-- **`status` 推导规则（冻结）**：`alert`=该楼有 open 态 urgent 告警或核心指标越红线（急诊楼 obs_over6h>0、外科楼 bed_use_rate>0.95）；`busy`=有 major 告警或指标越黄线（bed_use_rate>0.85、queue_avg_min>30）；其余 `normal`。`badge_level` 由 TodayKpi 按同规则写（info=常规展示、ok=正向确认、warn=黄线、alert=红线）。
-- `metrics` jsonb 各楼宇键集（冻结）：门诊楼 `{today_visit,queue_avg_min}`；外科楼 `{bed_use_rate,bed_used,bed_open}`；急诊楼 `{obs_cnt,obs_over6h,obs_max_min}`；医技楼 `{device_run,device_alert}`；住院部 `{bed_use_rate,bed_used,bed_open,in_hosp}`；非病区楼 `{}`。
-- 楼宇抽屉数据（wards/today/devices）**由 API 现场聚合 dwd 当日行**（属 §1 白名单"今日 realtime 事实"例外），不冗余进 metrics。
-
----
-
-## 7. sim — 仿真控制域（API 不暴露，仅 simulator/演示接口内部使用）
-
-### sim.clock
-| id=1 CHECK(id=1) | virtual_now timestamptz | speed numeric（1=实时） | paused bool | base_date date | updated_at |
-所有"今日"语义=virtual_now。**更新必须用原子表达式** `virtual_now = virtual_now + ?*speed`；tick 与 POST /sim/clock 互斥（行锁）。
-
-### sim.job_log
-| id | job | virtual_date | started/finished | rows | status | err |
-
-### sim.profile（仿真参数）
-| key PK | val jsonb | 如 `outpt_daily_base`/`weekday_factor`/`dept_share`/`scenarios`（剧本钩子定义）。启动时校验关键 key 存在与 json 合法，缺 key 直接 panic 好于静默错。
-
----
-
-## 8. 数据量与索引策略
-
-| 表 | 演示量级 | 关键索引 |
-| :--- | :--- | :--- |
-| dwd.outpatient_hourly | 180d×48×20科≈173k | (stat_time) |
-| dwd.drg_case | ~5.4k | (dept_id,discharge_date)/(drg_code)/(group_id,discharge_date)/(dept_id,surg_level) |
-| dws.hospital_oper_day | 180 行 | PK(date,campus_code) |
-| dws.dept_oper_day | 180×~80(科室+组)≈14k | PK(date,dept_id) |
-| dws.drg_dept_period | 2期×20科×60组≈2.4k+ | PK |
-| dws.metric_value | ~30指标×180d×(1+20)≈113k | PK+(metric_code,dept_id,date) |
-| ads.alert_event | ~500 | 见 §6 |
-分区：演示规模不启用；DWD 月分区与 TimescaleDB 同为未来真实化预案。ETL 期新增 `ods` schema（预留说明，不对齐白皮书五层字面但语义等价）。
-
----
-
-## 9. 首批指标字典（sys.metric_def 种子）
-
-| code | name | unit | dir | source | 大屏落点 |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| OP_DAILY_VISITS | 今日门急诊人次 | 人 | 0 | dwd.outpatient_hourly 累计（out+emerg） | KPI1+趋势 |
-| IP_IN_HOSP | 在院患者数 | 人 | 0 | dwd.bed_state_day Σbed_used | KPI2+趋势 |
-| BED_USE_RATE | 床位使用率 | % | 0(>95红) | dws | KPI3+趋势 |
-| SURG_DAILY_CNT | 今日手术台次 | 台 | 1 | dwd.surgery_case | KPI4+趋势 |
-| SURG_L4_RATIO | 四级手术占比 | % | 1 | 同上 | 详情 |
-| ALOS | 平均住院日 | 天 | -1 | dws.dept_oper_day | 排名列 |
-| CMI | 病例组合指数 | - | 1 | dws.drg_dept_period | 排名/象限Y |
-| DRG_PROFIT | DRG结余 | 万元 | 1 | 同上 | 象限X |
-| REVENUE_DAILY | 医疗收入 | 万元 | 1 | dws.hospital | 详情 |
-| COST_RATIO_MATERIAL | 百元收入耗材费 | 元 | -1 | charge_day | 穿透示例 |
-| DRUG_RATIO | 药占比 | % | -1 | charge_day | 详情 |
-| EMERG_OBS_OVER6H | 留观超6h人数 | 人 | -1 | dwd.emergency_stay | 告警 |
-| ICU_USE_RATE | ICU占床率 | % | -1(>90红) | bed_state_day+ward_type | 告警 |
-| DEPT_EFF_SCORE | 科室运行效率分 | 分 | 1 | §10 公式 | 排名列 |
-| SELF_PAY_RATIO | 自费比例 | % | -1 | charge_day.insurance/self | 详情 |
-| INS_SETTLE | 医保结算额 | 万元 | 0 | dws.hospital | 详情 |
-| ADMIT_CNT / DISCH_CNT | 入/出院人数 | 人 | 0 | inpatient_move | 详情 |
-| PREOP_ALOS | 术前住院日 | 天 | -1 | surg_date−admit_date | 详情 |
-| LONGSTAY_CNT | >30天超长住院 | 人 | -1 | dwd | 告警候选 |
-| CRIT_UNCLOSED | 未闭环危急值 | 条 | -1 | critical_value(P2) | 告警候选 |
-| REG_CANCEL_RATE | 退号率 | % | -1 | cancel_cnt(P2) | P2 |
-| APPT_RATE | 预约就诊率 | % | 1 | appt_cnt(P2) | P2 |
-| EQUIP_RUN_RATE | 设备开机率 | % | 1 | device_run_day(P2) | P2 |
-| SATISFACTION | 满意度 | 分 | 1 | 仿真常量带噪(P2) | P2 |
-| STAFF_COST_RATIO | 人员支出占比 | % | -1 | hr_cost_month(P2) | P2 |
-
-## 10. eff_score 口径（冻结版，version=1）
+DDL 全链先 apply，种子**按相位不按 lane 文件边界**（clean-DB 实测断链收口：L5 引用的 metric_def 曾埋在 newdom 尾部 seed 里报 FK 违规）：
 
 ```
-eff_score = 100 * ( 0.30*norm(cmi) + 0.25*norm(surg_cnt) + 0.20*(1-norm(alos)) + 0.15*bed_use_rate + 0.10*norm(profit) )
+Ⅰa 定义：seed/1001_sys_defs.sql（dict+metric_def 全行）→ seed/1002_l8_defs.sql（L8 两域供稿并编）
+Ⅰb 维度：seed/1100_dim_public.sql（date→org→staff→clinical 全维）
+Ⅱ.pre：seed/1150_sys_deferred.sql（user.dept_id 回填+环 FK 收口）
+Ⅱ  事实：seed/2010_dwd_flow → 2020_dwd_clinical → 2030_l8_hr → 2031_l8_pat_qual → 2032_l8_supply
+Ⅲa 聚合：seed/3001_dws_agg.sql（hospital_oper_day/dept_oper_day/drg_dept_period/metric_value，全 dwd 派生）
+Ⅲb 集市：seed/3020_ads_workbench → 3030_ads_screen
+Ⅳ  仿真：seed/5001_sim.sql（env 可跳）
 ```
-`norm()`=全科 min-max 归一；排名取 `ads.dept_rank_day.eff_score`。公式变更 → metric_def.version+1，不改接口。
 
-## 11. MVP 外模块对账（白皮书 14 模块 → 落点）
+铁律：`INSERT INTO sys.metric_def`/`sys.dict` 集中在 Ⅰa 文件（lane 文件内防御性 ON CONFLICT 供稿段幂等无害）；user 回填必在 department 之后；L8 事实先于 L5 聚合（dws 读 dwd.critical_value）。理想态 26 文件相位拆分正本见 `/tmp/modeling/schema/seed-manifest.md`。
 
-| 白皮书模块 | 本期状态 |
-| 4.1 全景驾驶舱 / 4.5 DRG盈亏 / 4.3 床位 | ✅ MVP 全量 |
-| 4.4 质控（危急值/核心制度/死亡率） | ⚠️ 表已建(critical_value/死亡标记)，告警规则 P2 启用 |
-| 4.2 门急诊效能（退号/预约/分时峰谷） | ⚠️ 列已落(cancel/appt)，指标 P2 |
-| 4.6 全成本四级核算 / 4.10 人员支出 | ⚠️ hr_cost_month 预留列，明细成本表 P2 |
-| 4.7 药事（基药/DDDs/创新药剔除） | ❌ P2 建 dim.drug + 规则 |
-| 4.8 耗材 SPD/UDI | ❌ P2 建 dim.material + 追溯表 |
-| 4.9 设备 ROI | ⚠️ device_run_day 已含 opex_total，P2 启用 |
-| 4.11 科研教学 / 4.12 满意度NLP / 4.13 医共体 / 4.14 多院区 | ❌ P3（campus/院区字段已预留） |
-| 特例单议 | ✅ spec_flag 已建，申报工具 P2 |
-| ChatBI/What-If/月报 | ❌ P3 |
+## 6. 遗留 open-items（交接清单）
 
-## 12. 自洽性校验（sim validate，播种后必跑）
+| 项 | 内容 | 状态 |
+| :-- | :-- | :-- |
+| O-E4 | `dept_rank_day` eff_score 实算值 vs 契约字面（骨科 96.10 vs 94.2）——序已回锚（骨科1/心内2），契约 §14.1 注6 已声明屏值事实化±10% | ✅ R3 已消解 |
+| O-E7 | 高职占比：契约已改 12.0%（=284/2,368 实算） | ✅ 已消解 |
+| O-E8 | 住培/继教/转化率、医保结算明细、benchmark region/bench 为 manual 占位（无库内真源） | 演示期接受 |
+| 契约残留（R3 遗留） | scale_revenue_trend×10+unit、compare 派生值、stats 当月口径注、weekday 修正——**全部已修**（commit 9f6e1e5） | ✅ 已消解 |
+| 缓建项 | `sim` 三表 env 可跳；`dim.drug`、`sys.audit_log`、`ads.todo_order` 空表 | 按计划 |
+| 口径注记 | L5 成本/结余为合成口径（系数收敛 4.2%）待真实成本源；drg_case 窗口裁 14 月（103,934 行）；`research disciplines.funds` 走 metric_value 口径禁用 Σproject | 已登记，非阻塞 |
+| 文档微痕 | 个别 lane README/注释残留 `8,110`/`847,000` 旧字样（数值断言不受影响） | 清扫项 |
 
-1. Σbed_state_day.bed_used = dws.in_hosp_cnt（±0）；Σborrow_in=Σborrow_out；**逐行**借出侧 `bed_used ≤ bed_open − borrow_out`
-2. KPI 屏值 = outpatient_hourly 当日累计（±1，30min 粒度内）
-3. 四象限 profit 合计 ≈ dws.drg_profit 同期（±2%）
-4. ranking cmi/alos/surg 与 dws.dept_oper_day d30 均值一致（±5%）
-5. 每条 `source='rule'` alert_event 可回溯 payload.evidence_ids 事实行（`payload.stub=true` 的 scenario/test 注入事件豁免）
-6. trend 末日值 = today_kpi.yesterday_same_time 同日值（趋势含今日时以 today_kpi.value 为准）
-7. Σ(drg_case.total_fee) ≤ Σ(charge_day.in_fee)（DRG 病例是住院费用子集）
-8. drg_case 费用分项合计 = total_fee（±0.01）
+---
+
+> 附：建模流水线全部过程资产在 `/tmp/modeling/`：`conventions.md`（公约）、`schema/plan.md`（总账+DAG）、`schema/seed-manifest.md`（种子相位装配正本）、`escalations.md`（33 条裁决/门禁台账）、`scale-decision.md`（规模裁决书 v2.2）、各 lane `README/columns/open-items`。
