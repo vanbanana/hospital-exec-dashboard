@@ -265,11 +265,11 @@
   ```json
   {
     "list": [
-      { "id": 101, "level": "urgent", "title": "住院费用增幅高于行业均值", "occurred_at": "2026-10-28", "rule_code": "INPT_FEE_SURGE" },
-      { "id": 102, "level": "urgent", "title": "部分科室床位使用率持续 > 95%", "occurred_at": "2026-10-27", "rule_code": "BED_OVER_95" },
-      { "id": 103, "level": "major", "title": "医疗耗材库存周转天数上升", "occurred_at": "2026-10-26", "rule_code": "STOCK_TURN_SLOW" },
-      { "id": 104, "level": "major", "title": "药品费用占比接近警戒阈值", "occurred_at": "2026-10-25", "rule_code": "DRUG_RATIO_WARN" },
-      { "id": 105, "level": "minor", "title": "个别设备维保到期", "occurred_at": "2026-10-24", "rule_code": "DEVICE_MAINTAIN" }
+      { "id": 201, "level": "urgent", "title": "住院费用增幅高于行业均值", "occurred_at": "2026-10-28", "rule_code": "INPT_FEE_SURGE" },
+      { "id": 202, "level": "urgent", "title": "部分科室床位使用率持续 > 95%", "occurred_at": "2026-10-27", "rule_code": "BED_OVER_95" },
+      { "id": 203, "level": "major", "title": "医疗耗材库存周转天数上升", "occurred_at": "2026-10-26", "rule_code": "STOCK_TURN_SLOW" },
+      { "id": 204, "level": "major", "title": "药品费用占比接近警戒阈值", "occurred_at": "2026-10-25", "rule_code": "DRUG_RATIO_WARN" },
+      { "id": 205, "level": "minor", "title": "个别设备维保到期", "occurred_at": "2026-10-24", "rule_code": "DEVICE_MAINTAIN" }
     ]
   }
   ```
@@ -788,7 +788,7 @@
     "adverse_events": {
       "unit": "起",
       "categories": ["跌倒/坠床", "用药错误", "管路滑脱", "院内压疮", "手术相关", "输血相关", "其他"],
-      "values": [12, 9, 7, 6, 4, 2, 2]
+      "values": [11, 8, 6, 5, 3, 2, 1]
     },
     "rules_compliance": {
       "columns": [
@@ -838,7 +838,7 @@
     "energy_trend": {
       "unit": "万元",
       "months": ["5月", "6月", "7月", "8月", "9月", "10月"],
-      "total": [168, 172, 198, 212, 196, 186],
+      "total": [182, 196, 214, 210, 192, 186],
       "electricity": [112, 126, 142, 138, 120, 114],
       "water": [38, 42, 46, 44, 40, 38],
       "gas": [32, 28, 26, 28, 32, 34]
