@@ -125,7 +125,7 @@
       { "role": "dept_leader", "name": "骨科主任 (刘主任)", "scope": "本科室" }
     ],
     "system_date": "2026-10-28",
-    "weekday": "星期一"
+    "weekday": "星期三"
   }
   ```
   > **字段注**：`dept_id: null` 表示院级领导视角。在数据库存储中院级哨兵键使用 `0`，在 API 契约层统一对外序列化为 `null`。
@@ -209,18 +209,18 @@
   ```json
   {
     "metric_name": "住院人次",
-    "max_val": 1450,
+    "max_val": 1300,
     "list": [
-      { "rank": 1, "name": "心血管内科", "value": 1405 },
-      { "rank": 2, "name": "骨科", "value": 1266 },
-      { "rank": 3, "name": "呼吸与危重症医学科", "value": 1112 },
-      { "rank": 4, "name": "普通外科", "value": 1032 },
-      { "rank": 5, "name": "神经内科", "value": 901 },
-      { "rank": 6, "name": "肿瘤科", "value": 829 },
-      { "rank": 7, "name": "妇产科", "value": 804 },
-      { "rank": 8, "name": "儿科", "value": 736 },
-      { "rank": 9, "name": "消化内科", "value": 661 },
-      { "rank": 10, "name": "泌尿外科", "value": 616 }
+      { "rank": 1, "name": "心血管内科", "value": 1250 },
+      { "rank": 2, "name": "骨科", "value": 1120 },
+      { "rank": 3, "name": "呼吸与危重症医学科", "value": 990 },
+      { "rank": 4, "name": "普通外科", "value": 920 },
+      { "rank": 5, "name": "神经内科", "value": 800 },
+      { "rank": 6, "name": "肿瘤科", "value": 735 },
+      { "rank": 7, "name": "妇产科", "value": 715 },
+      { "rank": 8, "name": "儿科", "value": 655 },
+      { "rank": 9, "name": "消化内科", "value": 380 },
+      { "rank": 10, "name": "泌尿外科", "value": 340 }
     ]
   }
   ```
@@ -314,8 +314,9 @@
     ],
     "scale_revenue_trend": {
       "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
-      "outpatient": [5400, 4600, 6800, 7000, 8500, 9000, 10800, 9700, 10500, 12300, 12200, 12000],
-      "revenue": [8950, 8060, 10800, 11650, 12450, 12980, 13940, 13550, 13080, 14800, 14240, 13720]
+      "outpatient": [54000, 46000, 68000, 70000, 85000, 90000, 108000, 97000, 105000, 123000, 122000, 120000],
+      "revenue": [8950, 8060, 10800, 11650, 12450, 12980, 13940, 13550, 13080, 14800, 14240, 13720],
+      "units": { "outpatient": "人次", "revenue": "万元" }
     },
     "income_structure": {
       "unit": "%",
@@ -326,17 +327,17 @@
       ]
     },
     "dept_share_top8": {
-      "metric": "住院收入（万元）",
+      "metric": "住院收入（万元·本月）",
       "unit": "万元",
       "list": [
-        { "name": "心血管内科", "value": 2490, "bar_pct": 100 },
-        { "name": "骨科", "value": 2310, "bar_pct": 93 },
-        { "name": "呼吸与危重症医学科", "value": 2160, "bar_pct": 87 },
-        { "name": "普通外科", "value": 1940, "bar_pct": 78 },
-        { "name": "神经内科", "value": 1750, "bar_pct": 70 },
-        { "name": "肿瘤科", "value": 1630, "bar_pct": 66 },
-        { "name": "妇产科", "value": 1520, "bar_pct": 61 },
-        { "name": "儿科", "value": 1310, "bar_pct": 53 }
+        { "name": "心血管内科", "value": 1723, "bar_pct": 100 },
+        { "name": "骨科", "value": 1515, "bar_pct": 88 },
+        { "name": "呼吸与危重症医学科", "value": 1364, "bar_pct": 79 },
+        { "name": "普通外科", "value": 1220, "bar_pct": 71 },
+        { "name": "神经内科", "value": 1165, "bar_pct": 68 },
+        { "name": "肿瘤科", "value": 1128, "bar_pct": 65 },
+        { "name": "妇产科", "value": 976, "bar_pct": 57 },
+        { "name": "儿科", "value": 877, "bar_pct": 51 }
       ]
     },
     "live_inpatient": [
@@ -368,6 +369,7 @@
 - **结构说明**：
   `stats`、`distribution`、`table` 结构与列集合随 `tab` 动态变化。
   > **跨 Tab 同键异义注**：`table.columns` 中 `avg` 列在 `门急诊` 与 `住院` tab 下表示“次均费用”（元），在 `手术` tab 下表示“平均手术时长”（分钟）。前端渲染按列元数据单位展示。
+  > **stats 口径注**：`stats` 恒为**当月/当前口径**（如 `本月出院`、`在院人数`），不随 `range` 累计；`trend`/`distribution`/`table` 随 `range` 变化（`本年` 序列=1~10 月累计）。
 
 #### 示例 1：`tab=门急诊`
 ```json
@@ -375,10 +377,10 @@
   "tab": "门急诊",
   "range": "本年",
   "stats": [
-    { "label": "门急诊总人次", "value": "124,820", "delta": "+3.6%", "dir": "up" },
-    { "label": "普通门诊", "value": "82,360", "delta": "+2.1%", "dir": "up" },
-    { "label": "专家门诊", "value": "31,140", "delta": "+6.4%", "dir": "up" },
-    { "label": "急诊人次", "value": "11,320", "delta": "+4.2%", "dir": "up" },
+    { "label": "门急诊总人次", "value": "123,000", "delta": "+3.6%", "dir": "up" },
+    { "label": "普通门诊", "value": "81,900", "delta": "+2.1%", "dir": "up" },
+    { "label": "专家门诊", "value": "29,800", "delta": "+6.4%", "dir": "up" },
+    { "label": "急诊人次", "value": "11,300", "delta": "+4.2%", "dir": "up" },
     { "label": "次均费用", "value": "300", "unit": "元", "delta": "+1.8%", "dir": "up" },
     { "label": "平均候诊", "value": "18", "unit": "分钟", "delta": "-3分钟", "dir": "down" }
   ],
@@ -567,12 +569,12 @@
         { "key": "mat_ratio", "title": "耗材比", "align": "right", "num": true }
       ],
       "rows": [
-        { "dept": "心血管内科", "income": "2,480", "cost": "2,310", "balance": "170", "margin": "6.9%", "drug_ratio": "24.8%", "mat_ratio": "18.2%" },
-        { "dept": "骨科", "income": "2,180", "cost": "1,980", "balance": "200", "margin": "9.2%", "drug_ratio": "12.4%", "mat_ratio": "34.6%" },
-        { "dept": "呼吸与危重症医学科", "income": "1,860", "cost": "1,790", "balance": "70", "margin": "3.8%", "drug_ratio": "32.6%", "mat_ratio": "8.4%" },
-        { "dept": "普通外科", "income": "1,740", "cost": "1,620", "balance": "120", "margin": "6.9%", "drug_ratio": "18.2%", "mat_ratio": "22.1%" },
-        { "dept": "神经内科", "income": "1,420", "cost": "1,380", "balance": "40", "margin": "2.8%", "drug_ratio": "36.4%", "mat_ratio": "6.2%" },
-        { "dept": "肿瘤科", "income": "1,680", "cost": "1,610", "balance": "70", "margin": "4.2%", "drug_ratio": "42.8%", "mat_ratio": "9.1%" }
+        { "dept": "心血管内科", "income": "19,270", "cost": "17,940", "balance": "1,330", "margin": "6.9%", "drug_ratio": "24.8%", "mat_ratio": "18.2%" },
+        { "dept": "骨科", "income": "15,960", "cost": "14,490", "balance": "1,470", "margin": "9.2%", "drug_ratio": "12.4%", "mat_ratio": "34.6%" },
+        { "dept": "呼吸与危重症医学科", "income": "15,070", "cost": "14,500", "balance": "570", "margin": "3.8%", "drug_ratio": "32.6%", "mat_ratio": "8.4%" },
+        { "dept": "神经内科", "income": "13,270", "cost": "12,900", "balance": "370", "margin": "2.8%", "drug_ratio": "36.4%", "mat_ratio": "6.2%" },
+        { "dept": "普通外科", "income": "12,620", "cost": "11,750", "balance": "870", "margin": "6.9%", "drug_ratio": "18.2%", "mat_ratio": "22.1%" },
+        { "dept": "肿瘤科", "income": "11,680", "cost": "11,190", "balance": "490", "margin": "4.2%", "drug_ratio": "42.8%", "mat_ratio": "9.1%" }
       ]
     }
   }
@@ -917,8 +919,8 @@
       ]
     },
     "benchmarks": [
-      { "name": "年门急诊量（万人次）", "ours": "109.0", "region": "90.0", "bench": "128.0", "gap": "+19.0" },
-      { "name": "年出院人数（万人）", "ours": "9.73", "region": "8.22", "bench": "11.58", "gap": "+1.51" },
+      { "name": "年门急诊量（万人次）", "ours": "108.8", "region": "90.0", "bench": "128.0", "gap": "+18.8" },
+      { "name": "年出院人数（万人）", "ours": "8.64", "region": "8.22", "bench": "11.58", "gap": "+0.42" },
       { "name": "平均住院日（天）", "ours": "6.8", "region": "7.9", "bench": "6.2", "gap": "-1.1" },
       { "name": "三四级手术占比（%）", "ours": "58.6", "region": "48.2", "bench": "65.0", "gap": "+10.4" },
       { "name": "药占比（%）", "ours": "28.4", "region": "31.6", "bench": "25.0", "gap": "-3.2" },
@@ -936,12 +938,12 @@
         { "key": "sat", "title": "满意度", "align": "right", "num": true }
       ],
       "rows": [
-        { "rank": 1, "dept": "心血管内科", "metric": "1,860", "bar_pct": 100, "yoy": "+6.2%", "outp": 12860, "inpt": 1405, "days": 9.2, "sat": 96.2 },
-        { "rank": 2, "dept": "骨科", "metric": "1,724", "bar_pct": 93, "yoy": "+5.8%", "outp": 7160, "inpt": 1266, "days": 8.6, "sat": 95.4 },
-        { "rank": 3, "dept": "呼吸与危重症医学科", "metric": "1,615", "bar_pct": 87, "yoy": "+8.7%", "outp": 11580, "inpt": 1112, "days": 10.4, "sat": 94.8 },
-        { "rank": 4, "dept": "普通外科", "metric": "1,480", "bar_pct": 80, "yoy": "+3.4%", "outp": 5420, "inpt": 1032, "days": 7.8, "sat": 94.2 },
-        { "rank": 5, "dept": "神经内科", "metric": "1,342", "bar_pct": 72, "yoy": "+4.1%", "outp": 9680, "inpt": 901, "days": 11.2, "sat": 93.6 },
-        { "rank": 6, "dept": "肿瘤科", "metric": "1,208", "bar_pct": 65, "yoy": "+5.9%", "outp": 4120, "inpt": 829, "days": 12.6, "sat": 92.8 }
+        { "rank": 1, "dept": "心血管内科", "metric": "25,360", "bar_pct": 100, "yoy": "+6.2%", "outp": 12860, "inpt": 1250, "days": 9.2, "sat": 96.2 },
+        { "rank": 2, "dept": "呼吸与危重症医学科", "metric": "21,480", "bar_pct": 85, "yoy": "+8.7%", "outp": 11580, "inpt": 990, "days": 10.4, "sat": 94.8 },
+        { "rank": 3, "dept": "骨科", "metric": "18,360", "bar_pct": 72, "yoy": "+5.8%", "outp": 7160, "inpt": 1120, "days": 8.6, "sat": 95.4 },
+        { "rank": 4, "dept": "神经内科", "metric": "17,680", "bar_pct": 70, "yoy": "+4.1%", "outp": 9680, "inpt": 800, "days": 11.2, "sat": 93.6 },
+        { "rank": 5, "dept": "普通外科", "metric": "15,280", "bar_pct": 58, "yoy": "+3.4%", "outp": 6080, "inpt": 920, "days": 7.8, "sat": 94.2 },
+        { "rank": 6, "dept": "肿瘤科", "metric": "11,800", "bar_pct": 45, "yoy": "+5.9%", "outp": 4450, "inpt": 735, "days": 12.6, "sat": 92.8 }
       ]
     }
   }
@@ -950,6 +952,7 @@
   > 1. `radar` 重构为全院 6 大宏观决策能力维度（0–100 分），直接对比“本院”与“区域同级均值”，消除了单科室内指标量纲混杂的歧义。
   > 2. `benchmarks` 中的 `gap` 统一定义为 `= 本院 - 区域均值`；门急诊年业务量调整为万人口径，与全院累计量级对齐。
   > 3. `table` 补充 `rank` 排名列；`bar_pct` 表示条形宽度归一化百分比（`val / max * 100`）；`metric` 列标题随 `dim` 动态变换。
+  > 4. `metric`（业务量当量）派生公式冻结为 `outp + inpt × 10`（门诊人次 + 出院人次×10 权重），`outp`/`inpt` 与 §5.1 科室表及 §3.3 TOP10 同口径同源，服务端按事实层实算。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ---
@@ -1257,6 +1260,7 @@
   > 3. `profit` 统一为万元单位浮点数值（如 `124.6` 万元）；`bed_use_rate` 统一为展示百分比口径（`96.0`）；未闭环告警数 `alert_open.urgent = 1`，与告警列表首条紧急事件一致。
   > 4. 告警时间字段使用 `occurred_at` ISO 格式。
   > 5. `dept_ranking.eff_score` 为展示示意值（归一公式见 §10 注），API 出参以服务端按当前分布实算为准；`rank` 序与 `cmi/profit` 事实列一致即可。
+  > 6. **屏值事实化原则**：`kpis[].value/prev_value/spark`、`buildings[].badge/metrics`、趋势 `dates/series` 等屏显数值一律由当前事实层（dwd/dws）按基准日实算得出，契约 JSON 中的字面量为**形态示例**，服务端出参允许 ±10% 采样容差；判定依据为"同一时刻 KPI 值 = spark 末点 = 楼宇徽标 = 事实层当日值"的内部一致性，而非与示例字面逐一相等。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ---
