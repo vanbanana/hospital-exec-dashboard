@@ -1,0 +1,472 @@
+/* ========================================================================
+   Workbench（浅色工作台）设计令牌与共享基元
+   作用域限定在 .workbench-layout 内，不影响 /screen 深色大屏
+   ======================================================================== */
+
+.workbench-layout {
+  /* 色板：一套收敛的浅色医疗专业色 */
+  --wb-bg: #f0f5fc;
+  --wb-surface: #ffffff;
+  --wb-sidebar-bg: #f1f6fd;
+  --wb-border: #e4ecf7;          /* 面板外描边 */
+  --wb-hairline: #edf2f9;        /* 面板内细分隔线 */
+  --wb-input-border: #d6e2f0;
+  --wb-hover-bg: #f4f8fe;        /* 行 hover / 浅底 */
+
+  --wb-navy: #0b1f47;            /* 标题 / 大数字 */
+  --wb-primary: #1d4ed8;         /* 交互强调色（链接、选中态文字） */
+  --wb-accent: #2563eb;          /* 填充强调色（选中底、图表主色） */
+  --wb-accent-soft: #eaf1fe;
+
+  --wb-text-1: #1e293b;
+  --wb-text-2: #475569;
+  --wb-text-3: #64748b;
+  --wb-text-4: #94a3b8;
+
+  --wb-up: #ef4444;              /* 环比上升（红） */
+  --wb-down: #059669;            /* 环比下降（绿） */
+  --wb-green: #059669;
+  --wb-teal: #0d9488;
+  --wb-amber: #d97706;
+  --wb-red: #ef4444;
+
+  /* 字号层级：11 备注 / 12 正文小 / 13 正文 / 14 副标题 / 15 区块标题 / 18 页标题 / 22-24 数字 */
+  --wb-radius-card: 10px;
+  --wb-radius-inner: 6px;
+  --wb-radius-tag: 4px;
+  --wb-gap: 12px;
+  --wb-pad-x: 16px;
+  --wb-pad-y: 14px;
+  --wb-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04);
+
+  font-family: var(--font-family-base);
+  color: var(--wb-text-1);
+}
+
+/* ---------- 数字字体 ---------- */
+.wb-num {
+  font-family: var(--font-family-number);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 白色面板 ---------- */
+.wb-panel {
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-card);
+  box-shadow: var(--wb-shadow-card);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wb-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px var(--wb-pad-x) 0;
+}
+
+.wb-panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wb-navy);
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.wb-panel-title::before {
+  content: '';
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--wb-accent);
+  align-self: center;
+  transform: translateY(0.5px);
+}
+
+.wb-panel-sub {
+  font-size: 12px;
+  color: var(--wb-text-3);
+  font-weight: 400;
+}
+
+.wb-panel-body {
+  padding: 10px var(--wb-pad-x) var(--wb-pad-y);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-more {
+  font-size: 12px;
+  color: var(--wb-text-3);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.wb-more:hover {
+  color: var(--wb-primary);
+}
+
+/* ---------- 指标条（一条面板内竖向 hairline 分隔的统计位） ---------- */
+.wb-stat-strip {
+  display: flex;
+  align-items: stretch;
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-card);
+  box-shadow: var(--wb-shadow-card);
+  padding: 14px 0;
+}
+
+.wb-stat {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+}
+.wb-stat + .wb-stat::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--wb-hairline);
+}
+
+.wb-stat-label {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+
+.wb-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--wb-navy);
+  font-family: var(--font-family-number);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.wb-stat-value .wb-stat-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--wb-text-3);
+  font-family: var(--font-family-base);
+  margin-left: 2px;
+}
+
+.wb-stat-delta {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.wb-stat-delta .lbl {
+  color: var(--wb-text-3);
+}
+.wb-delta-up { color: var(--wb-up); font-weight: 600; }
+.wb-delta-down { color: var(--wb-down); font-weight: 600; }
+.wb-delta-flat { color: var(--wb-text-3); font-weight: 600; }
+
+/* ---------- 表格 ---------- */
+.wb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.wb-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--wb-text-3);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--wb-hairline);
+  white-space: nowrap;
+  background: #f8fafd;
+}
+.wb-table th:first-child { border-radius: var(--wb-radius-inner) 0 0 0; }
+.wb-table th:last-child { border-radius: 0 var(--wb-radius-inner) 0 0; }
+.wb-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--wb-hairline);
+  color: var(--wb-text-1);
+  white-space: nowrap;
+}
+.wb-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.wb-table tbody tr {
+  transition: background 0.12s;
+}
+.wb-table tbody tr:hover {
+  background: var(--wb-hover-bg);
+}
+.wb-table .ta-r { text-align: right; }
+.wb-table .ta-c { text-align: center; }
+.wb-table .td-strong { color: var(--wb-navy); font-weight: 600; }
+
+/* ---------- 标签 ---------- */
+.wb-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: var(--wb-radius-tag);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.wb-tag.is-green { background: #e8f6ee; color: var(--wb-green); }
+.wb-tag.is-red { background: #feecec; color: var(--wb-red); }
+.wb-tag.is-amber { background: #fdf3e3; color: var(--wb-amber); }
+.wb-tag.is-blue { background: var(--wb-accent-soft); color: var(--wb-primary); }
+.wb-tag.is-gray { background: #eef2f7; color: var(--wb-text-3); }
+
+/* ---------- 圆点 ---------- */
+.wb-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* ---------- 行内进度条 ---------- */
+.wb-bar {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 40px;
+}
+.wb-bar-fill {
+  height: 100%;
+  background: var(--wb-accent);
+  border-radius: 4px;
+}
+
+/* ---------- 列表行（hairline 分隔，非卡片） ---------- */
+.wb-list {
+  display: flex;
+  flex-direction: column;
+}
+.wb-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 13px;
+  color: var(--wb-text-1);
+}
+.wb-list-row + .wb-list-row {
+  border-top: 1px solid var(--wb-hairline);
+}
+.wb-list-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-list-meta {
+  font-size: 12px;
+  color: var(--wb-text-3);
+  flex-shrink: 0;
+}
+
+/* ---------- 页面标题区 ---------- */
+.wb-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 0;
+  min-height: 30px;
+}
+.wb-page-title-box {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.wb-page-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--wb-navy);
+  letter-spacing: 0.3px;
+}
+.wb-page-sub {
+  font-size: 12px;
+  color: var(--wb-text-3);
+}
+.wb-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------- 分段控件 ---------- */
+.wb-seg {
+  display: inline-flex;
+  background: #eef3fa;
+  border: 1px solid var(--wb-border);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 2px;
+}
+.wb-seg-item {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--wb-text-2);
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.wb-seg-item:hover {
+  color: var(--wb-primary);
+}
+.wb-seg-item.active {
+  background: var(--wb-surface);
+  color: var(--wb-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* ---------- 开关 ---------- */
+.wb-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: #cbd5e1;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.wb-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+.wb-switch.on {
+  background: var(--wb-accent);
+}
+.wb-switch.on::after {
+  transform: translateX(16px);
+}
+
+/* ---------- 图表容器 ---------- */
+.wb-chart {
+  width: 100%;
+  flex: 1;
+  min-height: 220px;
+}
+
+/* ---------- 页级布局工具 ---------- */
+.wb-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wb-gap);
+}
+.wb-grid {
+  display: grid;
+  gap: var(--wb-gap);
+}
+.wb-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wb-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.wb-grid-2-1 { grid-template-columns: 2fr minmax(0, 1fr); }
+.wb-grid-1-2 { grid-template-columns: minmax(0, 1fr) 2fr; }
+
+/* 面板内竖向分隔列（同面板分区用 hairline，不套卡片） */
+.wb-split {
+  display: flex;
+  min-width: 0;
+}
+.wb-split > * + * {
+  border-left: 1px solid var(--wb-hairline);
+}
+
+/* 表单式设置行 */
+.wb-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  font-size: 13px;
+}
+.wb-form-row + .wb-form-row {
+  border-top: 1px solid var(--wb-hairline);
+}
+.wb-form-label {
+  color: var(--wb-text-1);
+  font-weight: 500;
+}
+.wb-form-desc {
+  font-size: 12px;
+  color: var(--wb-text-3);
+  margin-top: 2px;
+}
+.wb-select {
+  border: 1px solid var(--wb-input-border);
+  border-radius: var(--wb-radius-inner);
+  background: var(--wb-surface);
+  color: var(--wb-text-1);
+  font-size: 12px;
+  padding: 5px 10px;
+  font-family: inherit;
+  outline: none;
+  min-width: 120px;
+}
+.wb-select:focus {
+  border-color: var(--wb-accent);
+}
+
+/* ---------- 页内竖向子导航 ---------- */
+.wb-subnav {
+  display: flex;
+  flex-direction: column;
+}
+.wb-subnav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--wb-text-2);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.wb-subnav-item:hover {
+  color: var(--wb-primary);
+  background: var(--wb-hover-bg);
+}
+.wb-subnav-item.active {
+  color: var(--wb-primary);
+  font-weight: 600;
+  border-left-color: var(--wb-accent);
+  background: var(--wb-accent-soft);
+}
