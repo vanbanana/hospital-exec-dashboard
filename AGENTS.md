@@ -7,7 +7,7 @@
 **院长查询与决策支持系统**（演示/作业项目），双形态、单一前端工程：
 
 - **工作台 `/workbench`（主形态）**：浅色医疗专业风格的 Web 管理台，侧栏 11 个业务页 + 首页。院长/主任日常用，重"管"——筛选、下钻、督办、报表。
-- **大屏 `/screen`（展示形态）**：深色科技风演示大屏，参考设计稿 `smart-hospital-cockpit/`（尚未整合进主工程，当前 /screen 为过渡旧稿）。重"看"——宏观态势、告警跑马灯。
+- **大屏 `/screen`（展示形态）**：深色科技风演示大屏，参考设计稿 `archive/smart-hospital-cockpit/`（尚未整合进主工程，当前 /screen 为过渡旧稿）。重"看"——宏观态势、告警跑马灯。
 
 **前期全靠模拟数据；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，将来接 mock server / 真实后端只换数据源，契约与页面不动。
 
@@ -15,8 +15,8 @@
 
 | 资产 | 定位 |
 | :--- | :--- |
-| `design/workbench-home.png` | 工作台首页**视觉参考图**——对风格、布局、密度用，不是像素核对唯一标准 |
-| `smart-hospital-cockpit/` | 大屏**视觉参考工程**——取其设计语言与交互形态，代码不并入主工程 |
+| `archive/design/workbench-home.png` | 工作台首页**视觉参考图**——对风格、布局、密度用，不是像素核对唯一标准 |
+| `archive/smart-hospital-cockpit/` | 大屏**视觉参考工程**——取其设计语言与交互形态，代码不并入主工程 |
 | `src/` 现有前端代码 | **v0 参考实现**：由 AI 复刻+审查 agent 产出，供视觉对照与快速迭代用；**不视为工程基准**。后续重写/整改以 `docs/` 规范为准，发现其违反 §3.4 红线或工程规范时应修复而非照抄 |
 
 **铁律**：`docs/` 规范 > 视觉参考 > 现有代码。三者冲突时按此序裁决（文档矛盾仍停下报告）。
@@ -38,7 +38,7 @@
 1. **契约演进唯一方式**：新需求 → 先改 `api-contract.md`（加端点或加可选字段）→ 再写代码。已有路径/字段名/枚举值/语义保持原样。
 2. **包管理一律 npm**：`package-lock.json` 是唯一锁文件。
 3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/axios/element-plus——需要时先确认再装。
-4. **文件边界**：`output/`、`design/`、`smart-hospital-cockpit/` 只读（视觉参考）；`src/components/*.vue`（非 workbench 目录）是旧大屏组件，在 /screen 整合前保持原样。
+4. **文件边界**：`archive/`（全部历史设计参考资产）只读；`src/components/*.vue`（非 workbench 目录）是旧大屏组件，在 /screen 整合前保持原样。
 5. **密钥只写进 `.env`**（已在 `.gitignore`）。
 6. **数据纪律**：当前页面数据为组件内 mock；**抽 mock → `src/mock/` 集中管理，字段名对齐契约 snake_case**，禁止在视图里散落不可对回契约的字段。接 store/api 层时 mock 数据整体迁移，页面不改字段。
 7. **commit**：每条信息说明"为什么"；`git status` 里每个文件都能对回用户指令。

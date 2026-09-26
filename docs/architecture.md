@@ -37,7 +37,7 @@
 ```
 浏览器 ── Vite dev(:5173)
   ├─ /workbench        工作台：WorkbenchLayout(侧栏+头部) + 12 个 view
-  └─ /screen           大屏：旧深蓝过渡稿（待整合 smart-hospital-cockpit 设计语言）
+  └─ /screen           大屏：旧深蓝过渡稿（待整合 archive/smart-hospital-cockpit 设计语言）
 
 数据供给（当前全部前端内）：
   视图组件 ── 组件内 mock 数据（硬编码）
@@ -66,7 +66,7 @@
 | :- | :--- | :--- |
 | P0 | 工作台 12 页 v0 参考实现（agy 复刻+审查产出）+ 设计体系（`--wb-*` token + Wb 原语） | ✅ 已落地 |
 | P0.5 | **前端规范化重写**：按 frontend-architecture v2.0 整改 v0 代码；抽 `src/mock/` 集中 mock（字段对齐契约） | ⬜ 当前 |
-| P1 | `src/api/`+store 层落地：mock→契约形状数据流；大屏 `/screen` 按 smart-hospital-cockpit 设计语言整合 | ⬜ |
+| P1 | `src/api/`+store 层落地：mock→契约形状数据流；大屏 `/screen` 按 archive/smart-hospital-cockpit 设计语言整合 | ⬜ |
 | P2 | 最小后端（或 vite mock server）跑通契约端点；督办/预警写操作闭环 | ⬜ |
 | P3 | 五级下钻/病案脱敏/角色权限/仿真时钟（原 v1.1 全量范围，按需裁剪） | ⬜ |
 

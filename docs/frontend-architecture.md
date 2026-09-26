@@ -388,15 +388,15 @@ npx vue-tsc -b && npm run build
 - 当前工程中的 `src/views/ScreenView.vue` 以及根下 `src/components/*.vue` 为**过渡旧稿**。
 - 其采用固定 `2048×1152` 坐标系与组件内联 scale 等比缩放实现（未抽 composable），承载深蓝色旧版综合监控画面，供既有演示备用，在正式重构前保持原样。
 
-### 10.2 目标形态：`smart-hospital-cockpit/`
-本仓库根目录下的 `smart-hospital-cockpit/` 为大屏专属的**设计参考工程**，确立了下一代指挥大屏的视觉语言与模块形态：
+### 10.2 目标形态：`archive/smart-hospital-cockpit/`
+本仓库 `archive/smart-hospital-cockpit/` 为大屏专属的**设计参考工程**，确立了下一代指挥大屏的视觉语言与模块形态：
 - **安防态势（`SecurityView.vue`）**：CCTV 实时视频流抓拍、重点区域红外报警、院区巡更动态。
 - **综合态势（`OverviewView.vue`）**：立体多层建筑空间堆叠切片、全院实时客流热力。
 - **院感防控（`EpidemicControlView.vue`）**：三维疾病画像光球、发热门诊流调预警、聚集性感染风险态势。
 - **智慧后勤（`LogisticsView.vue`）**：后勤设备物联机房、能耗管网拓扑、智慧电梯与被服流转监控。
 
 ### 10.3 整合实施路线
-1. **解耦设计资产**：提取 `smart-hospital-cockpit/public/assets/` 中的高精模型渲染素材并规整到主工程。
+1. **解耦设计资产**：提取 `archive/smart-hospital-cockpit/public/assets/` 中的高精模型渲染素材并规整到主工程。
 2. **样式隔离**：大屏所有科技风样式收敛至专属命名空间（如 `.screen-cockpit-root`），严禁污染工作台。
 3. **路由重构**：将过渡版 `ScreenView.vue` 平滑升级为下一代智慧医院数字孪生驾驶舱，统一在 `/screen` 路由下运行。
 

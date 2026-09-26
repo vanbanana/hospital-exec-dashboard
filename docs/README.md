@@ -16,7 +16,7 @@
 | 5 | [acceptance.md](acceptance.md) | 门禁、前端设计验收、数据层验收 | 全员 | v2.0 ✅ |
 | 6 | [database-schema.md](database-schema.md) | 六 schema 库表设计、指标字典、自洽校验 | 后端（未实施） | v1.1 冻结保留 |
 
-关联文档（非本目录）：`../院长查询与决策支持系统_深度调研与功能需求规格白皮书.md`（需求源头）、`../design/workbench-home.png`（工作台首页视觉参考）、`../smart-hospital-cockpit/`（大屏视觉参考工程）、`../output/`（早期设计快照，只读）。
+关联文档（非本目录）：`../院长查询与决策支持系统_深度调研与功能需求规格白皮书.md`（需求源头）、`../archive/design/workbench-home.png`（工作台首页视觉参考）、`../archive/smart-hospital-cockpit/`（大屏视觉参考工程）、`../archive/output/`（早期设计快照，只读）。
 
 ## 变更纪律
 
