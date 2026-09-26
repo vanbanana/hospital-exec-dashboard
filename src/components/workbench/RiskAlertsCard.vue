@@ -7,31 +7,40 @@
 
     <div class="risk-list">
       <div
-        v-for="item in riskItems"
-        :key="item.text"
+        v-for="item in items"
+        :key="item.id"
         class="risk-item"
       >
         <span
           class="level-badge"
-          :class="`level-${item.level}`"
+          :class="`level-${levelLabel[item.level]}`"
         >
-          {{ item.level }}
+          {{ levelLabel[item.level] }}
         </span>
-        <span class="risk-text">{{ item.text }}</span>
-        <span class="risk-date wb-num">{{ item.date }}</span>
+        <span class="risk-text">{{ item.title }}</span>
+        <span class="risk-date wb-num">{{ item.occurred_at }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-const riskItems = [
-  { level: '高', text: '住院费用增幅高于行业均值', date: '2024-10-28' },
-  { level: '高', text: '部分科室床位使用率持续 > 95%', date: '2024-10-27' },
-  { level: '中', text: '医疗耗材库存周转天数上升', date: '2024-10-26' },
-  { level: '中', text: '药品费用占比接近警戒阈值', date: '2024-10-25' },
-  { level: '低', text: '个别设备维保到期', date: '2024-10-24' },
-]
+import { onMounted, ref } from 'vue'
+import { getHomeAlerts } from '../../api/workbench'
+import type { AlertLevel, HomeAlertItem } from '../../api/types'
+
+const items = ref<HomeAlertItem[]>([])
+
+// 契约告警级别为英文枚举 urgent|major|minor，展示端映射中文（api-contract §1.4-2）
+const levelLabel: Record<AlertLevel, string> = {
+  urgent: '高',
+  major: '中',
+  minor: '低',
+}
+
+onMounted(async () => {
+  items.value = (await getHomeAlerts()).list
+})
 </script>
 
 <style scoped>

@@ -28,6 +28,9 @@
           </div>
           <div class="wb-panel-body">
             <WbTable :columns="thCols" :rows="thRows" row-key="name">
+              <template #cell-level="{ value }">
+                <span>{{ levelText[String(value)] ?? value }}</span>
+              </template>
               <template #cell-enabled="{ row }">
                 <button
                   class="wb-switch"
@@ -72,7 +75,7 @@
                 <div class="wb-form-label">默认时间范围</div>
                 <div class="wb-form-desc">进入工作台时默认展示的统计口径</div>
               </div>
-              <select class="wb-select" v-model="pref.range">
+              <select class="wb-select" v-model="pref.default_range">
                 <option>本月</option>
                 <option>本季</option>
                 <option>本年</option>
@@ -83,7 +86,7 @@
                 <div class="wb-form-label">数据刷新频率</div>
                 <div class="wb-form-desc">实时类指标的自动刷新间隔</div>
               </div>
-              <select class="wb-select" v-model="pref.refresh">
+              <select class="wb-select" v-model="pref.refresh_interval">
                 <option>5 分钟</option>
                 <option>15 分钟</option>
                 <option>30 分钟</option>
@@ -94,21 +97,21 @@
                 <div class="wb-form-label">新预警声音提醒</div>
                 <div class="wb-form-desc">出现高风险预警时播放提示音</div>
               </div>
-              <button class="wb-switch" :class="{ on: pref.sound }" @click="pref.sound = !pref.sound"></button>
+              <button class="wb-switch" :class="{ on: pref.alert_sound }" @click="pref.alert_sound = !pref.alert_sound"></button>
             </div>
             <div class="wb-form-row">
               <div>
                 <div class="wb-form-label">金额单位缩写</div>
                 <div class="wb-form-desc">大额指标以「万元/亿元」缩写展示</div>
               </div>
-              <button class="wb-switch" :class="{ on: pref.unitAbbr }" @click="pref.unitAbbr = !pref.unitAbbr"></button>
+              <button class="wb-switch" :class="{ on: pref.unit_abbreviation }" @click="pref.unit_abbreviation = !pref.unit_abbreviation"></button>
             </div>
             <div class="wb-form-row">
               <div>
                 <div class="wb-form-label">敏感数据脱敏</div>
                 <div class="wb-form-desc">人员姓名等字段在非管理端脱敏显示</div>
               </div>
-              <button class="wb-switch" :class="{ on: pref.mask }" @click="pref.mask = !pref.mask"></button>
+              <button class="wb-switch" :class="{ on: pref.privacy_mask }" @click="pref.privacy_mask = !pref.privacy_mask"></button>
             </div>
           </div>
         </div>
@@ -118,24 +121,18 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbTable, { type WbTableColumn } from '../../components/workbench/WbTable.vue'
+import { getSettings } from '../../api/workbench'
+import type { DataSourceItem, SettingsResp, ThresholdItem, UserItem } from '../../api/types'
 
+// §13.2 三个列表非 WbTableData 形状（契约未下发 columns），列定义留本地
 const dsCols: WbTableColumn[] = [
   { key: 'name', title: '数据源' },
   { key: 'type', title: '类型' },
   { key: 'status', title: '状态', align: 'center' },
   { key: 'sync', title: '最近同步', align: 'right', num: true },
-]
-
-const dsRows = [
-  { name: 'HIS 门诊收费系统', type: '业务库 · 准实时', status: '已连接', sync: '10-28 09:42' },
-  { name: 'HIS 住院管理系统', type: '业务库 · 准实时', status: '已连接', sync: '10-28 09:42' },
-  { name: 'EMR 电子病历', type: '业务库 · 小时级', status: '已连接', sync: '10-28 09:00' },
-  { name: 'LIS 检验系统', type: '业务库 · 小时级', status: '已连接', sync: '10-28 09:05' },
-  { name: 'HRP 人财物系统', type: '业务库 · 日终批', status: '已连接', sync: '10-28 06:30' },
-  { name: '医保结算接口', type: '局端接口 · 日终批', status: '异常', sync: '10-27 23:58' },
 ]
 
 const thCols: WbTableColumn[] = [
@@ -145,16 +142,6 @@ const thCols: WbTableColumn[] = [
   { key: 'enabled', title: '启用', align: 'center' },
 ]
 
-const thRows = reactive([
-  { name: '床位使用率', rule: '连续 3 日 > 95%', level: '高', enabled: true },
-  { name: '药占比', rule: '> 30%', level: '中', enabled: true },
-  { name: '耗占比', rule: '> 20%', level: '中', enabled: true },
-  { name: '住院费用增幅', rule: '同比 > 8%', level: '高', enabled: true },
-  { name: '库存周转天数', rule: '> 35 天', level: '低', enabled: true },
-  { name: '危急值超时率', rule: '及时率 < 95%', level: '高', enabled: true },
-  { name: '设备开机率', rule: '< 60%', level: '低', enabled: false },
-])
-
 const userCols: WbTableColumn[] = [
   { key: 'name', title: '姓名' },
   { key: 'role', title: '角色', align: 'center' },
@@ -163,22 +150,29 @@ const userCols: WbTableColumn[] = [
   { key: 'status', title: '状态', align: 'center' },
 ]
 
-const userRows = [
-  { name: 'system_admin', role: '管理员', scope: '全部', login: '10-28 09:12', status: '启用' },
-  { name: '院长', role: '院领导', scope: '全院', login: '10-28 08:46', status: '启用' },
-  { name: '分管副院长·医疗', role: '院领导', scope: '全院', login: '10-27 17:32', status: '启用' },
-  { name: '医务部主任', role: '部门负责人', scope: '医疗业务', login: '10-28 08:58', status: '启用' },
-  { name: '财务部主任', role: '部门负责人', scope: '运营财务', login: '10-28 09:05', status: '启用' },
-  { name: '质控科主任', role: '部门负责人', scope: '质量安全', login: '10-27 16:20', status: '启用' },
-]
+// thresholds.level 为契约英文枚举（§13.2 注1），界面沿用中文档级文案
+const levelText: Record<string, string> = { urgent: '高', major: '中', minor: '低' }
 
-const pref = reactive({
-  range: '本月',
-  refresh: '5 分钟',
-  sound: true,
-  unitAbbr: true,
-  mask: true,
+const dsRows = ref<DataSourceItem[]>([])
+const thRows = ref<ThresholdItem[]>([])
+const userRows = ref<UserItem[]>([])
+
+const pref = reactive<SettingsResp['preferences']>({
+  default_range: '本月',
+  refresh_interval: '5 分钟',
+  alert_sound: true,
+  unit_abbreviation: true,
+  privacy_mask: true,
 })
+
+const load = async () => {
+  const d = await getSettings()
+  dsRows.value = d.data_sources
+  thRows.value = d.thresholds
+  userRows.value = d.users
+  Object.assign(pref, d.preferences)
+}
+onMounted(load)
 </script>
 
 <style scoped>

@@ -7,8 +7,8 @@
 
     <div class="progress-list">
       <div
-        v-for="item in workItems"
-        :key="item.name"
+        v-for="item in items"
+        :key="item.id"
         class="progress-item"
       >
         <span class="status-dot" :class="item.status === '进行中' ? 'dot-doing' : 'dot-pending'"></span>
@@ -29,13 +29,15 @@
 </template>
 
 <script setup lang="ts">
-const workItems = [
-  { name: '三甲复评准备', progress: 75, status: '进行中' },
-  { name: 'DRG精细化管理', progress: 60, status: '进行中' },
-  { name: '智慧医院建设', progress: 40, status: '进行中' },
-  { name: '学科建设提升计划', progress: 90, status: '进行中' },
-  { name: 'DIP支付方式改革', progress: 30, status: '待启动' },
-]
+import { onMounted, ref } from 'vue'
+import { getHomeWorkitems } from '../../api/workbench'
+import type { HomeProgressItem } from '../../api/types'
+
+const items = ref<HomeProgressItem[]>([])
+
+onMounted(async () => {
+  items.value = (await getHomeWorkitems()).list
+})
 </script>
 
 <style scoped>

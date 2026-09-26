@@ -7,13 +7,13 @@
 
     <div class="indicators-list">
       <div
-        v-for="item in indicatorItems"
-        :key="item.name"
+        v-for="item in items"
+        :key="item.code"
         class="indicator-item"
       >
         <!-- Icon Circle -->
-        <div class="icon-circle" :style="{ backgroundColor: item.circleBg, color: item.iconColor }">
-          <component :is="item.icon" :size="17" :stroke-width="1.9" />
+        <div class="icon-circle" :style="{ backgroundColor: styleOf(item.tone).circleBg, color: styleOf(item.tone).iconColor }">
+          <component :is="iconMap[item.icon ?? '']" :size="17" :stroke-width="1.9" />
         </div>
 
         <!-- Metric Details -->
@@ -30,9 +30,9 @@
           <span class="trend-text">较上月</span>
           <span
             class="trend-delta wb-num"
-            :class="item.isPositive ? 'trend-up' : 'trend-down'"
+            :class="item.dir === 'down' ? 'trend-down' : 'trend-up'"
           >
-            {{ item.delta }} {{ item.isPositive ? '↑' : '↓' }}
+            {{ item.delta }} {{ item.dir === 'down' ? '↓' : '↑' }}
           </span>
         </div>
       </div>
@@ -41,6 +41,8 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import type { Component } from 'vue'
 import {
   CalendarDays,
   BedDouble,
@@ -48,59 +50,32 @@ import {
   Package,
   HeartPulse,
 } from 'lucide-vue-next'
+import { getHomeIndicators } from '../../api/workbench'
+import type { HomeIndicator, ToneType } from '../../api/types'
 
-const indicatorItems = [
-  {
-    name: '平均住院日',
-    value: '6.8',
-    unit: '天',
-    delta: '-0.3',
-    isPositive: false,
-    circleBg: '#e9f0fe',
-    iconColor: '#2563eb',
-    icon: CalendarDays,
-  },
-  {
-    name: '床位使用率',
-    value: '92.1',
-    unit: '%',
-    delta: '+1.2',
-    isPositive: true,
-    circleBg: '#e9f0fe',
-    iconColor: '#2563eb',
-    icon: BedDouble,
-  },
-  {
-    name: '药占比',
-    value: '28.4',
-    unit: '%',
-    delta: '-0.6',
-    isPositive: false,
-    circleBg: '#e9f0fe',
-    iconColor: '#2563eb',
-    icon: Pill,
-  },
-  {
-    name: '耗材占比',
-    value: '17.9',
-    unit: '%',
-    delta: '-0.4',
-    isPositive: false,
-    circleBg: '#e5f6f3',
-    iconColor: '#0d9488',
-    icon: Package,
-  },
-  {
-    name: '医疗服务收入占比',
-    value: '43.6',
-    unit: '%',
-    delta: '+0.8',
-    isPositive: true,
-    circleBg: '#e8f6ee',
-    iconColor: '#059669',
-    icon: HeartPulse,
-  },
-]
+const items = ref<HomeIndicator[]>([])
+
+// 契约 icon/tone 为语义枚举（api-contract §1.3），展示端映射组件与配色
+const iconMap: Record<string, Component> = {
+  CalendarDays,
+  BedDouble,
+  Pill,
+  Package,
+  HeartPulse,
+}
+const toneStyle: Record<ToneType, { circleBg: string; iconColor: string }> = {
+  primary: { circleBg: '#e9f0fe', iconColor: '#2563eb' },
+  teal: { circleBg: '#e5f6f3', iconColor: '#0d9488' },
+  green: { circleBg: '#e8f6ee', iconColor: '#059669' },
+  amber: { circleBg: '#fdf3e3', iconColor: '#d97706' },
+  red: { circleBg: '#feecec', iconColor: '#ef4444' },
+  navy: { circleBg: '#eef2f7', iconColor: '#0b1f47' },
+}
+const styleOf = (tone: ToneType = 'primary') => toneStyle[tone]
+
+onMounted(async () => {
+  items.value = (await getHomeIndicators()).list
+})
 </script>
 
 <style scoped>

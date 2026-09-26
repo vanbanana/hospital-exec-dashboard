@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="人力资源" sub="人员结构 · 职称梯队 · 科室配置 · 数据截至 2024-10-28">
+    <WbPageHead title="人力资源" sub="人员结构 · 职称梯队 · 科室配置 · 数据截至 2026-10-28">
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
@@ -42,7 +42,7 @@
         <span class="wb-panel-sub">编制 vs 在岗 · 缺口预警</span>
       </div>
       <div class="wb-panel-body">
-        <WbTable :columns="cols" :rows="rows" row-key="dept">
+        <WbTable :columns="staffing.columns" :rows="staffing.rows" row-key="dept">
           <template #cell-gap="{ value }">
             <span :class="{ 'gap-warn': Number(value) > 5 }" class="wb-num">{{ value }}</span>
           </template>
@@ -58,13 +58,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
-import WbTable, { type WbTableColumn } from '../../components/workbench/WbTable.vue'
+import WbTable from '../../components/workbench/WbTable.vue'
 import {
   wbDonutColors,
   wbCategoryAxis,
@@ -72,24 +72,25 @@ import {
   wbTooltip,
   wbGrid,
 } from '../../components/workbench/chartPresets'
+import { getHr } from '../../api/workbench'
+import type { HrResp, RangeKey, WbStatItem, WbTableData } from '../../api/types'
 
 const range = ref('本年')
 
-const stats = [
-  { label: '在岗职工', value: '2,368', delta: '+0.4%', dir: 'up' as const },
-  { label: '执业医师', value: '812', delta: '+1.8%', dir: 'up' as const },
-  { label: '注册护士', value: '1,046', delta: '+2.2%', dir: 'up' as const },
-  { label: '医护比', value: '1 : 1.29', note: '目标 ≥1:1.25' },
-  { label: '高级职称占比', value: '18.2', unit: '%', delta: '+0.6%', dir: 'up' as const },
-  { label: '人员经费占比', value: '32.5', unit: '%', delta: '+1.1%', dir: 'up' as const },
-]
+const stats = ref<WbStatItem[]>([])
+const structureData = ref<HrResp['structure']['list']>([])
+const titles = ref<HrResp['titles'] | null>(null)
+const staffing = ref<WbTableData>({ columns: [], rows: [] })
 
-const structureData = [
-  { name: '护理人员', value: 44, count: 1046 },
-  { name: '执业医师', value: 34, count: 812 },
-  { name: '行政后勤', value: 13, count: 308 },
-  { name: '医技人员', value: 9, count: 202 },
-]
+const load = async () => {
+  const d = await getHr(range.value as RangeKey)
+  stats.value = d.stats
+  structureData.value = d.structure.list
+  titles.value = d.titles
+  staffing.value = d.dept_staffing
+}
+onMounted(load)
+watch(range, load)
 
 const structureOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -101,7 +102,7 @@ const structureOption = computed<EChartsOption>(() => ({
       center: ['50%', '50%'],
       itemStyle: { borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
-      data: structureData.map((d, i) => ({
+      data: structureData.value.map((d, i) => ({
         name: d.name,
         value: d.value,
         itemStyle: { color: wbDonutColors[i] },
@@ -110,48 +111,35 @@ const structureOption = computed<EChartsOption>(() => ({
   ],
 }))
 
-const titleOption = computed<EChartsOption>(() => ({
-  animation: false,
-  grid: wbGrid({ top: 34 }),
-  tooltip: { ...wbTooltip('axis'), axisPointer: { type: 'shadow' } },
-  legend: {
-    top: 0,
-    right: 0,
-    itemWidth: 10,
-    itemHeight: 10,
-    textStyle: { fontSize: 12, color: '#475569' },
-  },
-  xAxis: wbCategoryAxis(['医师', '护理', '医技', '行政后勤']),
-  yAxis: wbValueAxis({ name: '人数', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
-  series: [
-    { name: '正高', type: 'bar', stack: 'total', barWidth: 34, data: [42, 6, 4, 0], itemStyle: { color: '#1d4ed8' } },
-    { name: '副高', type: 'bar', stack: 'total', data: [128, 68, 22, 14], itemStyle: { color: '#2563eb' } },
-    { name: '中级', type: 'bar', stack: 'total', data: [312, 368, 84, 62], itemStyle: { color: '#60a5fa' } },
-    { name: '初级及以下', type: 'bar', stack: 'total', data: [330, 604, 92, 232], itemStyle: { color: '#bfdbfe', borderRadius: [3, 3, 0, 0] } },
-  ],
-}))
+// 职称层级配色沿用原视觉序（正高→初级及以下），契约 titles.series 仅下发 name+values（§7.1）
+const TITLE_COLORS = ['#1d4ed8', '#2563eb', '#60a5fa', '#bfdbfe']
 
-const cols: WbTableColumn[] = [
-  { key: 'dept', title: '科室' },
-  { key: 'quota', title: '编制数', align: 'right', num: true },
-  { key: 'actual', title: '在岗数', align: 'right', num: true },
-  { key: 'doctor', title: '医师', align: 'right', num: true },
-  { key: 'nurse', title: '护士', align: 'right', num: true },
-  { key: 'ratio', title: '医护比', align: 'center' },
-  { key: 'gap', title: '缺口', align: 'right' },
-  { key: 'status', title: '配置状态', align: 'center' },
-]
-
-const rows = [
-  { dept: '重症医学科', quota: 68, actual: 58, doctor: 16, nurse: 42, ratio: '1:2.63', gap: 10, status: '紧缺' },
-  { dept: '急诊科', quota: 86, actual: 78, doctor: 24, nurse: 54, ratio: '1:2.25', gap: 8, status: '紧张' },
-  { dept: '儿科', quota: 64, actual: 58, doctor: 20, nurse: 38, ratio: '1:1.90', gap: 6, status: '紧张' },
-  { dept: '心血管内科', quota: 92, actual: 89, doctor: 32, nurse: 57, ratio: '1:1.78', gap: 3, status: '充足' },
-  { dept: '骨科', quota: 84, actual: 81, doctor: 28, nurse: 53, ratio: '1:1.89', gap: 3, status: '充足' },
-  { dept: '呼吸与危重症医学科', quota: 76, actual: 72, doctor: 24, nurse: 48, ratio: '1:2.00', gap: 4, status: '充足' },
-  { dept: '麻醉科', quota: 42, actual: 36, doctor: 30, nurse: 6, ratio: '—', gap: 6, status: '紧张' },
-  { dept: '康复医学科', quota: 38, actual: 34, doctor: 10, nurse: 24, ratio: '1:2.40', gap: 4, status: '充足' },
-]
+const titleOption = computed<EChartsOption>(() => {
+  const t = titles.value
+  const last = (t?.series.length ?? 0) - 1
+  return {
+    animation: false,
+    grid: wbGrid({ top: 34 }),
+    tooltip: { ...wbTooltip('axis'), axisPointer: { type: 'shadow' } },
+    legend: {
+      top: 0,
+      right: 0,
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { fontSize: 12, color: '#475569' },
+    },
+    xAxis: wbCategoryAxis(t?.categories ?? []),
+    yAxis: wbValueAxis({ name: t?.unit ?? '人', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+    series: (t?.series ?? []).map((s, i) => ({
+      name: s.name,
+      type: 'bar' as const,
+      stack: 'total',
+      barWidth: i === 0 ? 34 : undefined,
+      data: s.values,
+      itemStyle: { color: TITLE_COLORS[i], borderRadius: i === last ? [3, 3, 0, 0] : undefined },
+    })),
+  }
+})
 </script>
 
 <style scoped>

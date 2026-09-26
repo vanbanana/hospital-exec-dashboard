@@ -7,8 +7,8 @@
 
     <div class="notices-list">
       <div
-        v-for="item in noticeItems"
-        :key="item.text"
+        v-for="item in items"
+        :key="item.id"
         class="notice-item"
       >
         <span
@@ -23,13 +23,15 @@
 </template>
 
 <script setup lang="ts">
-const noticeItems = [
-  { text: '关于加强医疗质量安全管理的通知', date: '2024-10-28', urgent: true },
-  { text: '院务会会议材料（10月）', date: '2024-10-27', urgent: true },
-  { text: '请审阅2025年预算编制方案', date: '2024-10-26', urgent: true },
-  { text: '智慧医院二期建设进展汇报', date: '2024-10-25', urgent: false },
-  { text: '上级主管部门调研安排', date: '2024-10-24', urgent: false },
-]
+import { onMounted, ref } from 'vue'
+import { getHomeNotices } from '../../api/workbench'
+import type { HomeNoticeItem } from '../../api/types'
+
+const items = ref<HomeNoticeItem[]>([])
+
+onMounted(async () => {
+  items.value = (await getHomeNotices()).list
+})
 </script>
 
 <style scoped>

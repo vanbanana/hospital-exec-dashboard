@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, provide } from 'vue'
 import HeaderBanner from '../components/HeaderBanner.vue'
 import KpiCards from '../components/KpiCards.vue'
 import DrgDipAnalysis from '../components/DrgDipAnalysis.vue'
@@ -47,9 +47,16 @@ import ValuePillars from '../components/ValuePillars.vue'
 import DepartmentRanking from '../components/DepartmentRanking.vue'
 import WarningAlerts from '../components/WarningAlerts.vue'
 import TrendCharts from '../components/TrendCharts.vue'
+import { getScreenSnapshot } from '../api/screen'
+import type { ScreenSnapshotResp } from '../api/types'
 
 const dashboardRef = ref<HTMLElement | null>(null)
 const scale = ref(1)
+
+// §14.1 快照在视图层取数；旧大屏组件（src/components/*.vue）冻结期由视图 provide，
+// 整合进主工程时各面板改 inject 消费
+const snapshot = ref<ScreenSnapshotResp | null>(null)
+provide('screenSnapshot', snapshot)
 
 const BASE_WIDTH = 2048
 const BASE_HEIGHT = 1152
@@ -71,9 +78,14 @@ const scaleStyle = computed(() => {
   }
 })
 
+const loadSnapshot = async () => {
+  snapshot.value = await getScreenSnapshot()
+}
+
 onMounted(() => {
   updateScale()
   window.addEventListener('resize', updateScale)
+  loadSnapshot()
 })
 
 onUnmounted(() => {

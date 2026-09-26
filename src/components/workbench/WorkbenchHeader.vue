@@ -42,7 +42,7 @@
 
       <!-- Date Display -->
       <div class="header-bottom-date">
-        2024年10月28日 星期一
+        2026年10月28日 星期三
       </div>
     </div>
   </header>

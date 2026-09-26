@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="综合概览" sub="全院运营全景 · 数据截至 2024-10-28">
+    <WbPageHead title="综合概览" sub="全院运营全景 · 数据截至 2026-10-28">
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
@@ -42,17 +42,17 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">科室服务量构成 TOP8</h3>
-          <span class="wb-panel-sub">门诊 + 住院合计当量</span>
+          <span class="wb-panel-sub">{{ shareMetric }}</span>
         </div>
         <div class="wb-panel-body">
           <div class="share-list">
             <div v-for="it in deptShare" :key="it.name" class="share-row">
               <span class="share-name">{{ it.name }}</span>
               <div class="wb-bar">
-                <div class="wb-bar-fill" :style="{ width: it.pct + '%' }"></div>
+                <div class="wb-bar-fill" :style="{ width: it.bar_pct + '%' }"></div>
               </div>
-              <span class="share-val wb-num">{{ it.value }}</span>
-              <span class="share-pct wb-num">{{ it.pct }}%</span>
+              <span class="share-val wb-num">{{ it.value.toLocaleString('en-US') }}</span>
+              <span class="share-pct wb-num">{{ it.bar_pct }}%</span>
             </div>
           </div>
         </div>
@@ -66,7 +66,7 @@
         <div class="wb-panel-body">
           <div class="wb-list live-list">
             <div v-for="it in liveItems" :key="it.label" class="wb-list-row">
-              <span class="wb-dot" :style="{ backgroundColor: it.color }"></span>
+              <span class="wb-dot" :style="{ backgroundColor: toneColor[it.tone] }"></span>
               <span class="wb-list-main">{{ it.label }}</span>
               <span class="live-val wb-num">{{ it.value }}</span>
             </div>
@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbSeg from '../../components/workbench/WbSeg.vue'
@@ -92,69 +92,84 @@ import {
   wbTooltip,
   wbGrid,
 } from '../../components/workbench/chartPresets'
+import { getOverview } from '../../api/workbench'
+import type { NameValue, OverviewResp, RangeKey, ToneType, WbStatItem } from '../../api/types'
 
 const range = ref('本年')
 
-const stats = [
-  { label: '门急诊人次', value: '12,482', delta: '+3.6%', dir: 'up' as const },
-  { label: '出院人数', value: '3,920', delta: '+5.1%', dir: 'up' as const },
-  { label: '手术台次', value: '1,286', delta: '+4.8%', dir: 'up' as const },
-  { label: '医疗收入', value: '23,560', unit: '万元', delta: '+2.9%', dir: 'up' as const },
-  { label: '床位使用率', value: '92.1', unit: '%', delta: '+1.2%', dir: 'up' as const },
-  { label: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down' as const },
-]
+const stats = ref<WbStatItem[]>([])
+const trend = ref<OverviewResp['scale_revenue_trend'] | null>(null)
+const incomeData = ref<NameValue[]>([])
+const shareMetric = ref('')
+const deptShare = ref<OverviewResp['dept_share_top8']['list']>([])
+const liveItems = ref<OverviewResp['live_inpatient']>([])
 
-const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-const outpatient = [5400, 4600, 6800, 7000, 8500, 9000, 10800, 9700, 10500, 12300, 12200, 12000]
-const revenue = [1420, 1280, 1720, 1850, 1980, 2060, 2210, 2150, 2080, 2356, 2260, 2180]
+// tone 语义色 → 圆点实色；契约禁下十六进制（api-contract §1.4-6），由前端样式映射
+const toneColor: Record<ToneType, string> = {
+  primary: wbPalette.primary,
+  teal: wbPalette.teal,
+  green: wbPalette.green,
+  amber: wbPalette.amber,
+  red: wbPalette.red,
+  navy: '#0b1f47', // 对齐 --wb-navy
+}
 
-const trendOption = computed<EChartsOption>(() => ({
-  animation: false,
-  grid: wbGrid({ top: 34 }),
-  tooltip: wbTooltip('axis'),
-  legend: {
-    top: 0,
-    right: 0,
-    itemWidth: 14,
-    itemHeight: 8,
-    textStyle: { fontSize: 12, color: '#475569' },
-  },
-  xAxis: wbCategoryAxis(months),
-  yAxis: [
-    wbValueAxis({ name: '人次', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
-    wbValueAxis({
-      name: '万元',
-      nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-      splitLine: { show: false },
-    }),
-  ],
-  series: [
-    {
-      name: '门诊人次',
-      type: 'bar',
-      data: outpatient,
-      barWidth: 14,
-      itemStyle: { color: wbPalette.primary, borderRadius: [3, 3, 0, 0] },
+const load = async () => {
+  const d = await getOverview(range.value as RangeKey)
+  stats.value = d.stats
+  trend.value = d.scale_revenue_trend
+  incomeData.value = d.income_structure.list
+  shareMetric.value = d.dept_share_top8.metric
+  deptShare.value = d.dept_share_top8.list
+  liveItems.value = d.live_inpatient
+}
+onMounted(load)
+watch(range, load)
+
+const trendOption = computed<EChartsOption>(() => {
+  const t = trend.value
+  return {
+    animation: false,
+    grid: wbGrid({ top: 34 }),
+    tooltip: wbTooltip('axis'),
+    legend: {
+      top: 0,
+      right: 0,
+      itemWidth: 14,
+      itemHeight: 8,
+      textStyle: { fontSize: 12, color: '#475569' },
     },
-    {
-      name: '医疗收入',
-      type: 'line',
-      yAxisIndex: 1,
-      data: revenue,
-      smooth: 0.35,
-      symbol: 'circle',
-      symbolSize: 5,
-      itemStyle: { color: wbPalette.teal },
-      lineStyle: { color: wbPalette.teal, width: 2.5 },
-    },
-  ],
-}))
-
-const incomeData = [
-  { name: '住院收入', value: 54 },
-  { name: '门诊收入', value: 38 },
-  { name: '其他收入', value: 8 },
-]
+    xAxis: wbCategoryAxis(t?.months ?? []),
+    yAxis: [
+      wbValueAxis({ name: t?.units.outpatient, nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+      wbValueAxis({
+        name: t?.units.revenue,
+        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { show: false },
+      }),
+    ],
+    series: [
+      {
+        name: '门诊人次',
+        type: 'bar',
+        data: t?.outpatient ?? [],
+        barWidth: 14,
+        itemStyle: { color: wbPalette.primary, borderRadius: [3, 3, 0, 0] },
+      },
+      {
+        name: '医疗收入',
+        type: 'line',
+        yAxisIndex: 1,
+        data: t?.revenue ?? [],
+        smooth: 0.35,
+        symbol: 'circle',
+        symbolSize: 5,
+        itemStyle: { color: wbPalette.teal },
+        lineStyle: { color: wbPalette.teal, width: 2.5 },
+      },
+    ],
+  }
+})
 
 const incomeOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -166,33 +181,13 @@ const incomeOption = computed<EChartsOption>(() => ({
       center: ['50%', '50%'],
       itemStyle: { borderColor: '#fff', borderWidth: 2 },
       label: { show: false },
-      data: incomeData.map((d, i) => ({
+      data: incomeData.value.map((d, i) => ({
         ...d,
         itemStyle: { color: wbDonutColors[i] },
       })),
     },
   ],
 }))
-
-const deptShare = [
-  { name: '心血管内科', value: '1,860', pct: 92 },
-  { name: '骨科', value: '1,724', pct: 85 },
-  { name: '呼吸与危重症医学科', value: '1,615', pct: 80 },
-  { name: '普通外科', value: '1,480', pct: 73 },
-  { name: '神经内科', value: '1,342', pct: 66 },
-  { name: '肿瘤科', value: '1,208', pct: 60 },
-  { name: '妇产科', value: '1,126', pct: 56 },
-  { name: '儿科', value: '1,045', pct: 52 },
-]
-
-const liveItems = [
-  { label: '当前在院人数', value: '1,846', color: wbPalette.primary },
-  { label: '今日入院', value: '162', color: wbPalette.teal },
-  { label: '今日出院', value: '148', color: wbPalette.teal },
-  { label: '急诊在观', value: '36', color: wbPalette.amber },
-  { label: 'ICU 在科', value: '22', color: wbPalette.red },
-  { label: '手术进行中', value: '9', color: wbPalette.primary },
-]
 </script>
 
 <style scoped>

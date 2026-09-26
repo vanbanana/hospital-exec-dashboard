@@ -3,22 +3,22 @@
     <div class="card-header">
       <div class="header-title-box">
         <h3 class="card-title">科室业务量 TOP10</h3>
-        <span class="card-subtitle">（住院人次）</span>
+        <span class="card-subtitle">（{{ metricName }}）</span>
       </div>
       <router-link to="/workbench/medical" class="more-link">更多 &gt;</router-link>
     </div>
 
     <div class="ranking-list">
       <div
-        v-for="(item, idx) in departmentData"
-        :key="item.name"
+        v-for="item in items"
+        :key="item.rank"
         class="ranking-item"
       >
         <span
           class="rank-badge"
-          :class="getRankClass(idx + 1)"
+          :class="getRankClass(item.rank)"
         >
-          {{ idx + 1 }}
+          {{ item.rank }}
         </span>
         <span class="dept-name">{{ item.name }}</span>
         <div class="bar-track">
@@ -27,27 +27,27 @@
             :style="{ width: `${(item.value / maxVal) * 100}%` }"
           ></div>
         </div>
-        <span class="dept-val wb-num">{{ item.value }}</span>
+        <span class="dept-val wb-num">{{ item.value.toLocaleString('en-US') }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-const departmentData = [
-  { name: '心血管内科', value: 680 },
-  { name: '骨科', value: 612 },
-  { name: '呼吸与危重症医学科', value: 538 },
-  { name: '普通外科', value: 499 },
-  { name: '神经内科', value: 436 },
-  { name: '肿瘤科', value: 401 },
-  { name: '妇产科', value: 389 },
-  { name: '儿科', value: 356 },
-  { name: '消化内科', value: 320 },
-  { name: '泌尿外科', value: 298 },
-]
+import { onMounted, ref } from 'vue'
+import { getHomeTop10 } from '../../api/workbench'
+import type { HomeTop10Item } from '../../api/types'
 
-const maxVal = 700
+const items = ref<HomeTop10Item[]>([])
+const metricName = ref('')
+const maxVal = ref(1)
+
+onMounted(async () => {
+  const resp = await getHomeTop10()
+  items.value = resp.list
+  metricName.value = resp.metric_name
+  maxVal.value = resp.max_val
+})
 
 // 金银铜奖牌色，辨识度高于近色系
 const getRankClass = (rank: number) => {

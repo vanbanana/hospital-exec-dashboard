@@ -1,17 +1,17 @@
 <template>
   <div class="kpi-cards-grid">
     <div
-      v-for="card in kpiCards"
-      :key="card.title"
+      v-for="card in items"
+      :key="card.key"
       class="kpi-card"
     >
       <!-- Icon Container -->
-      <div class="kpi-icon-box" :style="{ backgroundColor: card.bgColor }">
-        <div v-if="card.isYenBadge" class="yen-circle-badge">
+      <div class="kpi-icon-box" :style="{ backgroundColor: styleOf(card.key).bg }">
+        <div v-if="styleOf(card.key).yen" class="yen-circle-badge">
           <span class="yen-char">¥</span>
         </div>
         <component
-          :is="card.icon"
+          :is="iconMap[card.icon ?? '']"
           v-else
           :size="22"
           :stroke-width="1.9"
@@ -21,7 +21,7 @@
 
       <!-- Content -->
       <div class="kpi-content">
-        <div class="kpi-title">{{ card.title }}</div>
+        <div class="kpi-title">{{ card.label }}</div>
         <div class="kpi-value-row">
           <span class="kpi-number wb-num">{{ card.value }}</span>
           <span v-if="card.unit" class="kpi-unit">{{ card.unit }}</span>
@@ -29,7 +29,7 @@
         <div class="kpi-trend-row">
           <span class="trend-label">较上月</span>
           <span class="trend-val wb-num">
-            {{ card.change }}<span class="trend-arrow">↑</span>
+            {{ card.delta }}<span class="trend-arrow">{{ card.dir === 'down' ? '↓' : '↑' }}</span>
           </span>
         </div>
       </div>
@@ -38,60 +38,41 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import type { Component } from 'vue'
 import {
   Stethoscope,
   BedDouble,
   Scissors,
   Users,
+  Banknote,
 } from 'lucide-vue-next'
+import { getHomeKpis } from '../../api/workbench'
+import type { HomeKpiItem } from '../../api/types'
 
-const kpiCards = [
-  {
-    title: '门急诊人次',
-    value: '12,482',
-    change: '+3.6%',
-    unit: '',
-    bgColor: '#2563eb',
-    icon: Stethoscope,
-    isYenBadge: false,
-  },
-  {
-    title: '住院人次',
-    value: '3,920',
-    change: '+5.1%',
-    unit: '',
-    bgColor: '#3b82f6',
-    icon: BedDouble,
-    isYenBadge: false,
-  },
-  {
-    title: '手术台次',
-    value: '1,286',
-    change: '+4.8%',
-    unit: '',
-    bgColor: '#059669',
-    icon: Scissors,
-    isYenBadge: false,
-  },
-  {
-    title: '医疗总收入',
-    value: '23,560',
-    unit: '万元',
-    change: '+2.9%',
-    bgColor: '#10b981',
-    icon: null,
-    isYenBadge: true,
-  },
-  {
-    title: '在岗职工',
-    value: '2,368',
-    change: '+0.4%',
-    unit: '',
-    bgColor: '#0891b2',
-    icon: Users,
-    isYenBadge: false,
-  },
-]
+const items = ref<HomeKpiItem[]>([])
+
+// 契约下发 icon 为 Lucide 图标名、禁下十六进制色值（api-contract §1.4-6），
+// 展示端按业务 key 固定卡片底色与 ¥ 徽标特例
+const iconMap: Record<string, Component> = {
+  Stethoscope,
+  BedDouble,
+  Scissors,
+  Users,
+  Banknote,
+}
+const cardStyle: Record<string, { bg: string; yen?: boolean }> = {
+  outpatient: { bg: '#2563eb' },
+  inpatient: { bg: '#3b82f6' },
+  surgery: { bg: '#059669' },
+  revenue: { bg: '#10b981', yen: true },
+  staff: { bg: '#0891b2' },
+}
+const styleOf = (key: string) => cardStyle[key] ?? { bg: '#2563eb' }
+
+onMounted(async () => {
+  items.value = (await getHomeKpis()).list
+})
 </script>
 
 <style scoped>
