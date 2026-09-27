@@ -187,8 +187,14 @@ const pref = reactive<SettingsResp['preferences']>({
   unit_abbreviation: true,
   privacy_mask: true,
 })
+// 回滚基线=末次已确认值(拉取/写成功即推进)——data.value 只反映末次拉取,
+// 连续两次写第二次失败时会滚过第一次的成功值
+const lastGood = reactive<SettingsResp['preferences']>({ ...pref })
 watch(data, (d) => {
-  if (d) Object.assign(pref, d.preferences)
+  if (d) {
+    Object.assign(pref, d.preferences)
+    Object.assign(lastGood, d.preferences)
+  }
 })
 
 interface WriteErr {
@@ -225,9 +231,10 @@ async function savePref<K extends keyof SettingsResp['preferences']>(key: K) {
   patch[key] = pref[key]
   try {
     await savePreferences(patch)
+    lastGood[key] = pref[key]
     toast.success('已保存')
   } catch (e) {
-    if (data.value) pref[key] = data.value.preferences[key]
+    pref[key] = lastGood[key]
     toast.warning(errInfo(e).message)
   } finally {
     pendingPrefs.delete(key)

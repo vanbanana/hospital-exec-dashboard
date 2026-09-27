@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -436,7 +435,7 @@ func (r *WriteRepo) TodoCurrentValues(ctx context.Context, codes []string) (map[
 		   WHERE m.metric_code=k.metric_code AND m.dept_id=0 AND m.group_id=0
 		   ORDER BY date DESC LIMIT 1
 		 ) mv ON t.metric_code IS NULL`,
-		"{"+strings.Join(codes, ",")+"}").Scan(&rows).Error
+		codes).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,7 @@
 <script lang="ts">
 // 轻量全局提示等价物 — error-codes §4 ElMessage 语义的 token 化替代
 // 模块级队列:无全局挂载位(App.vue 不归本 epic),各写操作宿主内 <WbToast/> 渲染同一队列
-import { reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
 export interface WbToastItem {
   id: number
@@ -11,8 +11,9 @@ export interface WbToastItem {
 
 const toasts = reactive<WbToastItem[]>([])
 let seq = 0
-// 渲染占位:多宿主同页挂载时先到先渲,其余空渲——否则同一队列被渲 N 遍
-let owner: object | null = null
+// 渲染占位:多宿主同页挂载时先到先渲,其余空渲——否则同一队列被渲 N 遍。
+// owner 为 ref:占位实例卸载 release→null 后,幸存实例的 computed 依赖失效重算、当场接管
+const owner = ref<object | null>(null)
 
 function push(text: string, tone: WbToastItem['tone']) {
   const id = ++seq
@@ -24,14 +25,14 @@ function push(text: string, tone: WbToastItem['tone']) {
 }
 
 export function useToast() {
-  // 渲染期惰性认领:占位实例卸载后,幸存实例下次渲染自动接管
   const token = {}
-  const isOwner = () => {
-    if (owner === null) owner = token
-    return owner === token
-  }
+  // computed 内惰性认领(首实例求值即占),占位释放→响应式重算→自动接管
+  const isOwner = computed(() => {
+    if (owner.value === null) owner.value = token
+    return owner.value === token
+  })
   const release = () => {
-    if (owner === token) owner = null
+    if (owner.value === token) owner.value = null
   }
   return { toasts, isOwner, release, push }
 }
@@ -51,7 +52,7 @@ onUnmounted(release)
 </script>
 
 <template>
-  <Teleport v-if="isOwner()" to="body">
+  <Teleport v-if="isOwner" to="body">
     <div class="wb-toast-stack">
       <TransitionGroup name="wb-toast">
         <div v-for="t in toasts" :key="t.id" class="wb-toast-item" :class="`tone-${t.tone}`">

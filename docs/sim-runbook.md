@@ -11,7 +11,7 @@ SIM_ENABLED=1 go run ./cmd/server   # 默认即 1;PORT=8094 覆盖端口
 SIM_ENABLED=0 go run ./cmd/server   # 生产形态:/sim/* 全部 404+10003
 ```
 
-`/sim/*` 路由注册与否只取决于 `SIM_ENABLED` env(config.go fail-fast);操作人角色校验待 §2.3 会话落地，本期不做 `?role=` 解析。
+`/sim/*` 路由注册与否只取决于 `SIM_ENABLED` env(config.go fail-fast)。**会话闸**（§2.3 已落地）：全部端点（含 GET）限 `admin` 会话——无会话 → `20001`，非 admin 角色 → `20004`。
 
 ## 2. 时钟模型(必读)
 
@@ -25,20 +25,27 @@ SIM_ENABLED=0 go run ./cmd/server   # 生产形态:/sim/* 全部 404+10003
 ```bash
 B=http://localhost:8094
 
+# 前置:admin 登录拿会话 Cookie(/sim/* 全端点限 admin 会话;口令见 seed/1001_sys_defs.sql 注释)
+curl -s -c /tmp/edss.jar -X POST $B/api/v1/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"Admin@123"}' | jq .code
+
 # 看时钟与种子余量(演示前必查:virtual_now 距 seed_end 余量)
-curl -s $B/api/v1/sim/clock | jq .data
+curl -s -b /tmp/edss.jar $B/api/v1/sim/clock | jq .data
 
 # 快进 60 分钟(同日;上限 43200=30天/次)
-curl -s -X POST $B/api/v1/sim/tick -d '{"minutes":60}' | jq .data
+curl -s -b /tmp/edss.jar -X POST $B/api/v1/sim/tick -d '{"minutes":60}' | jq .data
 
 # 定点跳(晨会剧本起点)
-curl -s -X POST $B/api/v1/sim/clock -d '{"virtual_now":"2026-10-28T07:55:00+08:00"}' | jq .data
+curl -s -b /tmp/edss.jar -X POST $B/api/v1/sim/clock -d '{"virtual_now":"2026-10-28T07:55:00+08:00"}' | jq .data
 
-# 复位回开箱锚点 2026-10-28 09:00(幂等,演示收尾必做)
-curl -s -X POST $B/api/v1/sim/reset -d '{}' | jq .data
+# 复位回开箱锚点 2026-10-28 09:00+08(幂等,演示收尾必做;AT TIME ZONE 钉死上海历,与 DB TZ 无关)
+curl -s -b /tmp/edss.jar -X POST $B/api/v1/sim/reset -d '{}' | jq .data
 
 # 作业台账
-curl -s "$B/api/v1/sim/jobs?size=20" | jq '.data.list[] | {job,virtual_date,job_status,started_at}'
+curl -s -b /tmp/edss.jar "$B/api/v1/sim/jobs?size=20" | jq '.data.list[] | {job,virtual_date,job_status,started_at}'
+
+# 散场:吊销会话(幂等)
+curl -s -b /tmp/edss.jar -X POST $B/api/v1/auth/logout && rm /tmp/edss.jar
 ```
 
 错误处置:`10001` 参数不合法 → `data.fields` 看字段;`35002` 越播种边界或 scope=full 未开放 → reset;`35003` 有 running 批次 → 查 `sim/jobs?status=running`。

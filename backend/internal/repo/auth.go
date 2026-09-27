@@ -54,11 +54,14 @@ func FindAuthUser(ctx context.Context, db *gorm.DB, username string) (*AuthUser,
 	return &u, nil
 }
 
-// CountRecentLoginFail 近 15 分钟 login_fail 审计行数(DB now() 墙钟);≥5 → 20104
+// CountRecentLoginFail 近 15 分钟 login_fail 审计行数(DB now() 墙钟);≥5 → 20104。
+// reason='banned' 不计——停用期撞门不该在解禁后追认成锁定计数(§2.3 豁免注同源语义)
 func CountRecentLoginFail(ctx context.Context, db *gorm.DB, username string) (int, error) {
 	var n int
 	err := db.WithContext(ctx).
-		Raw(`SELECT COUNT(*) FROM sys.audit_log WHERE action='login_fail' AND username=$1 AND created_at > now() - interval '15 minutes'`, username).
+		Raw(`SELECT COUNT(*) FROM sys.audit_log WHERE action='login_fail' AND username=$1
+			AND detail->>'reason' IS DISTINCT FROM 'banned'
+			AND created_at > now() - interval '15 minutes'`, username).
 		Scan(&n).Error
 	return n, err
 }

@@ -156,6 +156,8 @@ func dispatchOn(t *testing.T, r *gin.Engine, alertID, assigneeID int64) int64 {
 func TestWriteAlertAck(t *testing.T) {
 	r, tx := writeTx(t)
 
+	ackQ := `SELECT count(*) FROM sys.audit_log WHERE action='alert_ack' AND target_type='alert_event' AND target_id='101' AND username='president'`
+	ackBefore := qInt(t, tx, ackQ)
 	status, b := postJSON(t, r, "/api/v1/alerts/101/ack?role=president", "{}")
 	assertCode(t, status, http.StatusOK, b, 0)
 	d := dataMap(t, b)
@@ -168,8 +170,8 @@ func TestWriteAlertAck(t *testing.T) {
 	if got := qStr(t, tx, `SELECT alert_status FROM ads.alert_event WHERE id=101`); got != "processing" {
 		t.Fatalf("alert_status=%q want processing", got)
 	}
-	if n := qInt(t, tx, `SELECT count(*) FROM sys.audit_log WHERE action='alert_ack' AND target_type='alert_event' AND target_id='101' AND username='president'`); n != 1 {
-		t.Fatalf("audit alert_ack 行数=%d want 1", n)
+	if n := qInt(t, tx, ackQ); n != ackBefore+1 {
+		t.Fatalf("audit alert_delta=%d want +1(克隆库基线残留行不在断言域)", n-ackBefore)
 	}
 	// 重复认领→33002 data.current_status(幂等语义)
 	status, b = postJSON(t, r, "/api/v1/alerts/101/ack", "{}")
@@ -272,6 +274,8 @@ func TestWriteAlertClose(t *testing.T) {
 		t.Fatalf("fields=%v", d["fields"])
 	}
 	// 成功闭环
+	closeQ := `SELECT count(*) FROM sys.audit_log WHERE action='alert_close' AND target_id='104' AND username='ops_director'`
+	closeBefore := qInt(t, tx, closeQ)
 	status, b = postJSON(t, r, "/api/v1/alerts/104/close?role=ops_director", `{"close_note":"维保计划已排"}`)
 	assertCode(t, status, http.StatusOK, b, 0)
 	d := dataMap(t, b)
@@ -282,8 +286,8 @@ func TestWriteAlertClose(t *testing.T) {
 		WHERE id=104 AND alert_status='closed' AND closed_at IS NOT NULL AND close_note='维保计划已排'`); n != 1 {
 		t.Fatalf("close 落库不符 count=%d", n)
 	}
-	if n := qInt(t, tx, `SELECT count(*) FROM sys.audit_log WHERE action='alert_close' AND target_id='104' AND username='ops_director'`); n != 1 {
-		t.Fatalf("audit alert_close 行数=%d", n)
+	if n := qInt(t, tx, closeQ); n != closeBefore+1 {
+		t.Fatalf("audit alert_close delta=%d want +1", n-closeBefore)
 	}
 	// 重复关闭→33002 closed
 	status, b = postJSON(t, r, "/api/v1/alerts/104/close", `{"close_note":"再关一次"}`)
@@ -457,6 +461,8 @@ func TestWriteTodoStatusErrors(t *testing.T) {
 
 func TestWriteRuleToggle(t *testing.T) {
 	r, tx := writeTx(t)
+	toggleQ := `SELECT count(*) FROM sys.audit_log WHERE action='rule_toggle' AND target_type='alert_rule' AND target_id='BED_OVER_95'`
+	toggleBefore := qInt(t, tx, toggleQ)
 	status, b := postJSON(t, r, "/api/v1/workbench/settings/rules/BED_OVER_95", `{"enabled":false}`)
 	assertCode(t, status, http.StatusOK, b, 0)
 	d := dataMap(t, b)
@@ -466,8 +472,8 @@ func TestWriteRuleToggle(t *testing.T) {
 	if n := qInt(t, tx, `SELECT count(*) FROM ads.alert_rule WHERE code='BED_OVER_95' AND enabled=false`); n != 1 {
 		t.Fatalf("enabled 未翻转 count=%d", n)
 	}
-	if n := qInt(t, tx, `SELECT count(*) FROM sys.audit_log WHERE action='rule_toggle' AND target_type='alert_rule' AND target_id='BED_OVER_95'`); n != 1 {
-		t.Fatalf("audit rule_toggle 行数=%d", n)
+	if n := qInt(t, tx, toggleQ); n != toggleBefore+1 {
+		t.Fatalf("audit rule_toggle delta=%d want +1", n-toggleBefore)
 	}
 	// scenario 源行不可切(source='rule' 过滤)→10003;未知 code→10003
 	for _, code := range []string{"DEVICE_MAINTAIN", "NO_SUCH"} {
@@ -488,6 +494,8 @@ func TestWriteRuleToggle(t *testing.T) {
 
 func TestWritePrefsSave(t *testing.T) {
 	r, tx := writeTx(t)
+	prefQ := `SELECT count(*) FROM sys.audit_log WHERE action='pref_save' AND target_type='user_pref' AND username='president'`
+	prefBefore := qInt(t, tx, prefQ)
 	status, b := put(t, r, "/api/v1/workbench/settings/preferences",
 		`{"refresh_interval":"15 分钟","alert_sound":false}`)
 	assertCode(t, status, http.StatusOK, b, 0)
@@ -503,8 +511,8 @@ func TestWritePrefsSave(t *testing.T) {
 	if n := qInt(t, tx, `SELECT count(*) FROM sys.user_pref WHERE user_id=1 AND pref_key='alert_sound' AND pref_val='false'::jsonb`); n != 1 {
 		t.Fatalf("alert_sound 落库不符 count=%d", n)
 	}
-	if n := qInt(t, tx, `SELECT count(*) FROM sys.audit_log WHERE action='pref_save' AND target_type='user_pref' AND username='president'`); n != 1 {
-		t.Fatalf("audit pref_save 行数=%d", n)
+	if n := qInt(t, tx, prefQ); n != prefBefore+1 {
+		t.Fatalf("audit pref_save delta=%d want +1", n-prefBefore)
 	}
 	// upsert 覆写:900→1800
 	status, b = put(t, r, "/api/v1/workbench/settings/preferences", `{"refresh_interval":"30 分钟","default_range":"本季"}`)

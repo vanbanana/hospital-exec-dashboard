@@ -38,6 +38,13 @@ func (h *WriteHandler) operator(c *gin.Context) (*repo.Operator, bool) {
 			envelope.InvalidArg(c, "role", "非法角色")
 			return nil, false
 		}
+		// 越权演示切换闸:?role= 与会话身份不一致时,会话角色须 admin|president
+		// (前端 ROLE_SWITCH_ALLOW 同域)——否则任意会话可 ?role=president 绕过 R15/RBAC;
+		// 同值?role=dept_leader 自指放行(前端对演示账号恒传参),无会话=测试直挂路径
+		if su, ok := sessionUser(c); ok && su.Username != v && su.Role != "admin" && su.Role != "president" {
+			envelope.Fail(c, http.StatusForbidden, envelope.CodeScopeDeny, "无权执行该操作(角色不足)", nil)
+			return nil, false
+		}
 	} else if su, ok := sessionUser(c); ok {
 		username = su.Username
 	}

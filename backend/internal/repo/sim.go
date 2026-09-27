@@ -1,7 +1,7 @@
 // sim 域全部 SQL(契约 §16 档 A)——clock/job_log/profile 三表。
 // 时钟写操作(tick/reset/set)统一单事务骨架:running 检查 → FOR UPDATE → 界校验 → UPDATE → job_log;
 // 界校验上界=播种末日+1 由应用层做(migration ck_clock_window 注),date 列扫回 UTC 零点,
-// 比较前一律归一化到时钟行时区(+08),避免界点漂移 8h。
+// 比较前一律按 simLoc(固定东八区)还原日历日——不依赖会话/容器 TimeZone,界点不漂移。
 package repo
 
 import (
@@ -90,6 +90,11 @@ func checkRunning(tx *gorm.DB) error {
 	return nil
 }
 
+// simLoc 时钟业务时区——固定 +08 而非 LoadLocation:alpine 镜像无 zoneinfo;
+// 中国 1991 年后无夏令时,固定偏移在 2026 演示域内与 IANA Asia/Shanghai 等价。
+// 界点语义=东八区日历日,与会话/容器 TZ 无关(compose postgres 默认 Etc/UTC 亦成立)
+var simLoc = time.FixedZone("Asia/Shanghai", 8*60*60)
+
 // dayBound 把 date 列(扫回 UTC 零点)还原成 loc 时区的日历日,便于与时钟时刻比瞬时
 func dayBound(d time.Time, loc *time.Location) time.Time {
 	return time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, loc)
@@ -117,7 +122,7 @@ func SimTick(ctx context.Context, db *gorm.DB, minutes int) (before, after time.
 		if err != nil {
 			return err
 		}
-		if before.Add(time.Duration(minutes) * time.Minute).After(dayBound(seedEnd, before.Location()).AddDate(0, 0, 1)) {
+		if before.Add(time.Duration(minutes) * time.Minute).After(dayBound(seedEnd, simLoc).AddDate(0, 0, 1)) {
 			return ErrSimBound
 		}
 		if err := tx.Raw(`UPDATE sim.clock
@@ -131,8 +136,9 @@ func SimTick(ctx context.Context, db *gorm.DB, minutes int) (before, after time.
 	return before, after, jobID, err
 }
 
-// SimReset 时钟复位 base_date 09:00(契约 §16.3,幂等);
-// base_date+9h 按 timestamptz 直接加,勿转 date 拼字符串(任务书 §16.3 时区语义)
+// SimReset 时钟复位 base_date 09:00 东八区(契约 §16.3,幂等);
+// AT TIME ZONE 钉死上海历——base_date::timestamptz 会按会话 TimeZone 解析零点,
+// compose postgres 默认 Etc/UTC 下 reset 会漂成 09:00Z(=17:00+08)
 func SimReset(ctx context.Context, db *gorm.DB) (after time.Time, jobID int64, err error) {
 	err = db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := checkRunning(tx); err != nil {
@@ -143,7 +149,7 @@ func SimReset(ctx context.Context, db *gorm.DB) (after time.Time, jobID int64, e
 			BaseDate   time.Time
 		}
 		if err := tx.Raw(`UPDATE sim.clock
-			SET virtual_now = base_date::timestamptz + interval '9 hours',
+			SET virtual_now = (base_date + time '09:00') AT TIME ZONE 'Asia/Shanghai',
 			    speed = 1, paused = false, updated_at = statement_timestamp()
 			WHERE id=1 RETURNING virtual_now, base_date`).Scan(&res).Error; err != nil {
 			return err
@@ -181,9 +187,8 @@ func SimSetClock(ctx context.Context, db *gorm.DB, p SimSetPatch) (after time.Ti
 			if err != nil {
 				return err
 			}
-			loc := row.VirtualNow.Location()
-			if p.VirtualNow.Before(dayBound(row.BaseDate, loc)) ||
-				p.VirtualNow.After(dayBound(seedEnd, loc).AddDate(0, 0, 1)) {
+			if p.VirtualNow.Before(dayBound(row.BaseDate, simLoc)) ||
+				p.VirtualNow.After(dayBound(seedEnd, simLoc).AddDate(0, 0, 1)) {
 				return ErrSimBound
 			}
 		}

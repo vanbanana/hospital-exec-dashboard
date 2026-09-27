@@ -4,7 +4,7 @@
 // mockNow() 用墙钟 ISO 串 —— mock 轨无后端虚拟时钟(sim.clock.virtual_now),墙钟为可接受近似
 import { homeAlerts } from './home'
 import { settingsData } from './settings'
-import { sessionUsername } from './auth'
+import { sessionUsername, sessionRole } from './auth'
 import type { MockParams } from './index'
 import type {
   AlertAckResp,
@@ -267,6 +267,12 @@ function operatorId(params: MockParams): number {
   if (params.role !== undefined) {
     const id = OPERATOR_ID[params.role]
     if (id === undefined) fail(10001, '请求参数错误', { fields: { role: '非法角色' } })
+    // 越权演示切换闸(同后端 operator()):?role= 与会话身份不一致且会话角色非 admin/president → 20005;
+    // 同值自指放行(前端对演示账号恒传参),无会话=守卫不可达路径
+    const su = sessionUsername()
+    if (su !== null && params.role !== su && !['admin', 'president'].includes(sessionRole() ?? '')) {
+      fail(20005, '无权执行该操作(角色不足)')
+    }
     return id
   }
   return SESSION_ID[sessionUsername() ?? ''] ?? 1
