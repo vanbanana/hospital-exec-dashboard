@@ -12,11 +12,8 @@
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <div v-for="item in items" :key="item.id" class="risk-entry">
         <div class="risk-item">
-          <span
-            class="level-badge"
-            :style="{ backgroundColor: LEVEL_STYLE[item.level].bg, color: LEVEL_STYLE[item.level].fg }"
-          >
-            {{ levelLabel[item.level] }}
+          <span class="level-badge" :style="lvStyle(item.level)">
+            {{ levelLabel[item.level] ?? item.level }}
           </span>
           <span class="risk-text" :title="item.title">{{ item.title }}</span>
           <span class="risk-date wb-num">{{ item.occurred_at }}</span>
@@ -64,7 +61,10 @@
                 {{ s.name }} · {{ s.title }} · {{ s.dept_name }}{{ s.is_leader ? '（负责人）' : '' }}
               </option>
             </select>
-            <div v-if="dspErr.assignee_id" class="field-err">{{ dspErr.assignee_id }}</div>
+            <div v-if="staffErr" class="field-err">
+              承办人名单加载失败，<a href="javascript:void(0)" @click="loadStaff">重试</a>
+            </div>
+            <div v-else-if="dspErr.assignee_id" class="field-err">{{ dspErr.assignee_id }}</div>
           </div>
           <div class="dsp-field">
             <label class="dsp-label">截止时间 <span class="req">*</span></label>
@@ -136,6 +136,13 @@ const LEVEL_STYLE: Record<AlertLevel, { bg: string; fg: string }> = {
   minor: { bg: 'var(--wb-tag-teal-bg)', fg: 'var(--wb-teal)' },
 }
 
+// 枚举外 level 防御——契约内不出现,一旦穿透按灰阶降级渲染而非抛错(同 SettingsView ?? value 口径)
+function lvStyle(level: string) {
+  const s = (LEVEL_STYLE as Record<string, { bg: string; fg: string }>)[level] ??
+    { bg: 'var(--wb-tag-gray-bg)', fg: 'var(--wb-text-3)' }
+  return { backgroundColor: s.bg, color: s.fg }
+}
+
 /* ===== R04 认领 ===== */
 async function onAck(item: HomeAlertItem) {
   if (acting.has(item.id)) return
@@ -167,6 +174,17 @@ const dspBanner = ref('')
 const dspErr = reactive<Record<string, string>>({})
 const dspForm = reactive({ assignee_id: null as number | null, deadline: '', title: '', note: '' })
 const staff = ref<StaffItem[]>([])
+const staffErr = ref(false)
+
+async function loadStaff() {
+  try {
+    const r = await getStaff()
+    staff.value = r.list
+    staffErr.value = false
+  } catch {
+    staffErr.value = true
+  }
+}
 
 function openDispatch(item: HomeAlertItem) {
   dispatchFor.value = item
@@ -274,10 +292,8 @@ async function submitClose(item: HomeAlertItem) {
 
 onMounted(() => {
   reload()
-  // 承办人联想名单预取(§15.6;失败不阻塞卡片,弹层内 select 落空)
-  getStaff()
-    .then((r) => (staff.value = r.list))
-    .catch(() => {})
+  // 承办人联想名单预取(§15.6;失败不阻塞卡片,弹层内提示可重试)
+  loadStaff()
 })
 onUnmounted(() => window.removeEventListener('keydown', onEsc))
 </script>

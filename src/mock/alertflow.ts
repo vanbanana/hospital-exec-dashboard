@@ -256,6 +256,12 @@ export function getTodosList(params: MockParams): TodoListResp {
 // 缺席回落 mock 会话旗标(与后端 operator() 同语义);
 // 与 mock/auth.ts ROLE_USER 的 id 同源——演示账号 username↔id 是契约 §15 头部事实
 const OPERATOR_ID: Record<string, number> = { president: 1, ops_director: 2, dept_leader: 3 }
+// 会话回落表=种子全集(1001_sys_defs.sql 546-549):?role= 域仍=三演示角色,
+// 非演示会话账号(admin/vp_medical/...)按种子 id 解析,同后端 FindOperator 语义
+const SESSION_ID: Record<string, number> = {
+  ...OPERATOR_ID,
+  admin: 4, vp_medical: 5, med_director: 6, fin_director: 7,
+}
 
 function operatorId(params: MockParams): number {
   if (params.role !== undefined) {
@@ -263,7 +269,7 @@ function operatorId(params: MockParams): number {
     if (id === undefined) fail(10001, '请求参数错误', { fields: { role: '非法角色' } })
     return id
   }
-  return OPERATOR_ID[sessionUsername() ?? ''] ?? 1
+  return SESSION_ID[sessionUsername() ?? ''] ?? 1
 }
 
 // 写面角色门(契约 §15.7/R15 20005):有效操作人角色须在管理域——dept_leader 越域写回绝
@@ -463,7 +469,7 @@ export function putPreferences(params: MockParams, body?: unknown): SettingsResp
   if (typeof body !== 'object' || body === null || Array.isArray(body)) fail(10001, '请求参数错误')
   const b = body as Record<string, unknown>
   const keys = Object.keys(b)
-  if (!keys.length || keys.some((k) => !(k in settingsData.preferences))) fail(10001, '请求参数错误')
+  if (!keys.length || keys.some((k) => !Object.prototype.hasOwnProperty.call(settingsData.preferences, k))) fail(10001, '请求参数错误')
   const fields: Record<string, string> = {}
   for (const k of keys) {
     const v = b[k]

@@ -162,7 +162,7 @@
 - **Response `data`**：与 §2.1 `data` 同形 `{ user, available_roles, system_date, weekday }`。
 - **响应头**：`Set-Cookie: edss_sid=<会话令牌>; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200`。生产 TLS 部署追加 `Secure`（后端配置项控制）；中间件同时接受 `Authorization: Bearer <令牌>`（供 curl/断言脚本，不进示例）。
 - **可返回错误码**：`10001`（字段缺失/显式空串，`data.fields` 定位）、`10006`（请求体 JSON 非法）、`20101`（账号或口令错误）、`20102`（账号已停用）、`20104`（15 分钟内失败 ≥5 次锁定）
-- **审计**：成功/失败均写 `sys.audit_log`（`action` = `login` / `login_fail`，username + ip）。
+- **审计**：成功/失败均写 `sys.audit_log`（`action` = `login` / `login_fail`，username + ip）。**豁免**：已锁定账号的撞锁尝试（`20104` 路径）不写 `login_fail`——审计行正是锁定计数源，写入会自我续锁；撞锁事件已由先前 5 行 `login_fail` 记录。
 
 ### 2.4 POST /auth/logout
 - **说明**：吊销当前会话并清除 Cookie。**幂等**：无会话/会话已失效调用同样返回 `code=0`。

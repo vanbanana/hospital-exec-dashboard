@@ -73,6 +73,8 @@ func (h *Auth) Login(c *gin.Context) {
 		return
 	}
 	if u.UserStatus != 1 {
+		// 契约 §2.3"成功/失败均写 audit_log"——停用尝试入审计;该账号已禁,审计行不产副作用
+		h.auditLoginFail(ctx, &u.ID, req.Username, ip, "banned")
 		envelope.Fail(c, http.StatusForbidden, envelope.CodeUserBanned, "账号已停用", nil)
 		return
 	}
@@ -83,6 +85,8 @@ func (h *Auth) Login(c *gin.Context) {
 		return
 	}
 	if n >= 5 {
+		// 锁定分支有意不写 login_fail 审计——审计行会喂 CountRecentLoginFail 自我续锁;
+		// 契约 §2.3"失败均写审计"对本分支显式豁免(撞锁事件本身已由先前 5 行 login_fail 记录)
 		envelope.Fail(c, http.StatusTooManyRequests, envelope.CodeLoginLock, "登录失败次数过多,请15分钟后重试", nil)
 		return
 	}
