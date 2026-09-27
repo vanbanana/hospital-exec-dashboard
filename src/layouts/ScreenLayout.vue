@@ -71,7 +71,7 @@ onUnmounted(() => {
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: var(--p-ink-950);
+  background: var(--p-ink-950); /* 原色直取：viewport 在 .screen-layout 作用域外 */
 }
 
 .screen-canvas {

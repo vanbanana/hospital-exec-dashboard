@@ -103,7 +103,7 @@ const dateText = computed(() => {
 .title-divider {
   width: 1px;
   height: 15px;
-  background-color: var(--p-slate-300);
+  background-color: var(--p-slate-300); /* 原色直取 */
   margin-inline: var(--wb-space-3);
 }
 
@@ -181,7 +181,7 @@ const dateText = computed(() => {
   top: 1px;
   right: 1px;
   background-color: var(--wb-red);
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
   font-size: var(--wb-fs-2xs);
   font-weight: var(--wb-fw-bold);
   width: 14px;
@@ -190,14 +190,14 @@ const dateText = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid var(--p-white);
+  border: 1.5px solid var(--p-white); /* 原色直取 */
   line-height: var(--wb-lh-solid);
 }
 
 .action-divider {
   width: 1px;
   height: 18px;
-  background-color: var(--p-slate-200);
+  background-color: var(--p-slate-200); /* 原色直取 */
 }
 
 .user-profile {

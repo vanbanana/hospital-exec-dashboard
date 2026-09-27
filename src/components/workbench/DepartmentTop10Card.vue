@@ -144,17 +144,17 @@ const getRankClass = (rank: number) => {
 
 .rank-gold {
   background-color: var(--wb-rank-1);
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
 }
 
 .rank-silver {
   background-color: var(--wb-rank-2);
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
 }
 
 .rank-bronze {
   background-color: var(--wb-rank-3);
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
 }
 
 .rank-normal {

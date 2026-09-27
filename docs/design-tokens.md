@@ -22,8 +22,10 @@ L2 组件层 component  (可选)      --{cmp}-*  组件内部件,指向语义层
 src/styles/tokens.css   L0 原色层 :root{--p-*} + L1 语义层 .workbench-layout{--wb-*}/.screen-layout{--scr-*}
 src/styles/index.css    全局 reset(无业务取值)
 src/styles/workbench.css 仅保留"基元组件样式"(.wb-panel/.wb-table/...),取值全部 var(--wb-*)
-src/styles/screen.css   大屏基元样式(建 /screen 时创建),取值全部 var(--scr-*)
-src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle 或与 tokens.css 同源常量)
+src/styles/screen.css   大屏基元样式,取值全部 var(--scr-*)
+src/components/workbench/chartPresets.ts  wb 图表出口:色值静态镜像+wbChartFs 字号档(注释挂 token 名)
+src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputedStyle 读 --scr-*/--p-*
+                                        (+readScrCanvas 读画布;读取器内 1920/1080 兜底为文档豁免的唯一 JS 字面)
 ```
 
 `variables.css` 废除：其深色 token 与 archive 冻结稿冲突（见 r0 审计 §三），全部作废按本文档重建；`--font-family-*` 迁入 tokens.css L0。
@@ -180,6 +182,7 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
 - `rgb(from var(--p-*) r g b / α)` 相对色配方（R3 配方豁免）
 - `1px` 细线、`100%`/`50%` 比例、`0`/`auto`/`inherit`、CSS 动画关键帧内 opacity 0↔1
 - `z-index`/`opacity`/`font-weight`/`line-height`/`letter-spacing`/`transition` 仅允许取 token（覆盖维，档已收编于各域 token 块）
+- `font-family` 直用 `--p-font-base`/`--p-font-number`（字体族原色即语义，无 L1 别名）
 - mock 数据文件中的数值（非样式）；图表 JS `fontSize` 仅允许取各域出口常量（wb:`chartPresets.wbChartFs`，scr:`scrTokens` fs 槽）
 - ECharts option 内的数据可视参数（`margin`/`grid` 内边距、`borderWidth`、`symbolSize`、悬停/极值 `opacity`）属图表出口实现细节，不归覆盖维——含在 `chartPresets`/`scrTokens` 出口或视图 option 内均可
 

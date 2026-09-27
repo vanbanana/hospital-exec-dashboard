@@ -333,7 +333,7 @@
   width: 16px;
   height: 16px;
   border-radius: var(--wb-radius-pill);
-  background: var(--p-white);
+  background: var(--p-white); /* 原色直取 */
   transition: transform var(--wb-dur-fast);
   box-shadow: var(--wb-shadow-raised);
 }

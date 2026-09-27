@@ -170,7 +170,7 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
 }
 
 .campus-pin:hover .pin-pop {
-  opacity: 1;
+  opacity: 1; /* hover 恢复态（极值豁免） */
   transform: translate(-50%, 0);
 }
 

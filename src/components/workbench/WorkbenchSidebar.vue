@@ -185,12 +185,12 @@ const menuItems = [
 
 .nav-item.active {
   background: var(--wb-accent);
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
   box-shadow: var(--wb-shadow-accent);
 }
 
 .nav-item.active .nav-icon {
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
 }
 
 .sidebar-footer {

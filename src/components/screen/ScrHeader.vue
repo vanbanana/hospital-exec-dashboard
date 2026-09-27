@@ -117,7 +117,7 @@ const toggleFullscreen = () => {
     // 全屏被浏览器拒绝（用户未交互/权限）时静默忽略，不阻断
     document.documentElement.requestFullscreen().catch(() => {})
   } else {
-    document.exitFullscreen().catch(() => {})
+    document.exitFullscreen().catch(() => {}) // 同上，退出失败静默
   }
 }
 </script>

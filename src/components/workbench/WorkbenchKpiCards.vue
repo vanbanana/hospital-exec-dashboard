@@ -125,14 +125,14 @@ const TONE_BG: Record<ToneType, string> = {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--p-white);
+  color: var(--p-white); /* 原色直取 */
   flex-shrink: 0;
 }
 
 .yen-circle-badge {
   width: 26px;
   height: 26px;
-  background-color: var(--p-white);
+  background-color: var(--p-white); /* 原色直取 */ /* 原色直取 */
   border-radius: var(--wb-radius-pill);
   display: flex;
   align-items: center;
@@ -140,7 +140,7 @@ const TONE_BG: Record<ToneType, string> = {
 }
 
 .yen-char {
-  color: var(--p-green-500);
+  color: var(--p-green-500); /* 原色直取 */
   font-weight: var(--wb-fw-bold);
   font-size: var(--wb-fs-lg);
   line-height: var(--wb-lh-solid);
