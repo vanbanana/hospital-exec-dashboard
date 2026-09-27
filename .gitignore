@@ -10,3 +10,4 @@ coverage.out
 .idea/
 .DS_Store
 tsconfig.tsbuildinfo
+archive/**/package-lock.json
