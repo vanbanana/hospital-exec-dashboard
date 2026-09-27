@@ -18,6 +18,7 @@ type Deps struct {
 	Clock          *clock.Source
 	SimEnabled     bool     // SIM_ENABLED=0 时 register_sim 不注册
 	TrustedProxies []string // XFF 可信代理 CIDR;空=不信任任何代理(ClientIP=直连地址)
+	CookieSecure   bool     // AUTH_COOKIE_SECURE:edss_sid 追加 Secure(TLS 部署置 1)
 }
 
 func Build(d *Deps) *gin.Engine {
@@ -27,7 +28,7 @@ func Build(d *Deps) *gin.Engine {
 	// CIDR,公网直连伪造 XFF 可污染 audit_log/user_session 的 ip 列;
 	// nginx 反代异机/异容器部署时经 env 放开(config.go)
 	_ = r.SetTrustedProxies(d.TrustedProxies)
-	r.Use(middleware.TraceID(), middleware.RequestLog(), middleware.Recovery(), middleware.Session(d.DB))
+	r.Use(middleware.TraceID(), middleware.RequestLog(), middleware.Recovery(), middleware.Session(d.DB, d.CookieSecure))
 
 	r.GET("/health", func(c *gin.Context) { envelope.OK(c, gin.H{"status": "up"}) })
 

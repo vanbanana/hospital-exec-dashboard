@@ -39,7 +39,7 @@ var publicPaths = map[string]struct{}{
 }
 
 // Session 会话解析;凭证缺失→20001,非法/吊销/停用→20003,过期→20002
-func Session(d *gorm.DB) gin.HandlerFunc {
+func Session(d *gorm.DB, cookieSecure bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if _, ok := publicPaths[c.Request.Method+" "+c.Request.URL.Path]; ok {
 			c.Next()
@@ -73,6 +73,12 @@ func Session(d *gorm.DB) gin.HandlerFunc {
 				defer cancel()
 				_ = repo.RenewSessionExpiry(ctx, d, tokenHash)
 			}()
+			// Cookie 轨同步重签——登录 Cookie Max-Age=43200 固定,不续签浏览器 12h 到期
+			// 照样丢 edss_sid,服务端续期只对 Bearer 轨生效
+			if _, err := c.Cookie("edss_sid"); err == nil {
+				c.SetSameSite(http.SameSiteLaxMode)
+				c.SetCookie("edss_sid", token, 43200, "/", "", cookieSecure, true)
+			}
 		}
 		if !rbacCheck(c, u) {
 			return

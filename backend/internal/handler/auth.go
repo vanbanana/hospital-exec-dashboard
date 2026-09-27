@@ -10,7 +10,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -24,12 +23,13 @@ import (
 )
 
 type Auth struct {
-	db  *gorm.DB
-	clk *clock.Source
+	db     *gorm.DB
+	clk    *clock.Source
+	secure bool // AUTH_COOKIE_SECURE → Cookie Secure 属性(TLS 部署置 1)
 }
 
-func NewAuth(db *gorm.DB, clk *clock.Source) *Auth {
-	return &Auth{db: db, clk: clk}
+func NewAuth(db *gorm.DB, clk *clock.Source, secure bool) *Auth {
+	return &Auth{db: db, clk: clk, secure: secure}
 }
 
 // dummyHash 未知用户名分支的占位 bcrypt 散列(bcrypt 官方测试向量,cost=10 与种子口令同档)——
@@ -111,8 +111,11 @@ func (h *Auth) Login(c *gin.Context) {
 		return
 	}
 	ua := c.Request.UserAgent()
-	if len(ua) > 200 { // user_agent 列 varchar(200),截断防超长 UA 插行报错
-		ua = ua[:200]
+	if len(ua) > 200 { // user_agent 列 varchar(200);按 rune 截断——字节截断会切裂多字节字符成 PG invalid byte
+		r := []rune(ua)
+		if len(r) > 200 {
+			ua = string(r[:200])
+		}
 	}
 	err = h.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := repo.InsertLoginSession(ctx, tx, u.ID, tokenHash, ip, ua); err != nil {
@@ -128,9 +131,8 @@ func (h *Auth) Login(c *gin.Context) {
 		return
 	}
 
-	// AUTH_COOKIE_SECURE 自读 env:router.Deps 不带此配置(Deps 属禁碰面;config.go 已备同名 env)
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("edss_sid", token, 43200, "/", "", os.Getenv("AUTH_COOKIE_SECURE") == "1", true)
+	c.SetCookie("edss_sid", token, 43200, "/", "", h.secure, true)
 
 	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u.ToContextUser())
 	if err != nil {
@@ -149,7 +151,7 @@ func (h *Auth) Logout(c *gin.Context) {
 		_ = repo.RevokeSession(c.Request.Context(), h.db, hex.EncodeToString(sum[:]))
 	}
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("edss_sid", "", -1, "/", "", os.Getenv("AUTH_COOKIE_SECURE") == "1", true)
+	c.SetCookie("edss_sid", "", -1, "/", "", h.secure, true)
 	envelope.OK(c, nil)
 }
 

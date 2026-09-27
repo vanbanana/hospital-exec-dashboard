@@ -15,7 +15,11 @@ RUN CGO_ENABLED=0 go build -trimpath -o /out/edss ./cmd/server \
  && CGO_ENABLED=0 go build -trimpath -o /out/edss-migrate ./cmd/migrate
 
 FROM alpine:3.20 AS backend
-RUN apk add --no-cache ca-certificates wget && adduser -D edss
+# tzdata+TZ 双必备:pgx 把 timestamptz 扫进 time.Local,alpine 默认 UTC——
+# deadline/system_date/weekday/occurred_at 等 Go 侧日历与格式推导会漂 -8h;
+# 与 db 服务 TZ/simLoc 同钉东八区
+RUN apk add --no-cache ca-certificates wget tzdata && adduser -D edss
+ENV TZ=Asia/Shanghai
 COPY --from=be-build /out/edss /out/edss-migrate /usr/local/bin/
 # migrate 的 -dir/-seeddir 默认相对 cwd,镜像内固定在 /app 下
 COPY backend/migrations /app/migrations

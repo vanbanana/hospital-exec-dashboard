@@ -275,7 +275,11 @@ function operatorId(params: MockParams): number {
     }
     return id
   }
-  return SESSION_ID[sessionUsername() ?? ''] ?? 1
+  const su = sessionUsername()
+  if (su === null) fail(20001, '未登录或凭证缺失') // 后端中间件序:无会话先于 operator() 判
+  const id = SESSION_ID[su]
+  if (id === undefined) fail(10000, '系统繁忙,请稍后重试') // 同 FindOperator 0 行=数据异常
+  return id
 }
 
 // 写面角色门(契约 §15.7/R15 20005):有效操作人角色须在管理域——dept_leader 越域写回绝

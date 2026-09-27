@@ -129,7 +129,7 @@ make down      # 停服(pgdata 卷保留)
 
 ## 演示账号
 
-三个演示账号口令统一为 `Edss@2026`（bcrypt 由迁移 `0910_sys_user_session.sql` 重置——该迁移在 `epic/p3-auth` 分支交付，本分支迁移集暂列至 0900）：
+三个演示账号口令统一为 `Edss@2026`（散列烤进 `seed/1001_sys_defs.sql` 本体；迁移 `0910_sys_user_session.sql` 的 UPDATE 为既有库修复件——`edss-migrate` 先迁移后种子，全新库上该 UPDATE 零命中）：
 
 | 账号 | 角色 | 口令 |
 | :--- | :--- | :--- |
@@ -138,6 +138,8 @@ make down      # 停服(pgdata 卷保留)
 | `dept_leader` | 骨科主任（本科室） | `Edss@2026` |
 
 其余 4 个种子账号（`admin`/`vp_medical`/`med_director`/`fin_director`）口令未重置（EA 交接口径，避免越权改超出口径的账号）。
+
+> **登录锁定语义（§2.3）**：同一用户名 15 分钟内 `login_fail` ≥5 次 → `20104` 拒绝（计数源=`sys.audit_log`，故锁定期内的撞锁尝试不再写 `login_fail`，防自我续锁；`reason=banned` 行不计入）。已知取舍：攻击者拿已知用户名连错 5 次即可锁该账号 15 分钟——契约口径按用户名计数而非按 IP，演示环境接受此 DoS 面；如需解锁直接清该用户近期 `login_fail` 审计行或等窗口过期。
 
 ## 迁移清单（migrations/ 13 文件）
 

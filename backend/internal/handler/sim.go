@@ -208,13 +208,15 @@ func (h *Sim) SetClock(c *gin.Context) {
 	}
 	if raw, present := body["virtual_now"]; present {
 		var s string
-		if err := json.Unmarshal(raw, &s); err != nil {
-			envelope.InvalidArg(c, "virtual_now", "须为 ISO 8601 时刻串")
-			return
-		}
-		t, err := time.Parse(time.RFC3339, s)
-		if err != nil {
-			envelope.InvalidArg(c, "virtual_now", "须为 ISO 8601 时刻串")
+		t, err := func() (time.Time, error) {
+			if err := json.Unmarshal(raw, &s); err != nil {
+				return time.Time{}, err
+			}
+			return time.Parse(time.RFC3339, s)
+		}()
+		if err != nil { // 字段级非法归 35002(error-codes §3 适用注:sim/clock 字段非法/越界同码)
+			envelope.Fail(c, http.StatusBadRequest, envelope.CodeSimTierNA, "虚拟时钟参数非法",
+				envelope.Fields{"virtual_now": "须为 ISO 8601 时刻串"})
 			return
 		}
 		p.VirtualNow = &t
@@ -222,7 +224,8 @@ func (h *Sim) SetClock(c *gin.Context) {
 	if raw, present := body["speed"]; present {
 		var v int
 		if err := json.Unmarshal(raw, &v); err != nil || v < 1 || v > 1000 {
-			envelope.InvalidArg(c, "speed", "取值须为 1..1000 整数")
+			envelope.Fail(c, http.StatusBadRequest, envelope.CodeSimTierNA, "虚拟时钟参数非法",
+				envelope.Fields{"speed": "取值须为 1..1000 整数"})
 			return
 		}
 		p.Speed = &v
@@ -230,7 +233,8 @@ func (h *Sim) SetClock(c *gin.Context) {
 	if raw, present := body["paused"]; present {
 		var v bool
 		if err := json.Unmarshal(raw, &v); err != nil {
-			envelope.InvalidArg(c, "paused", "须为布尔值")
+			envelope.Fail(c, http.StatusBadRequest, envelope.CodeSimTierNA, "虚拟时钟参数非法",
+				envelope.Fields{"paused": "须为布尔值"})
 			return
 		}
 		p.Paused = &v

@@ -65,6 +65,7 @@ func main() {
 			Clock:          clock.New(db),
 			SimEnabled:     cfg.SimEnabled,
 			TrustedProxies: cfg.TrustedProxies,
+			CookieSecure:   cfg.AuthCookieSecure,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

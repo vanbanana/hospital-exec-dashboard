@@ -342,13 +342,13 @@ func TestSimSetClock(t *testing.T) {
 		body string
 		code int
 	}{
-		{`{}`, 10001},
-		{`{"speed":0}`, 10001},
-		{`{"speed":1001}`, 10001},
-		{`{"speed":"x"}`, 10001},
-		{`{"virtual_now":123}`, 10001},
-		{`{"virtual_now":"not-a-time"}`, 10001},
-		{`{"paused":"x"}`, 10001},
+		{`{}`, 10001},          // 无有效字段
+		{`{"speed":0}`, 35002}, // 字段级非法归 35002(error-codes §3 适用注)
+		{`{"speed":1001}`, 35002},
+		{`{"speed":"x"}`, 35002},
+		{`{"virtual_now":123}`, 35002},
+		{`{"virtual_now":"not-a-time"}`, 35002},
+		{`{"paused":"x"}`, 35002},
 		{`{"virtual_now":"2030-01-01T00:00:00+08:00"}`, 35002},
 		{`{"virtual_now":"2026-10-27T00:00:00+08:00"}`, 35002}, // 越下界 base_date
 	} {

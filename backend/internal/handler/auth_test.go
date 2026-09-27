@@ -5,9 +5,9 @@
 package handler
 
 import (
-	"encoding/json"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,7 +31,7 @@ func authTx(t *testing.T) (*gin.Engine, *gorm.DB) {
 		t.Fatalf("begin tx: %v", tx.Error)
 	}
 	t.Cleanup(func() { tx.Rollback() })
-	h := NewAuth(tx, clock.New(tx))
+	h := NewAuth(tx, clock.New(tx), false)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(func(c *gin.Context) { c.Set("trace_id", "test-trace"); c.Next() })
