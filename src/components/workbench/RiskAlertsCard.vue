@@ -5,7 +5,11 @@
       <router-link to="/workbench/quality" class="more-link">更多 &gt;</router-link>
     </div>
 
-    <div class="risk-list">
+    <WbErrorPanel v-if="error && data === null" :error="error" :loading="loading" @retry="reload" />
+    <WbSkeleton v-else-if="data === null && loading" :rows="5" />
+    <WbEmpty v-else-if="!items.length" text="暂无预警" />
+    <div v-else class="risk-list">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <div
         v-for="item in items"
         :key="item.id"
@@ -13,7 +17,7 @@
       >
         <span
           class="level-badge"
-          :class="`level-${levelLabel[item.level]}`"
+          :style="{ backgroundColor: LEVEL_STYLE[item.level].bg, color: LEVEL_STYLE[item.level].fg }"
         >
           {{ levelLabel[item.level] }}
         </span>
@@ -25,22 +29,33 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { getHomeAlerts } from '../../api/workbench'
-import type { AlertLevel, HomeAlertItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import WbSkeleton from './WbSkeleton.vue'
+import WbErrorPanel from './WbErrorPanel.vue'
+import WbEmpty from './WbEmpty.vue'
+import WbStaleTag from './WbStaleTag.vue'
+import type { AlertLevel } from '../../api/types'
 
-const items = ref<HomeAlertItem[]>([])
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getHomeAlerts)
+onMounted(reload)
 
-// 契约告警级别为英文枚举 urgent|major|minor，展示端映射中文（api-contract §1.4-2）
+const items = computed(() => data.value?.list ?? [])
+
+// 契约告警级别为英文枚举 urgent|major|minor（api-contract §1.4-2）：
+// 中文仅作文案;配色按枚举挂 --wb-tag-*-bg / --wb-* 语义 token,文案不充当选择器
 const levelLabel: Record<AlertLevel, string> = {
   urgent: '高',
   major: '中',
   minor: '低',
 }
-
-onMounted(async () => {
-  items.value = (await getHomeAlerts()).list
-})
+const LEVEL_STYLE: Record<AlertLevel, { bg: string; fg: string }> = {
+  urgent: { bg: 'var(--wb-tag-red-bg)', fg: 'var(--wb-red)' },
+  major: { bg: 'var(--wb-tag-amber-bg)', fg: 'var(--wb-amber)' },
+  minor: { bg: 'var(--wb-tag-teal-bg)', fg: 'var(--wb-teal)' },
+}
 </script>
 
 <style scoped>
@@ -51,7 +66,7 @@ onMounted(async () => {
   border-radius: var(--wb-radius-card);
   border: 1px solid var(--wb-border);
   box-shadow: var(--wb-shadow-card);
-  padding: 14px 16px 10px;
+  padding: var(--wb-pad-y) var(--wb-pad-x) var(--wb-space-2);
   display: flex;
   flex-direction: column;
   user-select: none;
@@ -62,22 +77,22 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--wb-space-2);
 }
 
 .card-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--wb-fs-lg);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
   letter-spacing: 0.3px;
 }
 
 .more-link {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   text-decoration: none;
-  transition: color 0.15s;
+  transition: color var(--wb-dur-fast);
 }
 
 .more-link:hover {
@@ -94,15 +109,15 @@ onMounted(async () => {
 .risk-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 2px 0;
+  gap: var(--wb-space-2);
+  padding: var(--wb-space-1) 0;
 }
 
 .level-badge {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--wb-fs-xs);
+  font-weight: var(--wb-fw-semibold);
   width: 20px;
-  padding: 2px 0;
+  padding: var(--wb-space-1) 0;
   border-radius: var(--wb-radius-tag);
   flex-shrink: 0;
   text-align: center;
@@ -110,32 +125,32 @@ onMounted(async () => {
 }
 
 .level-高 {
-  background-color: #feecec;
+  background-color: var(--wb-tag-red-bg);
   color: var(--wb-red);
 }
 
 .level-中 {
-  background-color: #fdf3e3;
+  background-color: var(--wb-tag-amber-bg);
   color: var(--wb-amber);
 }
 
 .level-低 {
-  background-color: #e5f6f3;
+  background-color: var(--wb-tag-teal-bg);
   color: var(--wb-teal);
 }
 
 .risk-text {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-1);
-  font-weight: 500;
+  font-weight: var(--wb-fw-medium);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .risk-date {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   flex-shrink: 0;
 }

@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="科研教学" sub="课题 · 论文 · 重点学科 · 教学培训 · 数据截至 2026-10-28">
-      <WbSeg v-model="range" :options="['本季', '本年', '近三年']" />
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
+      <WbSeg v-model="range" :options="['本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无科研教学数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2">
@@ -38,7 +48,7 @@
           <template #cell-level="{ value }">
             <span
               class="wb-tag"
-              :class="value === '国家级' ? 'is-red' : value === '省级' ? 'is-blue' : 'is-gray'"
+              :class="value === '国家临床重点' ? 'is-red' : value === '省级重点专科' ? 'is-blue' : 'is-gray'"
             >
               {{ value }}
             </span>
@@ -46,6 +56,7 @@
         </WbTable>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -57,7 +68,12 @@ import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -65,24 +81,21 @@ import {
   wbGrid,
 } from '../../components/workbench/chartPresets'
 import { getResearch } from '../../api/workbench'
-import type { ResearchResp, WbStatItem, WbTableData } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { WbTableData } from '../../api/types'
 
-// 契约 §8.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
+// 契约 §8.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数;
+// 选项只列 RangeKey 枚举内值(原'近三年'超枚举已移除)
 const range = ref('本年')
 
-const stats = ref<WbStatItem[]>([])
-const projectTrend = ref<ResearchResp['project_trend'] | null>(null)
-const paperDist = ref<ResearchResp['paper_distribution'] | null>(null)
-const disciplines = ref<WbTableData>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getResearch)
+onMounted(reload)
 
-const load = async () => {
-  const d = await getResearch()
-  stats.value = d.stats
-  projectTrend.value = d.project_trend
-  paperDist.value = d.paper_distribution
-  disciplines.value = d.disciplines
-}
-onMounted(load)
+const stats = computed(() => data.value?.stats ?? [])
+const projectTrend = computed(() => data.value?.project_trend ?? null)
+const paperDist = computed(() => data.value?.paper_distribution ?? null)
+const disciplines = computed((): WbTableData => data.value?.disciplines ?? { columns: [], rows: [] })
 
 const projectOption = computed<EChartsOption>(() => {
   const t = projectTrend.value
@@ -95,14 +108,14 @@ const projectOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 14,
       itemHeight: 8,
-      textStyle: { fontSize: 12, color: '#475569' },
+      textStyle: { fontSize: 12, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.years ?? []),
     yAxis: [
-      wbValueAxis({ name: '项', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+      wbValueAxis({ name: '项', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
       wbValueAxis({
         name: t?.unit ?? '万元',
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        nameTextStyle: { color: wbChart.axis, fontSize: 11 },
         splitLine: { show: false },
       }),
     ],
@@ -139,10 +152,10 @@ const paperOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 10,
     itemHeight: 10,
-    textStyle: { fontSize: 12, color: '#475569' },
+    textStyle: { fontSize: 12, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(paperDist.value?.categories ?? []),
-  yAxis: wbValueAxis({ name: paperDist.value?.unit ?? '篇', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+  yAxis: wbValueAxis({ name: paperDist.value?.unit ?? '篇', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
   series: [
     {
       name: '论文数',

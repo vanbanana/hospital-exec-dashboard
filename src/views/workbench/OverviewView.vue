@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="综合概览" sub="全院运营全景 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无概览数据" />
+      </div>
+    </div>
+    <template v-else>
     <!-- 核心指标条 -->
     <WbStatStrip :items="stats" />
 
@@ -25,14 +35,17 @@
           <span class="wb-panel-sub">本年累计</span>
         </div>
         <div class="wb-panel-body income-body">
-          <WbChart :option="incomeOption" class="income-donut" />
-          <ul class="income-legend">
-            <li v-for="(it, i) in incomeData" :key="it.name">
-              <span class="wb-dot" :style="{ backgroundColor: wbDonutColors[i] }"></span>
-              <span class="income-name">{{ it.name }}</span>
-              <span class="income-pct wb-num">{{ it.value }}%</span>
-            </li>
-          </ul>
+          <WbEmpty v-if="!incomeData.length" text="暂无收入结构数据" />
+          <template v-else>
+            <WbChart :option="incomeOption" class="income-donut" />
+            <ul class="income-legend">
+              <li v-for="(it, i) in incomeData" :key="it.name">
+                <span class="wb-dot" :style="{ backgroundColor: wbDonutColor(i) }"></span>
+                <span class="income-name">{{ it.name }}</span>
+                <span class="income-pct wb-num">{{ it.value }}%</span>
+              </li>
+            </ul>
+          </template>
         </div>
       </div>
     </div>
@@ -46,6 +59,7 @@
         </div>
         <div class="wb-panel-body">
           <div class="share-list">
+            <WbEmpty v-if="!deptShare.length" text="暂无科室构成数据" />
             <div v-for="it in deptShare" :key="it.name" class="share-row">
               <span class="share-name">{{ it.name }}</span>
               <div class="wb-bar">
@@ -61,12 +75,13 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">实时在院动态</h3>
-          <span class="wb-panel-sub">每 5 分钟刷新</span>
+          <span class="wb-panel-sub">当前快照</span>
         </div>
         <div class="wb-panel-body">
           <div class="wb-list live-list">
+            <WbEmpty v-if="!liveItems.length" text="暂无在院动态" />
             <div v-for="it in liveItems" :key="it.label" class="wb-list-row">
-              <span class="wb-dot" :style="{ backgroundColor: toneColor[it.tone] }"></span>
+              <span class="wb-dot" :style="{ backgroundColor: TONE_COLOR[it.tone] }"></span>
               <span class="wb-list-main">{{ it.label }}</span>
               <span class="live-val wb-num">{{ it.value }}</span>
             </div>
@@ -74,6 +89,7 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -84,47 +100,50 @@ import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
-  wbDonutColors,
+  wbDonutColor,
   wbCategoryAxis,
   wbValueAxis,
   wbTooltip,
   wbGrid,
 } from '../../components/workbench/chartPresets'
 import { getOverview } from '../../api/workbench'
-import type { NameValue, OverviewResp, RangeKey, ToneType, WbStatItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { RangeKey, ToneType } from '../../api/types'
 
 const range = ref('本年')
+// WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
+const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 
-const stats = ref<WbStatItem[]>([])
-const trend = ref<OverviewResp['scale_revenue_trend'] | null>(null)
-const incomeData = ref<NameValue[]>([])
-const shareMetric = ref('')
-const deptShare = ref<OverviewResp['dept_share_top8']['list']>([])
-const liveItems = ref<OverviewResp['live_inpatient']>([])
+// 五态取数经 useAsyncData（frontend-architecture §10.1）：watch(range) 重取走 reload
+const { data, loading, error, stale, reload } = useAsyncData(() =>
+  getOverview(RANGE_PARAM[range.value] ?? '本年'),
+)
+onMounted(reload)
+watch(range, reload)
 
-// tone 语义色 → 圆点实色；契约禁下十六进制（api-contract §1.4-6），由前端样式映射
-const toneColor: Record<ToneType, string> = {
-  primary: wbPalette.primary,
-  teal: wbPalette.teal,
-  green: wbPalette.green,
-  amber: wbPalette.amber,
-  red: wbPalette.red,
-  navy: '#0b1f47', // 对齐 --wb-navy
+const stats = computed(() => data.value?.stats ?? [])
+const trend = computed(() => data.value?.scale_revenue_trend ?? null)
+const incomeData = computed(() => data.value?.income_structure.list ?? [])
+const shareMetric = computed(() => data.value?.dept_share_top8.metric ?? '')
+const deptShare = computed(() => data.value?.dept_share_top8.list ?? [])
+const liveItems = computed(() => data.value?.live_inpatient ?? [])
+
+// tone 语义色 → 圆点实色；契约禁下十六进制（api-contract §1.4-6），DOM 侧直接挂 --wb-* token
+const TONE_COLOR: Record<ToneType, string> = {
+  primary: 'var(--wb-accent)',
+  teal: 'var(--wb-teal)',
+  green: 'var(--wb-green)',
+  amber: 'var(--wb-amber)',
+  red: 'var(--wb-red)',
+  navy: 'var(--wb-navy)',
 }
-
-const load = async () => {
-  const d = await getOverview(range.value as RangeKey)
-  stats.value = d.stats
-  trend.value = d.scale_revenue_trend
-  incomeData.value = d.income_structure.list
-  shareMetric.value = d.dept_share_top8.metric
-  deptShare.value = d.dept_share_top8.list
-  liveItems.value = d.live_inpatient
-}
-onMounted(load)
-watch(range, load)
 
 const trendOption = computed<EChartsOption>(() => {
   const t = trend.value
@@ -137,14 +156,14 @@ const trendOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 14,
       itemHeight: 8,
-      textStyle: { fontSize: 12, color: '#475569' },
+      textStyle: { fontSize: 12, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.months ?? []),
     yAxis: [
-      wbValueAxis({ name: t?.units.outpatient, nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+      wbValueAxis({ name: t?.units.outpatient, nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
       wbValueAxis({
         name: t?.units.revenue,
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        nameTextStyle: { color: wbChart.axis, fontSize: 11 },
         splitLine: { show: false },
       }),
     ],
@@ -179,11 +198,11 @@ const incomeOption = computed<EChartsOption>(() => ({
       type: 'pie',
       radius: ['58%', '82%'],
       center: ['50%', '50%'],
-      itemStyle: { borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderColor: wbChart.white, borderWidth: 2 },
       label: { show: false },
       data: incomeData.value.map((d, i) => ({
         ...d,
-        itemStyle: { color: wbDonutColors[i] },
+        itemStyle: { color: wbDonutColor(i) },
       })),
     },
   ],
@@ -194,7 +213,7 @@ const incomeOption = computed<EChartsOption>(() => ({
 .income-body {
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: var(--wb-space-2);
 }
 
 .income-donut {
@@ -205,18 +224,18 @@ const incomeOption = computed<EChartsOption>(() => ({
 .income-legend {
   list-style: none;
   margin: 0;
-  padding: 0 8px 0 0;
+  padding-right: var(--wb-space-2);
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--wb-space-3);
 }
 
 .income-legend li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--wb-space-2);
+  font-size: var(--wb-fs-md);
 }
 
 .income-name {
@@ -225,7 +244,7 @@ const incomeOption = computed<EChartsOption>(() => ({
 
 .income-pct {
   margin-left: auto;
-  font-weight: 600;
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-navy);
 }
 
@@ -234,18 +253,18 @@ const incomeOption = computed<EChartsOption>(() => ({
   flex-direction: column;
   justify-content: space-evenly;
   height: 100%;
-  gap: 4px;
+  gap: var(--wb-space-1);
 }
 
 .share-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--wb-space-2);
 }
 
 .share-name {
   width: 130px;
-  font-size: 13px;
+  font-size: var(--wb-fs-md);
   color: var(--wb-text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -256,8 +275,8 @@ const incomeOption = computed<EChartsOption>(() => ({
 .share-val {
   width: 52px;
   text-align: right;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--wb-fs-md);
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-navy);
   flex-shrink: 0;
 }
@@ -265,7 +284,7 @@ const incomeOption = computed<EChartsOption>(() => ({
 .share-pct {
   width: 38px;
   text-align: right;
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   flex-shrink: 0;
 }
@@ -276,8 +295,8 @@ const incomeOption = computed<EChartsOption>(() => ({
 }
 
 .live-val {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--wb-fs-lg);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
 }
 </style>

@@ -31,8 +31,14 @@
       </div>
     </div>
 
-    <!-- Chart -->
-    <WbChart :option="chartOption" />
+    <!-- Chart / 五态 -->
+    <WbErrorPanel v-if="error && data === null" :error="error" :loading="loading" @retry="reload" />
+    <WbSkeleton v-else-if="data === null && loading" :rows="4" />
+    <WbEmpty v-else-if="!tabs.length" text="暂无趋势数据" />
+    <template v-else>
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
+      <WbChart :option="chartOption" />
+    </template>
   </div>
 </template>
 
@@ -40,9 +46,15 @@
 import { ref, computed, onMounted } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbChart from './WbChart.vue'
+import WbSkeleton from './WbSkeleton.vue'
+import WbErrorPanel from './WbErrorPanel.vue'
+import WbEmpty from './WbEmpty.vue'
+import WbStaleTag from './WbStaleTag.vue'
 import { getHomeTrend } from '../../api/workbench'
+import { useAsyncData } from '../../api/useAsyncData'
 import type { HomeTrendSeries } from '../../api/types'
 import {
+  wbChart,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -51,18 +63,15 @@ import {
   wbAreaGradient,
 } from './chartPresets'
 
-const tabs = ref<string[]>([])
-const currentTab = ref(0)
-const months = ref<string[]>([])
-const series = ref<Record<string, HomeTrendSeries>>({})
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getHomeTrend)
+onMounted(reload)
 
-onMounted(async () => {
-  const resp = await getHomeTrend()
-  months.value = resp.months
-  series.value = resp.series
-  // series 键即 Tab 名，顺序与契约示例一致（api-contract §3.2）
-  tabs.value = Object.keys(resp.series)
-})
+const currentTab = ref(0)
+const months = computed(() => data.value?.months ?? [])
+const series = computed((): Record<string, HomeTrendSeries> => data.value?.series ?? {})
+// series 键即 Tab 名，顺序与契约示例一致（api-contract §3.2）
+const tabs = computed(() => Object.keys(series.value))
 
 const chartOption = computed<EChartsOption>(() => {
   const ds = series.value[tabs.value[currentTab.value]]
@@ -73,10 +82,10 @@ const chartOption = computed<EChartsOption>(() => {
     tooltip: wbTooltip('axis'),
     xAxis: wbCategoryAxis(months.value, {
       boundaryGap: false,
-      splitLine: { show: true, lineStyle: { color: '#f4f7fb' } },
+      splitLine: { show: true, lineStyle: { color: wbChart.grid } },
     }),
     yAxis: wbValueAxis({
-      axisLabel: { color: '#64748b', fontSize: 11, formatter: (v: number) => v.toLocaleString() },
+      axisLabel: { color: wbChart.text, fontSize: 11, formatter: (v: number) => v.toLocaleString() },
     }),
     series: [
       {
@@ -86,7 +95,7 @@ const chartOption = computed<EChartsOption>(() => {
         data: ds.current,
         symbol: 'circle',
         symbolSize: 6,
-        itemStyle: { color: wbPalette.primary, borderColor: '#fff', borderWidth: 1.5 },
+        itemStyle: { color: wbPalette.primary, borderColor: wbChart.white, borderWidth: 1.5 },
         lineStyle: { color: wbPalette.primary, width: 2.5 },
         areaStyle: { color: wbAreaGradient(wbPalette.primary) },
       },
@@ -97,7 +106,7 @@ const chartOption = computed<EChartsOption>(() => {
         data: ds.last,
         symbol: 'circle',
         symbolSize: 5,
-        itemStyle: { color: wbPalette.primaryLight, borderColor: '#fff', borderWidth: 1.5 },
+        itemStyle: { color: wbPalette.primaryLight, borderColor: wbChart.white, borderWidth: 1.5 },
         lineStyle: { color: wbPalette.primaryLight, width: 2 },
         areaStyle: { color: wbAreaGradient(wbPalette.primaryLight) },
       },
@@ -114,7 +123,7 @@ const chartOption = computed<EChartsOption>(() => {
   border-radius: var(--wb-radius-card);
   border: 1px solid var(--wb-border);
   box-shadow: var(--wb-shadow-card);
-  padding: 14px 16px 10px;
+  padding: var(--wb-pad-y) var(--wb-pad-x) var(--wb-space-2);
   display: flex;
   flex-direction: column;
   user-select: none;
@@ -122,12 +131,12 @@ const chartOption = computed<EChartsOption>(() => {
 }
 
 .card-title-row {
-  margin-bottom: 6px;
+  margin-bottom: var(--wb-space-1);
 }
 
 .card-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--wb-fs-lg);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
   letter-spacing: 0.3px;
@@ -137,13 +146,13 @@ const chartOption = computed<EChartsOption>(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: var(--wb-space-1);
 }
 
 .tabs-row {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--wb-space-5);
 }
 
 .tab-btn {
@@ -151,12 +160,12 @@ const chartOption = computed<EChartsOption>(() => {
   border: none;
   outline: none;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--wb-fs-md);
+  font-weight: var(--wb-fw-medium);
   color: var(--wb-text-2);
-  padding: 3px 2px 5px;
+  padding: var(--wb-space-1);
   position: relative;
-  transition: color 0.15s;
+  transition: color var(--wb-dur-fast);
   font-family: inherit;
 }
 
@@ -166,7 +175,7 @@ const chartOption = computed<EChartsOption>(() => {
 
 .tab-btn.active {
   color: var(--wb-primary);
-  font-weight: 600;
+  font-weight: var(--wb-fw-semibold);
 }
 
 .tab-btn.active::after {
@@ -177,25 +186,25 @@ const chartOption = computed<EChartsOption>(() => {
   right: 0;
   height: 2px;
   background-color: var(--wb-primary);
-  border-radius: 1px;
+  border-radius: var(--wb-radius-sm);
 }
 
 .legend-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--wb-space-3);
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--wb-space-1);
 }
 
 .legend-dot {
   width: 18px;
   height: 2.5px;
-  border-radius: 2px;
+  border-radius: var(--wb-radius-sm);
   position: relative;
 }
 
@@ -207,7 +216,7 @@ const chartOption = computed<EChartsOption>(() => {
   transform: translate(-50%, -50%);
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--wb-radius-pill);
 }
 
 .current-dot {
@@ -218,16 +227,16 @@ const chartOption = computed<EChartsOption>(() => {
 }
 
 .last-dot {
-  background-color: #93c5fd;
+  background-color: var(--wb-chart-blue-4);
 }
 .last-dot::after {
-  background-color: #93c5fd;
+  background-color: var(--wb-chart-blue-4);
 }
 
 .legend-label {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-1);
-  font-weight: 500;
+  font-weight: var(--wb-fw-medium);
 }
 
 .wb-chart {

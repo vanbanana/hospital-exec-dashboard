@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="质量与安全" sub="核心制度 · 院感监测 · 不良事件 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无质量安全数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2">
@@ -37,18 +47,24 @@
         <WbTable :columns="rulesTable.columns" :rows="rulesTable.rows" row-key="name" />
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -56,25 +72,22 @@ import {
   wbGrid,
 } from '../../components/workbench/chartPresets'
 import { getQuality } from '../../api/workbench'
-import type { QualityResp, WbStatItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { QualityResp } from '../../api/types'
 
+// 契约 §10.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
 const range = ref('本年')
 
-const stats = ref<WbStatItem[]>([])
-const infection = ref<QualityResp['infection_trend'] | null>(null)
-const adverse = ref<QualityResp['adverse_events'] | null>(null)
-const rulesTable = ref<QualityResp['rules_compliance']>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getQuality)
+onMounted(reload)
 
-// §10.1 暂无 range 参数，切换仍重取一次，端点补 range 时视图零改动
-const load = async () => {
-  const d = await getQuality()
-  stats.value = d.stats
-  infection.value = d.infection_trend
-  adverse.value = d.adverse_events
-  rulesTable.value = d.rules_compliance
-}
-onMounted(load)
-watch(range, load)
+const stats = computed(() => data.value?.stats ?? [])
+const infection = computed(() => data.value?.infection_trend ?? null)
+const adverse = computed(() => data.value?.adverse_events ?? null)
+const rulesTable = computed(
+  (): QualityResp['rules_compliance'] => data.value?.rules_compliance ?? { columns: [], rows: [] },
+)
 
 const adverseTotal = computed(() => (adverse.value?.values ?? []).reduce((a, b) => a + b, 0))
 
@@ -87,14 +100,14 @@ const infectionOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: '#475569' },
+    textStyle: { fontSize: 12, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(infection.value?.months ?? [], { boundaryGap: false }),
   yAxis: wbValueAxis({
     min: 0,
     max: 3,
     name: infection.value?.unit ?? '%',
-    nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+    nameTextStyle: { color: wbChart.axis, fontSize: 11 },
   }),
   series: [
     {
@@ -111,10 +124,10 @@ const infectionOption = computed<EChartsOption>(() => ({
         label: {
           formatter: `控制目标 ${infection.value?.target ?? 0}%`,
           fontSize: 11,
-          color: '#ef4444',
+          color: wbPalette.red,
           position: 'insideEndTop',
         },
-        lineStyle: { color: '#ef4444', type: 'dashed', width: 1.5 },
+        lineStyle: { color: wbPalette.red, type: 'dashed', width: 1.5 },
         data: [{ yAxis: infection.value?.target ?? 0 }],
       },
     },
@@ -132,7 +145,7 @@ const eventOption = computed<EChartsOption>(() => ({
     data: adverse.value?.categories ?? [],
     axisLine: { show: false },
     axisTick: { show: false },
-    axisLabel: { color: '#475569', fontSize: 12 },
+    axisLabel: { color: wbChart.text, fontSize: 12 },
   },
   series: [
     {
@@ -140,7 +153,7 @@ const eventOption = computed<EChartsOption>(() => ({
       data: adverse.value?.values ?? [],
       barWidth: 12,
       itemStyle: { color: wbPalette.primary, borderRadius: [0, 3, 3, 0] },
-      label: { show: true, position: 'right', fontSize: 11, color: '#475569' },
+      label: { show: true, position: 'right', fontSize: 11, color: wbChart.text },
     },
   ],
 }))

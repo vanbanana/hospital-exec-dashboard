@@ -50,7 +50,8 @@ src/
 │   ├── client.ts                   # api<T>(key, params) 统一取数入口：查 mockResolvers 注册表，
 │   │                               #   120ms 模拟延迟 + 深拷贝隔离；预留 VITE_USE_MOCK 开关位与包络拆解 TODO
 │   ├── types.ts                    # API 契约类型镜像（api-contract v2.0 全量 snake_case，426 行）
-│   └── workbench.ts                # 工作台 18 个端点函数（§3 首页 ×7 + §4~§13 业务页 ×11）
+│   ├── workbench.ts                # 工作台 18 个端点函数（§3 首页 ×7 + §4~§13 业务页 ×11）
+│   └── useAsyncData.ts             # 取数五态 composable：{ data, loading, error, stale, reload } + ApiError（§10）
 ├── mock/                           # 契约形状 Mock 数据源（13 文件）
 │   ├── index.ts                    # mockResolvers 端点注册表：key = 契约端点路径，18 条全量注册
 │   ├── home.ts                     # 首页 7 端点数据包（kpis/trends/top10/indicators/progress/alerts/notices）
@@ -75,13 +76,17 @@ src/
 │   │                               #   + 13 个大屏深色 token（bg/color/text 系，随大屏拆除零消费，待清理）
 │   └── workbench.css               # 工作台设计令牌（--wb-*）与全局共享基元（.wb-*）；文件头注释仍提 /screen，属残留
 ├── components/                     # 组件层
-│   └── workbench/                  # 工作台专属组件库（15 文件）
+│   └── workbench/                  # 工作台专属组件库（19 文件）
 │       ├── WbPageHead.vue          # [原语] 页面标题与操作区
 │       ├── WbSeg.vue               # [原语] 分段选择器（Segmented Control）
-│       ├── WbStatStrip.vue         # [原语] 紧凑指标条（Hairline 竖线分隔）
-│       ├── WbTable.vue             # [原语] 医疗业务数据表格（插槽支持）
+│       ├── WbStatStrip.vue         # [原语] 紧凑指标条（Hairline 竖线分隔；items=[] 渲 WbEmpty）
+│       ├── WbTable.vue             # [原语] 医疗业务数据表格（插槽支持；rows=[] 渲空态行）
 │       ├── WbChart.vue             # [原语] ECharts 响应式容器（ResizeObserver 封装）
 │       ├── chartPresets.ts         # [原语] 工作台统一图表主题、色板与轴预设
+│       ├── WbEmpty.vue             # [原语] 空态占位（图标+文案，§10.1 empty）
+│       ├── WbErrorPanel.vue        # [原语] 面板级错误态 + code/trace_id + 重试（§10.1 error/retry）
+│       ├── WbSkeleton.vue          # [原语] 加载骨架占位（§10.1 loading）
+│       ├── WbStaleTag.vue          # [原语] "数据未更新"角标 + 重试（§10.1 stale）
 │       ├── WorkbenchHeader.vue     # 工作台顶部栏（系统名、搜索、铃铛、头像、日期）
 │       ├── WorkbenchSidebar.vue    # 工作台左侧栏（品牌Logo、12项功能菜单、底纹院训）
 │       ├── WorkbenchHero.vue       # 首页 Hero 横幅（标语阶梯、医院实景、毛笔书法）
@@ -389,6 +394,19 @@ export interface WbStatItem {
 
 ---
 
+### 6.6 反馈态原语（§10 五态渲染专用）
+
+| 原语 | 覆盖态 | 行为 |
+| :--- | :--- | :--- |
+| `WbSkeleton.vue` | loading | 骨架条脉冲占位（`rows` 可配），flex 撑满宿主区块 |
+| `WbErrorPanel.vue` | error + retry | 错误文案 + `code`/`trace_id` 元信息 + 重试按钮（`@retry`），`loading` 时按钮置"加载中" |
+| `WbEmpty.vue` | empty | 图标 + `text` 文案（默认"暂无数据"）；`WbTable` rows=[]、`WbStatStrip` items=[] 已内置 |
+| `WbStaleTag.vue` | stale + retry | "数据未更新"角标 + 重试入口（`@retry`），旧数据保留时挂于页头操作区/卡片列表首行 |
+
+视图统一用法：`useAsyncData(fetcher)` → `data===null` 时渲面板级 error/skeleton/empty 门，非空渲内容 + `stale` 时挂 `WbStaleTag`；取数列表/表格空集合局部渲 `WbEmpty`/表格空态行。
+
+---
+
 ## 7. 设计红线与工程戒律（Design Redlines）
 
 在进行工作台页面构建或迭代时，必须严格执行以下红线，**违反即重构**：
@@ -428,7 +446,7 @@ export interface WbStatItem {
 - `key` 未注册 → 抛 `Error("[api] 未注册的端点: <key>")`。
 - 每次调用固定 `120ms` 模拟延迟；返回值为深拷贝（隔离 mock 模块单例，防消费方原地修改污染后续请求）。
 - `api()` 直返 `data` 负载，**无响应包络拆解**；`ApiEnvelope<T>` 类型已在 `types.ts` 备好，接 http 层时启用（预留 `VITE_USE_MOCK` 开关位 TODO）。
-- **已知缺口**：视图 `onMounted`/`watch` 中裸 `await`，无 `try/catch`、无 loading/error/empty/stale 任何反馈态——链路异常会成为未处理的 Promise rejection。反馈规范与整改见 §10。
+- 视图/卡片取数一律经 `api/useAsyncData.ts::useAsyncData(fetcher)`：onMounted/watch 触发 `reload`，五态渲染见 §10；`fetcher` 内裸 `await` 已收口进封装，视图层无未处理 rejection。
 
 ### 8.2 现有 12 页面数据区块清单
 
@@ -516,11 +534,13 @@ npx vue-tsc -b && npm run build
 | **stale** | 刷新失败但存在旧数据 | 保留旧数据渲染，区块角标 stale/「数据未更新」提示 |
 | **retry** | error/stale 后的恢复路径 | 重试按钮重发同一请求；成功后回到正常态 |
 
-### 10.2 实现现状（⚠ 全部未实现，P1 待办）
+### 10.2 实现现状（✅ 已实现 — composable + 反馈原语落地）
 
-- 当前全部视图与卡片为 `onMounted(async () => { data.value = await getXxx() })` **裸 await**：无 `try/catch`、无 loading 占位、无 empty 分支、无 stale 标记、无重试入口。
-- mock 期 `api()` 仅两类失败：`key` 未注册抛错、人为注入 reject——任一发生即未处理 Promise rejection，区块静默空白。
-- **P1 整改项**：在视图层引入统一的 `load + try/catch` 骨架（或封装 composable），逐区块落实五态渲染；接 http 层时拦截器按 `error-codes.md` §4 矩阵派发，视图只关心五态切换。
+- **统一封装**：`src/api/useAsyncData.ts::useAsyncData<T>(fetcher)` 返回 `{ data, loading, error, stale, reload }`；`reload()` 内部全捕获**永不 reject**，`onMounted`/`watch`/重试按钮共用其为唯一触发入口；序号闸保证并发重取仅最后一次写态。错误经 `toApiError` 归一化为 `ApiError{ code, message, trace_id }`（error-codes §1 失败包络形状；mock 期 `code=10000`、`trace_id=local-N` 本地序号）。
+- **反馈原语**：`WbSkeleton`（loading 占位）、`WbErrorPanel`（错误文案 + code/trace_id + 重试）、`WbEmpty`（空态）、`WbStaleTag`（stale 角标 + 重试），全部 `--wb-*` token 消费；`WbTable` 内置 rows=[] 空态行，`WbStatStrip` 内置 items=[] 空态。
+- **接线范围**：首页 7 卡片 + 11 业务视图全部改经 `useAsyncData`；页面/卡片 `data===null` 渲面板级 error/skeleton/empty，`stale` 时页头操作区或列表首行挂 `WbStaleTag`，列表区块空集合局部 `WbEmpty`。图表空数据沿用"画空坐标轴"（`?? []` 兜底）。
+- **全局兜底**：`main.ts` 挂 `app.config.errorHandler` 与 `window unhandledrejection`——console 留痕 + `preventDefault` 防裸崩，不吞错。
+- **接 http 层时**：拦截器按 `error-codes.md` §4 矩阵产出 `ApiError`，视图五态渲染零改动；`api()` 签名与 mock 行为不变。
 
 ---
 
@@ -568,7 +588,7 @@ npx vue-tsc -b && npm run build
 - **视图迁移**：11 业务视图 + 首页 7 张卡片全部改经端点函数取数，组件内契约形状数据块清零。
 
 ### 13.2 P1 待办（缺陷与缺口）
-- **五态反馈**：视图层 loading/error/empty/stale/retry 全缺（§10.2）。
+- ~~五态反馈~~：**已完成**——`useAsyncData` + 反馈原语全量接线（§10.2）。
 - **路由缺口**：根级无 catch-all，`/screen` 等未知路径渲染空白（§3.1）。
 - **壳残留**：`index.html` 大屏壳（标题/渐变底/favicon 404）整改为中立壳（§12.3-6）。
 - **类型收敛**：`WbStatItem` 双接口统一为契约字段 `delta_label`（§6.3）；`WbTable` 列/行类型双声明收敛（§6.4）。

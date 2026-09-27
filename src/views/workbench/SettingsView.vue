@@ -1,8 +1,18 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="系统设置" sub="数据源 · 预警阈值 · 用户权限 · 偏好" />
+    <WbPageHead title="系统设置" sub="数据源 · 预警阈值 · 用户权限 · 偏好">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
+    </WbPageHead>
 
-    <div class="wb-grid wb-grid-2">
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无设置数据" />
+      </div>
+    </div>
+    <div v-else class="wb-grid wb-grid-2">
       <!-- 左列 -->
       <div class="settings-col">
         <div class="wb-panel">
@@ -121,11 +131,16 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, computed, onMounted, watch } from 'vue'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbTable, { type WbTableColumn } from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import { getSettings } from '../../api/workbench'
-import type { DataSourceItem, SettingsResp, ThresholdItem, UserItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { SettingsResp } from '../../api/types'
 
 // §13.2 三个列表非 WbTableData 形状（契约未下发 columns），列定义留本地
 const dsCols: WbTableColumn[] = [
@@ -153,10 +168,15 @@ const userCols: WbTableColumn[] = [
 // thresholds.level 为契约英文枚举（§13.2 注1），界面沿用中文档级文案
 const levelText: Record<string, string> = { urgent: '高', major: '中', minor: '低' }
 
-const dsRows = ref<DataSourceItem[]>([])
-const thRows = ref<ThresholdItem[]>([])
-const userRows = ref<UserItem[]>([])
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getSettings)
+onMounted(reload)
 
+const dsRows = computed(() => data.value?.data_sources ?? [])
+const thRows = computed(() => data.value?.thresholds ?? [])
+const userRows = computed(() => data.value?.users ?? [])
+
+// 偏好为本地可编辑态（无持久化端点，契约 §13.2 只读展示）——成功落地后拷入 reactive
 const pref = reactive<SettingsResp['preferences']>({
   default_range: '本月',
   refresh_interval: '5 分钟',
@@ -164,15 +184,9 @@ const pref = reactive<SettingsResp['preferences']>({
   unit_abbreviation: true,
   privacy_mask: true,
 })
-
-const load = async () => {
-  const d = await getSettings()
-  dsRows.value = d.data_sources
-  thRows.value = d.thresholds
-  userRows.value = d.users
-  Object.assign(pref, d.preferences)
-}
-onMounted(load)
+watch(data, (d) => {
+  if (d) Object.assign(pref, d.preferences)
+})
 </script>
 
 <style scoped>

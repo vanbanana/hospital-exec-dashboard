@@ -5,7 +5,11 @@
       <router-link to="/workbench/overview" class="more-link">更多 &gt;</router-link>
     </div>
 
-    <div class="notices-list">
+    <WbErrorPanel v-if="error && data === null" :error="error" :loading="loading" @retry="reload" />
+    <WbSkeleton v-else-if="data === null && loading" :rows="5" />
+    <WbEmpty v-else-if="!items.length" text="暂无通知与待办" />
+    <div v-else class="notices-list">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <div
         v-for="item in items"
         :key="item.id"
@@ -23,15 +27,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { getHomeNotices } from '../../api/workbench'
-import type { HomeNoticeItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import WbSkeleton from './WbSkeleton.vue'
+import WbErrorPanel from './WbErrorPanel.vue'
+import WbEmpty from './WbEmpty.vue'
+import WbStaleTag from './WbStaleTag.vue'
 
-const items = ref<HomeNoticeItem[]>([])
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getHomeNotices)
+onMounted(reload)
 
-onMounted(async () => {
-  items.value = (await getHomeNotices()).list
-})
+const items = computed(() => data.value?.list ?? [])
 </script>
 
 <style scoped>
@@ -42,7 +50,7 @@ onMounted(async () => {
   border-radius: var(--wb-radius-card);
   border: 1px solid var(--wb-border);
   box-shadow: var(--wb-shadow-card);
-  padding: 14px 16px 10px;
+  padding: var(--wb-pad-y) var(--wb-pad-x) var(--wb-space-2);
   display: flex;
   flex-direction: column;
   user-select: none;
@@ -53,22 +61,22 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--wb-space-2);
 }
 
 .card-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--wb-fs-lg);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
   letter-spacing: 0.3px;
 }
 
 .more-link {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   text-decoration: none;
-  transition: color 0.15s;
+  transition: color var(--wb-dur-fast);
 }
 
 .more-link:hover {
@@ -85,14 +93,14 @@ onMounted(async () => {
 .notice-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 2px 0;
+  gap: var(--wb-space-2);
+  padding: var(--wb-space-1) 0;
 }
 
 .notice-dot {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--wb-radius-pill);
   flex-shrink: 0;
 }
 
@@ -106,16 +114,16 @@ onMounted(async () => {
 
 .notice-text {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-1);
-  font-weight: 500;
+  font-weight: var(--wb-fw-medium);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .notice-date {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   flex-shrink: 0;
 }

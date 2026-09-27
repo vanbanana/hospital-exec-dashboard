@@ -3,12 +3,16 @@
     <div class="card-header">
       <div class="header-title-box">
         <h3 class="card-title">科室业务量 TOP10</h3>
-        <span class="card-subtitle">（{{ metricName }}）</span>
+        <span v-if="metricName" class="card-subtitle">（{{ metricName }}）</span>
       </div>
       <router-link to="/workbench/medical" class="more-link">更多 &gt;</router-link>
     </div>
 
-    <div class="ranking-list">
+    <WbErrorPanel v-if="error && data === null" :error="error" :loading="loading" @retry="reload" />
+    <WbSkeleton v-else-if="data === null && loading" :rows="8" />
+    <WbEmpty v-else-if="!items.length" text="暂无排行数据" />
+    <div v-else class="ranking-list">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <div
         v-for="item in items"
         :key="item.rank"
@@ -34,20 +38,22 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { getHomeTop10 } from '../../api/workbench'
-import type { HomeTop10Item } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import WbSkeleton from './WbSkeleton.vue'
+import WbErrorPanel from './WbErrorPanel.vue'
+import WbEmpty from './WbEmpty.vue'
+import WbStaleTag from './WbStaleTag.vue'
 
-const items = ref<HomeTop10Item[]>([])
-const metricName = ref('')
-const maxVal = ref(1)
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getHomeTop10)
+onMounted(reload)
 
-onMounted(async () => {
-  const resp = await getHomeTop10()
-  items.value = resp.list
-  metricName.value = resp.metric_name
-  maxVal.value = resp.max_val
-})
+const items = computed(() => data.value?.list ?? [])
+const metricName = computed(() => data.value?.metric_name ?? '')
+// 条形归一化除数兜底 1 防除零
+const maxVal = computed(() => data.value?.max_val || 1)
 
 // 金银铜奖牌色，辨识度高于近色系
 const getRankClass = (rank: number) => {
@@ -66,7 +72,7 @@ const getRankClass = (rank: number) => {
   border-radius: var(--wb-radius-card);
   border: 1px solid var(--wb-border);
   box-shadow: var(--wb-shadow-card);
-  padding: 14px 16px 10px;
+  padding: var(--wb-pad-y) var(--wb-pad-x) var(--wb-space-2);
   display: flex;
   flex-direction: column;
   user-select: none;
@@ -77,33 +83,33 @@ const getRankClass = (rank: number) => {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--wb-space-2);
 }
 
 .header-title-box {
   display: flex;
   align-items: baseline;
-  gap: 4px;
+  gap: var(--wb-space-1);
 }
 
 .card-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--wb-fs-lg);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
   letter-spacing: 0.3px;
 }
 
 .card-subtitle {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
 }
 
 .more-link {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   text-decoration: none;
-  transition: color 0.15s;
+  transition: color var(--wb-dur-fast);
 }
 
 .more-link:hover {
@@ -120,47 +126,47 @@ const getRankClass = (rank: number) => {
 .ranking-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 1.5px 0;
+  gap: var(--wb-space-2);
+  padding: var(--wb-space-1) 0;
 }
 
 .rank-badge {
   width: 17px;
   height: 17px;
-  border-radius: 4px;
+  border-radius: var(--wb-radius-tag);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--wb-fs-xs);
+  font-weight: var(--wb-fw-bold);
   flex-shrink: 0;
 }
 
 .rank-gold {
-  background-color: #f59e0b;
-  color: #ffffff;
+  background-color: var(--wb-rank-1);
+  color: var(--p-white);
 }
 
 .rank-silver {
-  background-color: #94a3b8;
-  color: #ffffff;
+  background-color: var(--wb-rank-2);
+  color: var(--p-white);
 }
 
 .rank-bronze {
-  background-color: #d97706;
-  color: #ffffff;
+  background-color: var(--wb-rank-3);
+  color: var(--p-white);
 }
 
 .rank-normal {
-  background-color: #eef2f7;
+  background-color: var(--wb-tag-gray-bg);
   color: var(--wb-text-3);
 }
 
 .dept-name {
   width: 110px;
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-1);
-  font-weight: 500;
+  font-weight: var(--wb-fw-medium);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -170,23 +176,23 @@ const getRankClass = (rank: number) => {
 .bar-track {
   flex: 1;
   height: 8px;
-  background-color: #f1f5f9;
-  border-radius: 4px;
+  background-color: var(--wb-bar-track);
+  border-radius: var(--wb-radius-tag);
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
   background-color: var(--wb-accent);
-  border-radius: 4px;
-  transition: width 0.3s ease;
+  border-radius: var(--wb-radius-tag);
+  transition: width var(--wb-dur-normal) ease;
 }
 
 .dept-val {
   width: 30px;
   text-align: right;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--wb-fs-sm);
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-text-1);
   flex-shrink: 0;
 }

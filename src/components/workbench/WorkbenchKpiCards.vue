@@ -1,18 +1,26 @@
 <template>
   <div class="kpi-cards-grid">
+    <WbErrorPanel
+      v-if="error && data === null"
+      class="state-span"
+      :error="error"
+      :loading="loading"
+      @retry="reload"
+    />
+    <template v-else-if="data === null && loading">
+      <div v-for="i in 5" :key="i" class="kpi-card"><WbSkeleton :rows="2" /></div>
+    </template>
+    <WbEmpty v-else-if="!items.length" class="state-span" text="暂无 KPI 数据" />
+    <WbStaleTag v-if="stale" class="state-span" :loading="loading" @retry="reload" />
     <div
       v-for="card in items"
       :key="card.key"
       class="kpi-card"
     >
       <!-- Icon Container -->
-      <div class="kpi-icon-box" :style="{ backgroundColor: styleOf(card.key).bg }">
-        <div v-if="styleOf(card.key).yen" class="yen-circle-badge">
-          <span class="yen-char">¥</span>
-        </div>
+      <div class="kpi-icon-box" :style="{ backgroundColor: TONE_BG[card.tone ?? 'primary'] }">
         <component
           :is="iconMap[card.icon ?? '']"
-          v-else
           :size="22"
           :stroke-width="1.9"
           class="kpi-icon"
@@ -27,7 +35,7 @@
           <span v-if="card.unit" class="kpi-unit">{{ card.unit }}</span>
         </div>
         <div class="kpi-trend-row">
-          <span class="trend-label">较上月</span>
+          <span class="trend-label">{{ card.delta_label || '较上月' }}</span>
           <span class="trend-val wb-num">
             {{ card.delta }}<span class="trend-arrow">{{ card.dir === 'down' ? '↓' : '↑' }}</span>
           </span>
@@ -38,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { Component } from 'vue'
 import {
   Stethoscope,
@@ -48,12 +56,21 @@ import {
   Banknote,
 } from 'lucide-vue-next'
 import { getHomeKpis } from '../../api/workbench'
-import type { HomeKpiItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import WbSkeleton from './WbSkeleton.vue'
+import WbErrorPanel from './WbErrorPanel.vue'
+import WbEmpty from './WbEmpty.vue'
+import WbStaleTag from './WbStaleTag.vue'
+import type { ToneType } from '../../api/types'
 
-const items = ref<HomeKpiItem[]>([])
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getHomeKpis)
+onMounted(reload)
 
-// 契约下发 icon 为 Lucide 图标名、禁下十六进制色值（api-contract §1.4-6），
-// 展示端按业务 key 固定卡片底色与 ¥ 徽标特例
+const items = computed(() => data.value?.list ?? [])
+
+// 契约 icon 为 Lucide 图标名、tone 为语义色枚举，禁下十六进制色值（api-contract §1.4-6）；
+// 填充底色挂 --wb-* token（蓝填充取 --wb-accent，--wb-primary 为文字强调色）
 const iconMap: Record<string, Component> = {
   Stethoscope,
   BedDouble,
@@ -61,18 +78,15 @@ const iconMap: Record<string, Component> = {
   Users,
   Banknote,
 }
-const cardStyle: Record<string, { bg: string; yen?: boolean }> = {
-  outpatient: { bg: '#2563eb' },
-  inpatient: { bg: '#3b82f6' },
-  surgery: { bg: '#059669' },
-  revenue: { bg: '#10b981', yen: true },
-  staff: { bg: '#0891b2' },
+const TONE_BG: Record<ToneType, string> = {
+  primary: 'var(--wb-accent)',
+  teal: 'var(--wb-teal)',
+  green: 'var(--wb-green)',
+  amber: 'var(--wb-amber)',
+  red: 'var(--wb-red)',
+  navy: 'var(--wb-navy)',
 }
-const styleOf = (key: string) => cardStyle[key] ?? { bg: '#2563eb' }
 
-onMounted(async () => {
-  items.value = (await getHomeKpis()).list
-})
 </script>
 
 <style scoped>
@@ -82,22 +96,26 @@ onMounted(async () => {
   gap: var(--wb-gap);
 }
 
+.state-span {
+  grid-column: 1 / -1;
+}
+
 .kpi-card {
   background: var(--wb-surface);
   border-radius: var(--wb-radius-card);
   border: 1px solid var(--wb-border);
   box-shadow: var(--wb-shadow-card);
-  padding: 14px 16px;
+  padding: var(--wb-pad-y) var(--wb-pad-x);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--wb-space-3);
   user-select: none;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform var(--wb-dur-normal), box-shadow var(--wb-dur-normal);
 }
 
 .kpi-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--wb-shadow-hover);
 }
 
 .kpi-icon-box {
@@ -107,24 +125,24 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--p-white);
   flex-shrink: 0;
 }
 
 .yen-circle-badge {
   width: 26px;
   height: 26px;
-  background-color: #ffffff;
-  border-radius: 50%;
+  background-color: var(--p-white);
+  border-radius: var(--wb-radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .yen-char {
-  color: #10b981;
-  font-weight: 700;
-  font-size: 15px;
+  color: var(--p-green-500);
+  font-weight: var(--wb-fw-bold);
+  font-size: var(--wb-fs-lg);
   line-height: 1;
 }
 
@@ -135,37 +153,37 @@ onMounted(async () => {
 }
 
 .kpi-title {
-  font-size: 13px;
+  font-size: var(--wb-fs-md);
   color: var(--wb-text-2);
-  font-weight: 500;
+  font-weight: var(--wb-fw-medium);
 }
 
 .kpi-value-row {
   display: flex;
   align-items: baseline;
-  gap: 4px;
-  margin-top: 2px;
+  gap: var(--wb-space-1);
+  margin-top: var(--wb-space-1);
 }
 
 .kpi-number {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--wb-fs-hero);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
-  line-height: 1.15;
+  line-height: var(--wb-lh-tight);
 }
 
 .kpi-unit {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
-  font-weight: 400;
+  font-weight: var(--wb-fw-normal);
 }
 
 .kpi-trend-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-top: 3px;
-  font-size: 12px;
+  gap: var(--wb-space-1);
+  margin-top: var(--wb-space-1);
+  font-size: var(--wb-fs-sm);
 }
 
 .trend-label {
@@ -174,14 +192,14 @@ onMounted(async () => {
 
 .trend-val {
   color: var(--wb-up);
-  font-weight: 600;
+  font-weight: var(--wb-fw-semibold);
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--wb-space-1);
 }
 
 .trend-arrow {
-  font-size: 11px;
+  font-size: var(--wb-fs-xs);
   line-height: 1;
 }
 </style>

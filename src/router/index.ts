@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WorkbenchLayout from '../layouts/WorkbenchLayout.vue'
 import HomeView from '../views/workbench/HomeView.vue'
+import ScreenLayout from '../layouts/ScreenLayout.vue'
+import ScreenView from '../views/screen/ScreenView.vue'
 
 const routes = [
   {
@@ -69,6 +71,11 @@ const routes = [
       },
       { path: ':pathMatch(.*)*', redirect: '/workbench' },
     ],
+  },
+  {
+    path: '/screen',
+    component: ScreenLayout,
+    children: [{ path: '', name: 'screen', component: ScreenView }],
   },
 ]
 

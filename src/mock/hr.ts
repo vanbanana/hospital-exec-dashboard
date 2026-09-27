@@ -1,7 +1,11 @@
 // 人力资源数据包 — api-contract §7.1 示例锚定
 import type { HrResp } from '../api/types'
 
-/** §7.1 GET /workbench/hr；契约仅锚定单份示例，mock 期各 range 共用 */
+/**
+ * §7.1 GET /workbench/hr — range 语义实算：
+ * 全部字段为时点口径（在编/在岗人数、职称矩阵、科室配置缺口）或比率口径（构成比、医护比、经费占比），
+ * 不存在随 range 累计的业务量字段，故三种 range 合法返回同一快照；非"未实现"而是恒等语义。
+ */
 export function getHrMock(_range?: string): HrResp {
   return {
     stats: [

@@ -147,9 +147,45 @@ const BY_TAB: Record<MedicalTab, Omit<MedicalResp, 'tab' | 'range'>> = {
   手术: SURGERY,
 }
 
-/** §5.1 GET /workbench/medical；trend/distribution/table 契约仅锚定本年示例，mock 期各 range 共用 */
+// range 月度切片与 overview.ts 同规：本月=10月单月，本季=8~10月，本年=1~10月累计
+const rangeSlice: Record<RangeKey, [number, number]> = { 本月: [9, 10], 本季: [7, 10], 本年: [0, 10] }
+// trend 展示窗口：本年沿用契约示例的 12 月定长轴（同 overview 先例），本月/本季切窗口
+const trendSlice: Record<RangeKey, [number, number]> = { 本月: [9, 10], 本季: [7, 10], 本年: [0, 12] }
+const sumRange = (arr: number[], r: RangeKey) => {
+  const [a, b] = rangeSlice[r]
+  return arr.slice(a, b).reduce((x, y) => x + y, 0)
+}
+const num = (v: string | number) => Number(String(v).replace(/,/g, ''))
+const fmt = (n: number) => n.toLocaleString('en-US')
+
+/**
+ * §5.1 GET /workbench/medical — range 语义实算：
+ * stats 恒为当月口径不动（契约注）；trend 按 range 切月份窗口；
+ * table.cnt 以契约示例（range=本年）为锚，按趋势序列切片占比缩放累计人次；
+ * distribution 为比率/时段构成形态，无月度锚序列可缩放，随锚定值下发。
+ */
 export function getMedicalMock(tab?: string, range?: string): MedicalResp {
   const t: MedicalTab = tab === '住院' || tab === '手术' ? tab : '门急诊'
   const r: RangeKey = range === '本月' || range === '本季' ? range : '本年'
-  return { tab: t, range: r, ...BY_TAB[t] }
+  const base = BY_TAB[t]
+  const [a, b] = trendSlice[r]
+  const f = sumRange(base.trend.values, r) / sumRange(base.trend.values, '本年')
+  return {
+    tab: t,
+    range: r,
+    stats: base.stats,
+    trend: {
+      ...base.trend,
+      months: base.trend.months.slice(a, b),
+      values: base.trend.values.slice(a, b),
+    },
+    distribution: base.distribution,
+    table: {
+      ...base.table,
+      rows:
+        f === 1
+          ? base.table.rows
+          : base.table.rows.map((row) => ({ ...row, cnt: fmt(Math.round(num(row.cnt) * f)) })),
+    },
+  }
 }

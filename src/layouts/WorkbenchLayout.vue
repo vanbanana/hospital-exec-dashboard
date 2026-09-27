@@ -39,14 +39,14 @@ import WorkbenchHeader from '../components/workbench/WorkbenchHeader.vue'
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 2px 16px 14px;
+  padding: var(--wb-space-1) var(--wb-space-4) var(--wb-pad-y);
 }
 
 .workbench-scroll::-webkit-scrollbar {
-  width: 6px;
+  width: var(--wb-scrollbar-w);
 }
 .workbench-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: var(--wb-scrollbar);
+  border-radius: var(--wb-radius-pill);
 }
 </style>

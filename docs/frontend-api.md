@@ -115,7 +115,7 @@
 ## 2. 认证与上下文域 `/auth` & `/hospital`
 
 > 契约 §2。演示级认证：无 Bearer Token，`?role=` 直接切上下文。
-> **当前状态：两个端点均未注册 mock、未接入，视图侧为硬编码**（见各节消费位置）。接入时先注册 mock key 再改视图。
+> **当前状态：两个端点已注册 mock 并接入视图**（消费位置见各节）。接入顺序：先注册 mock key 再改视图。
 
 ### 2.1 `GET /auth/profile`
 
@@ -149,7 +149,7 @@
 
 **前端消费位置**
 
-- `src/components/workbench/WorkbenchHeader.vue`——头像、角色名、日期行（**当前硬编码**，待接入）。
+- `src/components/workbench/WorkbenchHeader.vue`——头像、角色名、日期行、铃铛告警角标（复用 `workbench/home/alerts` 计数）。
 - 角色切换下拉（待建）：消费 `available_roles`，切换后驱动全局视角（科主任视角见各业务页 `dept_id` 联动，契约 §16-2）。
 
 **空态与错误态**
@@ -158,7 +158,7 @@
 - `role` 非法 → `code=10001`：忽略参数，保持当前身份。
 - 可返回错误码：`10001`、`20001`。
 
-**mock key**：`auth/profile`（**未注册**，接入时登记 `mockResolvers`）
+**mock key**：`auth/profile`
 
 ### 2.2 `GET /hospital/profile`
 
@@ -179,15 +179,15 @@
 
 **前端消费位置**
 
-- `src/components/workbench/WorkbenchSidebar.vue`——`name`/`english_name`/`motto`（**当前硬编码**，待接入）。
-- `src/components/workbench/WorkbenchHero.vue`——`slogans`/`pillars`（当前为硬编码文案与图片资产 alt）。
+- `src/components/workbench/WorkbenchSidebar.vue`——`name`/`english_name`/`motto`。
+- `src/components/workbench/WorkbenchHero.vue`——`slogans`/`pillars`（图片资产 alt）。
 
 **空态与错误态**
 
 - 字段缺失/`data=null`：品牌区回退现有硬编码文案，不留白。
 - 可返回错误码：`10001`。
 
-**mock key**：`hospital/profile`（**未注册**，接入时登记 `mockResolvers`）
+**mock key**：`hospital/profile`
 
 ---
 
@@ -324,7 +324,7 @@
 | &nbsp;&nbsp;`progress` | int | % | 否 | 进度 0–100，进度条宽 |
 | &nbsp;&nbsp;`status` | string | — | 否 | 状态文案（`进行中`/`待启动`） |
 
-**前端消费位置**：`src/components/workbench/WorkProgressCard.vue` ← `getHomeWorkitems()`（函数名 workitems ↔ 端点 progress）
+**前端消费位置**：`src/components/workbench/WorkProgressCard.vue` ← `getHomeProgress()`
 
 **空态与错误态**
 
@@ -944,13 +944,13 @@
 
 | 端点 | mock key | 消费视图/组件 | 状态 |
 | :--- | :--- | :--- | :--- |
-| `GET /auth/profile` | `auth/profile` | `WorkbenchHeader.vue`（角色切换下拉待建） | ⚠ 未接入（视图硬编码） |
-| `GET /hospital/profile` | `hospital/profile` | `WorkbenchSidebar.vue` · `WorkbenchHero.vue` | ⚠ 未接入（视图硬编码） |
+| `GET /auth/profile` | `auth/profile` | `WorkbenchHeader.vue`（角色切换下拉待建） | ✅ 已接入 |
+| `GET /hospital/profile` | `hospital/profile` | `WorkbenchSidebar.vue` · `WorkbenchHero.vue` | ✅ 已接入 |
 | `GET /workbench/home/kpis` | `workbench/home/kpis` | `WorkbenchKpiCards.vue` | ✅ 已接入 |
 | `GET /workbench/home/trends` | `workbench/home/trends` | `TrendChartCard.vue` | ✅ 已接入 |
 | `GET /workbench/home/top10` | `workbench/home/top10` | `DepartmentTop10Card.vue` | ✅ 已接入 |
 | `GET /workbench/home/indicators` | `workbench/home/indicators` | `KeyIndicatorsCard.vue` | ✅ 已接入 |
-| `GET /workbench/home/progress` | `workbench/home/progress` | `WorkProgressCard.vue`（`getHomeWorkitems`） | ✅ 已接入 |
+| `GET /workbench/home/progress` | `workbench/home/progress` | `WorkProgressCard.vue`（`getHomeProgress`） | ✅ 已接入 |
 | `GET /workbench/home/alerts` | `workbench/home/alerts` | `RiskAlertsCard.vue` | ✅ 已接入 |
 | `GET /workbench/home/notices` | `workbench/home/notices` | `NoticesTodosCard.vue` | ✅ 已接入 |
 | `GET /workbench/overview` | `workbench/overview` | `OverviewView.vue` | ✅ 已接入 |
@@ -966,7 +966,7 @@
 | `GET /workbench/settings/config` | `workbench/settings/config` | `SettingsView.vue` | ✅ 已接入 |
 | `GET /screen/snapshot` | `screen/snapshot` | `/screen` 大屏（规划 `ScreenView.vue`） | ⛔ 未实施（无路由/视图） |
 
-合计 21 端点：18 已接入 mock，2 未接入（硬编码待迁移），1 未实施。
+合计 21 端点：20 已接入 mock，1 未实施。
 
 ---
 

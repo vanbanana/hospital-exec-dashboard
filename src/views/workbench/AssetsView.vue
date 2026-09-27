@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="资产与后勤" sub="设备效益 · 物资库存 · 能耗工单 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无资产后勤数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2-1">
@@ -24,6 +34,7 @@
         </div>
         <div class="wb-panel-body">
           <div class="wb-list stock-list">
+            <WbEmpty v-if="!stockAlerts.length" text="暂无库存预警" />
             <div v-for="it in stockAlerts" :key="it.name" class="wb-list-row">
               <span class="stock-name">{{ it.name }}</span>
               <span class="stock-days wb-num">{{ it.days }}天</span>
@@ -56,44 +67,48 @@
         </WbTable>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
   wbTooltip,
   wbGrid,
+  wbAreaGradient,
 } from '../../components/workbench/chartPresets'
 import { getAssets } from '../../api/workbench'
-import type { AssetsResp, StockAlertItem, WbStatItem } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { AssetsResp } from '../../api/types'
 
+// 契约 §11.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
 const range = ref('本年')
 
-const stats = ref<WbStatItem[]>([])
-const energy = ref<AssetsResp['energy_trend'] | null>(null)
-const stockAlerts = ref<StockAlertItem[]>([])
-const equip = ref<AssetsResp['large_equipments']>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getAssets)
+onMounted(reload)
 
-// §11.1 暂无 range 参数，切换仍重取一次，端点补 range 时视图零改动
-const load = async () => {
-  const d = await getAssets()
-  stats.value = d.stats
-  energy.value = d.energy_trend
-  stockAlerts.value = d.stock_alerts
-  equip.value = d.large_equipments
-}
-onMounted(load)
-watch(range, load)
+const stats = computed(() => data.value?.stats ?? [])
+const energy = computed(() => data.value?.energy_trend ?? null)
+const stockAlerts = computed(() => data.value?.stock_alerts ?? [])
+const equip = computed(
+  (): AssetsResp['large_equipments'] => data.value?.large_equipments ?? { columns: [], rows: [] },
+)
 
 const energyOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -104,12 +119,12 @@ const energyOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: '#475569' },
+    textStyle: { fontSize: 12, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(energy.value?.months ?? [], { boundaryGap: false }),
   yAxis: wbValueAxis({
     name: energy.value?.unit ?? '万元',
-    nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+    nameTextStyle: { color: wbChart.axis, fontSize: 11 },
   }),
   series: [
     {
@@ -121,16 +136,7 @@ const energyOption = computed<EChartsOption>(() => ({
       symbolSize: 5,
       itemStyle: { color: wbPalette.teal },
       lineStyle: { color: wbPalette.teal, width: 2.5 },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(13,148,136,0.15)' },
-            { offset: 1, color: 'rgba(13,148,136,0.02)' },
-          ],
-        },
-      },
+      areaStyle: { color: wbAreaGradient(wbPalette.teal) },
     },
   ],
 }))
@@ -145,7 +151,7 @@ const energyOption = computed<EChartsOption>(() => ({
 .stock-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--wb-fs-md);
   color: var(--wb-text-1);
   white-space: nowrap;
   overflow: hidden;
@@ -153,8 +159,8 @@ const energyOption = computed<EChartsOption>(() => ({
 }
 
 .stock-days {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--wb-fs-md);
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-navy);
   width: 52px;
   text-align: right;
@@ -163,6 +169,6 @@ const energyOption = computed<EChartsOption>(() => ({
 
 .rate-low {
   color: var(--wb-amber);
-  font-weight: 700;
+  font-weight: var(--wb-fw-bold);
 }
 </style>

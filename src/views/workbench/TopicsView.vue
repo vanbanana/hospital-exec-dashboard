@@ -1,6 +1,7 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="专题分析" sub="DRG 付费 · 医保基金 · 国考指标 · 门诊统筹">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
@@ -23,6 +24,15 @@
 
       <!-- 专题内容 -->
       <div class="topics-content">
+        <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+        <div v-if="data === null" class="wb-panel">
+          <div class="wb-panel-body">
+            <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+            <WbSkeleton v-else-if="loading" :rows="8" />
+            <WbEmpty v-else text="暂无专题数据" />
+          </div>
+        </div>
+        <template v-else>
         <WbStatStrip :items="cur.stats" />
 
         <div v-if="cur.chart" class="wb-panel">
@@ -44,6 +54,7 @@
             <WbTable :columns="cur.cols" :rows="cur.rows" :row-key="cur.rowKey" />
           </div>
         </div>
+        </template>
       </div>
     </div>
   </div>
@@ -51,6 +62,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import type { Component } from 'vue'
 import type { EChartsOption } from 'echarts'
 import {
   FolderKanban,
@@ -63,34 +75,42 @@ import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
   wbTooltip,
   wbGrid,
+  wbAreaGradient,
 } from '../../components/workbench/chartPresets'
 import { getTopics } from '../../api/workbench'
-import type { RangeKey, TopicKey, TopicsResp } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { RangeKey, TopicKey } from '../../api/types'
 
 const range = ref('本年')
-// key 即契约 §13.1 topic 枚举
-const topic = ref('drg')
+// WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
+const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
+// key 即契约 §13.1 topic 枚举,ref 与列表同源枚举类型,无需断言
+const topic = ref<TopicKey>('drg')
 
-const topicList = [
+const topicList: { key: TopicKey; name: string; icon: Component }[] = [
   { key: 'drg', name: 'DRG 付费分析', icon: FolderKanban },
   { key: 'insurance', name: '医保基金运行', icon: Landmark },
   { key: 'exam', name: '三级公立医院国考', icon: Award },
   { key: 'outp_fund', name: '门诊统筹', icon: Store },
 ]
 
-const resp = ref<TopicsResp | null>(null)
-
-const load = async () => {
-  resp.value = await getTopics(topic.value as TopicKey, range.value as RangeKey)
-}
-onMounted(load)
-watch([topic, range], load)
+// 五态取数经 useAsyncData（frontend-architecture §10.1）：watch(topic/range) 重取走 reload
+const { data, loading, error, stale, reload } = useAsyncData(() =>
+  getTopics(topic.value, RANGE_PARAM[range.value] ?? '本年'),
+)
+onMounted(reload)
+watch([topic, range], reload)
 
 const lineChart = (name: string, months: string[], data: number[]): EChartsOption => ({
   animation: false,
@@ -106,17 +126,9 @@ const lineChart = (name: string, months: string[], data: number[]): EChartsOptio
       data,
       symbol: 'circle',
       symbolSize: 5,
-      itemStyle: { color: wbPalette.primary, borderColor: '#fff', borderWidth: 1.5 },
+      itemStyle: { color: wbPalette.primary, borderColor: wbChart.white, borderWidth: 1.5 },
       lineStyle: { color: wbPalette.primary, width: 2.5 },
-      areaStyle: {
-        color: {
-          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(37,99,235,0.12)' },
-            { offset: 1, color: 'rgba(37,99,235,0.02)' },
-          ],
-        },
-      },
+      areaStyle: { color: wbAreaGradient(wbPalette.primary) },
     },
   ],
 })
@@ -139,7 +151,7 @@ const barChart = (cats: string[], data: number[]): EChartsOption => ({
 
 // 契约 chart.type 决定渲染形态：bar 用 categories、line 用 months；表格列随服务端下发
 const cur = computed(() => {
-  const d = resp.value
+  const d = data.value
   const c = d?.chart
   return {
     stats: d?.stats ?? [],
@@ -168,7 +180,7 @@ const cur = computed(() => {
 }
 
 .topics-nav-panel {
-  padding: 8px 0;
+  padding: var(--wb-space-2) 0;
   position: sticky;
   top: 0;
 }

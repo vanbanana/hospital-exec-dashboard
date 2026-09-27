@@ -2,6 +2,7 @@
  * Mock 端点注册表 — key 与 api-contract.md 端点路径一一对应。
  * api/client.ts 经此表取数；接 mock server / 真实后端时整层被 http 替换（见 §16）。
  */
+import { authProfile, hospitalProfile } from './auth'
 import { homeAlerts, homeIndicators, homeKpis, homeNotices, homeProgress, homeTop10, homeTrends } from './home'
 import { getOverviewMock } from './overview'
 import { getMedicalMock } from './medical'
@@ -14,10 +15,13 @@ import { researchData } from './research'
 import { patientData } from './patient'
 import { assetsData } from './assets'
 import { settingsData } from './settings'
+import { screenSnapshot } from './screen'
 
 export type MockParams = Record<string, string>
 
 export const mockResolvers: Record<string, (params: MockParams) => unknown> = {
+  'auth/profile': () => authProfile,
+  'hospital/profile': () => hospitalProfile,
   'workbench/home/kpis': () => homeKpis,
   'workbench/home/trends': () => homeTrends,
   'workbench/home/top10': () => homeTop10,
@@ -36,4 +40,5 @@ export const mockResolvers: Record<string, (params: MockParams) => unknown> = {
   'workbench/compare': (p) => getCompareMock(p.dim, p.range),
   'workbench/topics': (p) => getTopicsMock(p.topic, p.range),
   'workbench/settings/config': () => settingsData,
+  'screen/snapshot': () => screenSnapshot,
 }

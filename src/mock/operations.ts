@@ -1,22 +1,54 @@
-// 运营管理数据包 — api-contract §6.1 示例锚定
-import type { OperationsResp } from '../api/types'
+// 运营管理数据包 — api-contract §6.1 示例锚定（range=本年）
+import type { OperationsResp, RangeKey } from '../api/types'
 
-/** §6.1 GET /workbench/operations；契约仅锚定单份示例，mock 期各 range 共用 */
-export function getOperationsMock(_range?: string): OperationsResp {
+const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+const INCOME = [8950, 8060, 10800, 11650, 12450, 12980, 13940, 13550, 13080, 14800, 14240, 13720]
+const COST = [8574, 7721, 10346, 11161, 11927, 12435, 13359, 12981, 12531, 14178, 13642, 13144]
+const BALANCE = [376, 339, 454, 489, 523, 545, 581, 569, 549, 622, 598, 576]
+
+// range 月度切片与 overview.ts 同规：本月=10月单月，本季=8~10月，本年=1~10月
+const rangeSlice: Record<RangeKey, [number, number]> = { 本月: [9, 10], 本季: [7, 10], 本年: [0, 10] }
+const sumRange = (arr: number[], r: RangeKey) => {
+  const [a, b] = rangeSlice[r]
+  return arr.slice(a, b).reduce((x, y) => x + y, 0)
+}
+const num = (v: string | number) => Number(String(v).replace(/,/g, ''))
+const fmt = (n: number) => n.toLocaleString('en-US')
+const scaleWan = (v: string, f: number) => fmt(Math.round(num(v) * f))
+
+// dept_table 行锚定契约示例（本年累计口径，万元）；margin/药耗占比为比率列不缩放
+const DEPT_ROWS = [
+  { dept: '心血管内科', income: '19,270', cost: '17,940', balance: '1,330', margin: '6.9%', drug_ratio: '24.8%', mat_ratio: '18.2%' },
+  { dept: '骨科', income: '15,960', cost: '14,490', balance: '1,470', margin: '9.2%', drug_ratio: '12.4%', mat_ratio: '34.6%' },
+  { dept: '呼吸与危重症医学科', income: '15,070', cost: '14,500', balance: '570', margin: '3.8%', drug_ratio: '32.6%', mat_ratio: '8.4%' },
+  { dept: '神经内科', income: '13,270', cost: '12,900', balance: '370', margin: '2.8%', drug_ratio: '36.4%', mat_ratio: '6.2%' },
+  { dept: '普通外科', income: '12,620', cost: '11,750', balance: '870', margin: '6.9%', drug_ratio: '18.2%', mat_ratio: '22.1%' },
+  { dept: '肿瘤科', income: '11,680', cost: '11,190', balance: '490', margin: '4.2%', drug_ratio: '42.8%', mat_ratio: '9.1%' },
+]
+
+/**
+ * §6.1 GET /workbench/operations — range 语义实算：
+ * 医疗总收入 = 月度收入序列切片求和（本年=1~10月累计 120,260 与契约示例自洽）；
+ * 门诊/住院收入与 dept_table 金额列无月度拆分序列，按同一收入系数等比缩放；
+ * 结余率/次均/控费为比率口径，revenue_trend 为 12 月定长轴——不随 range 累计。
+ */
+export function getOperationsMock(range?: string): OperationsResp {
+  const r: RangeKey = range === '本月' || range === '本季' ? range : '本年'
+  const f = sumRange(INCOME, r) / sumRange(INCOME, '本年')
   return {
     stats: [
-      { label: '医疗总收入', value: '120,260', unit: '万元', delta: '+2.9%', dir: 'up' },
-      { label: '门诊收入', value: '30,065', unit: '万元', delta: '+1.8%', dir: 'up' },
-      { label: '住院收入', value: '85,385', unit: '万元', delta: '+3.6%', dir: 'up' },
+      { label: '医疗总收入', value: fmt(sumRange(INCOME, r)), unit: '万元', delta: '+2.9%', dir: 'up' },
+      { label: '门诊收入', value: scaleWan('30,065', f), unit: '万元', delta: '+1.8%', dir: 'up' },
+      { label: '住院收入', value: scaleWan('85,385', f), unit: '万元', delta: '+3.6%', dir: 'up' },
       { label: '收支结余率', value: '4.2', unit: '%', delta: '+0.4%', dir: 'up' },
       { label: '次均门诊费用', value: '300', unit: '元', delta: '+1.8%', dir: 'up' },
       { label: '次均住院费用', value: '13,000', unit: '元', delta: '+2.4%', dir: 'up' },
     ],
     revenue_trend: {
-      months: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
-      income: [8950, 8060, 10800, 11650, 12450, 12980, 13940, 13550, 13080, 14800, 14240, 13720],
-      cost: [8574, 7721, 10346, 11161, 11927, 12435, 13359, 12981, 12531, 14178, 13642, 13144],
-      balance: [376, 339, 454, 489, 523, 545, 581, 569, 549, 622, 598, 576],
+      months: MONTHS,
+      income: INCOME,
+      cost: COST,
+      balance: BALANCE,
     },
     cost_controls: [
       { name: '药占比', value: '28.4%', target: '≤30%', status: '达标', pct: 71, mark_pct: 75 },
@@ -36,14 +68,12 @@ export function getOperationsMock(_range?: string): OperationsResp {
         { key: 'drug_ratio', title: '药占比', align: 'right', num: true },
         { key: 'mat_ratio', title: '耗材比', align: 'right', num: true },
       ],
-      rows: [
-        { dept: '心血管内科', income: '19,270', cost: '17,940', balance: '1,330', margin: '6.9%', drug_ratio: '24.8%', mat_ratio: '18.2%' },
-        { dept: '骨科', income: '15,960', cost: '14,490', balance: '1,470', margin: '9.2%', drug_ratio: '12.4%', mat_ratio: '34.6%' },
-        { dept: '呼吸与危重症医学科', income: '15,070', cost: '14,500', balance: '570', margin: '3.8%', drug_ratio: '32.6%', mat_ratio: '8.4%' },
-        { dept: '神经内科', income: '13,270', cost: '12,900', balance: '370', margin: '2.8%', drug_ratio: '36.4%', mat_ratio: '6.2%' },
-        { dept: '普通外科', income: '12,620', cost: '11,750', balance: '870', margin: '6.9%', drug_ratio: '18.2%', mat_ratio: '22.1%' },
-        { dept: '肿瘤科', income: '11,680', cost: '11,190', balance: '490', margin: '4.2%', drug_ratio: '42.8%', mat_ratio: '9.1%' },
-      ],
+      rows: DEPT_ROWS.map((row) => ({
+        ...row,
+        income: scaleWan(row.income, f),
+        cost: scaleWan(row.cost, f),
+        balance: scaleWan(row.balance, f),
+      })),
     },
   }
 }

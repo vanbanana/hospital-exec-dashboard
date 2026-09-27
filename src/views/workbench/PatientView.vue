@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="患者服务" sub="满意度 · 投诉表扬 · 就诊体验 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无患者服务数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2">
@@ -23,14 +33,17 @@
           <span class="wb-panel-sub">本月各渠道占比</span>
         </div>
         <div class="wb-panel-body channel-body">
-          <WbChart :option="channelOption" class="channel-donut" />
-          <ul class="channel-legend">
-            <li v-for="(it, i) in channelData" :key="it.name">
-              <span class="wb-dot" :style="{ backgroundColor: wbDonutColors[i] }"></span>
-              <span class="channel-name">{{ it.name }}</span>
-              <span class="channel-pct wb-num">{{ it.value }}%</span>
-            </li>
-          </ul>
+          <WbEmpty v-if="!channelData.length" text="暂无渠道数据" />
+          <template v-else>
+            <WbChart :option="channelOption" class="channel-donut" />
+            <ul class="channel-legend">
+              <li v-for="(it, i) in channelData" :key="it.name">
+                <span class="wb-dot" :style="{ backgroundColor: wbDonutColor(i) }"></span>
+                <span class="channel-name">{{ it.name }}</span>
+                <span class="channel-pct wb-num">{{ it.value }}%</span>
+              </li>
+            </ul>
+          </template>
         </div>
       </div>
     </div>
@@ -38,10 +51,10 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">投诉与表扬记录</h3>
-        <span class="wb-panel-sub">近 30 日 · 共 57 件</span>
+        <span class="wb-panel-sub">近 30 日 · 共 {{ complaints.rows.length }} 件</span>
       </div>
       <div class="wb-panel-body">
-        <WbTable :columns="complaints.columns" :rows="complaints.rows">
+        <WbTable :columns="complaints.columns" :rows="complaints.rows" empty-text="本月无投诉表扬流水">
           <template #cell-type="{ value }">
             <span class="wb-tag" :class="value === '投诉' ? 'is-red' : 'is-green'">{{ value }}</span>
           </template>
@@ -56,6 +69,7 @@
         </WbTable>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -67,33 +81,34 @@ import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
-  wbDonutColors,
+  wbDonutColor,
   wbCategoryAxis,
   wbValueAxis,
   wbTooltip,
   wbGrid,
 } from '../../components/workbench/chartPresets'
 import { getPatient } from '../../api/workbench'
-import type { NameValue, PatientResp, WbStatItem, WbTableData } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { WbTableData } from '../../api/types'
 
 // 契约 §9.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
 const range = ref('本月')
 
-const stats = ref<WbStatItem[]>([])
-const satTrend = ref<PatientResp['satisfaction_trend'] | null>(null)
-const channelData = ref<NameValue[]>([])
-const complaints = ref<WbTableData>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）
+const { data, loading, error, stale, reload } = useAsyncData(getPatient)
+onMounted(reload)
 
-const load = async () => {
-  const d = await getPatient()
-  stats.value = d.stats
-  satTrend.value = d.satisfaction_trend
-  channelData.value = d.channel_distribution.list
-  complaints.value = d.complaints_praises
-}
-onMounted(load)
+const stats = computed(() => data.value?.stats ?? [])
+const satTrend = computed(() => data.value?.satisfaction_trend ?? null)
+const channelData = computed(() => data.value?.channel_distribution.list ?? [])
+const complaints = computed((): WbTableData => data.value?.complaints_praises ?? { columns: [], rows: [] })
 
 const satOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -104,7 +119,7 @@ const satOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: '#475569' },
+    textStyle: { fontSize: 12, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(satTrend.value?.months ?? [], { boundaryGap: false }),
   yAxis: wbValueAxis({ min: 90, max: 100 }),
@@ -140,9 +155,9 @@ const channelOption = computed<EChartsOption>(() => ({
       type: 'pie',
       radius: ['54%', '78%'],
       center: ['50%', '50%'],
-      itemStyle: { borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderColor: wbChart.white, borderWidth: 2 },
       label: { show: false },
-      data: channelData.value.map((d, i) => ({ ...d, itemStyle: { color: wbDonutColors[i] } })),
+      data: channelData.value.map((d, i) => ({ ...d, itemStyle: { color: wbDonutColor(i) } })),
     },
   ],
 }))
@@ -166,15 +181,15 @@ const channelOption = computed<EChartsOption>(() => ({
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--wb-space-1);
 }
 
 .channel-legend li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  padding: 6px 0;
+  gap: var(--wb-space-2);
+  font-size: var(--wb-fs-md);
+  padding: var(--wb-space-1) 0;
   border-bottom: 1px solid var(--wb-hairline);
 }
 .channel-legend li:last-child {
@@ -187,7 +202,7 @@ const channelOption = computed<EChartsOption>(() => ({
 
 .channel-pct {
   margin-left: auto;
-  font-weight: 600;
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-navy);
 }
 </style>

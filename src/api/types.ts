@@ -390,21 +390,22 @@ export interface TopicsResp {
   table: WbTableData & { title: string; sub: string }
 }
 
-export interface DataSourceItem {
+// 以 type 别名声名（非 interface）：获得隐式索引签名，Item[] 可直接赋给 WbTable 的 Record<string, unknown>[] rows
+export type DataSourceItem = {
   name: string
   type: string
   status: string
   sync: string
 }
 
-export interface ThresholdItem {
+export type ThresholdItem = {
   name: string
   rule: string
   level: AlertLevel
   enabled: boolean
 }
 
-export interface UserItem {
+export type UserItem = {
   name: string
   role: string
   scope: string
@@ -423,4 +424,99 @@ export interface SettingsResp {
     unit_abbreviation: boolean
     privacy_mask: boolean
   }
+}
+
+/* ===== §14 辅助形态：科技大屏快照 /screen/snapshot ===== */
+
+/** 整屏运行态势（§14.1 status）；level 契约未穷举（示例 normal） */
+export interface ScreenStatus {
+  level: string
+  text: string
+  desc: string
+  alert_open: { urgent: number; major: number; minor: number }
+}
+
+export type ScreenKpiStatus = 'normal' | 'warn'
+
+/** 屏顶 KPI 项：value 恒等于 spark 末点（§14.1 注6 屏值事实化） */
+export interface ScreenKpi {
+  code: string
+  name: string
+  value: number
+  unit: string
+  prev_value: number
+  delta_pct: number
+  direction: -1 | 0 | 1
+  spark: number[]
+  status: ScreenKpiStatus
+}
+
+export type DeptCategory = 'surg' | 'med'
+
+export interface DrgPoint {
+  dept_id: number
+  name: string
+  category: DeptCategory
+  cmi: number
+  /** DRG盈亏，单位万元 */
+  profit: number
+  case_cnt: number
+  quadrant: 1 | 2 | 3 | 4
+}
+
+export interface DrgQuadrant {
+  period: string
+  axis: { x: string; y: string }
+  /** 象限分割线：x=盈亏零点，y=CMI 基准 1.0 */
+  split: { x: number; y: number }
+  points: DrgPoint[]
+}
+
+export type BuildingStatus = 'normal' | 'busy' | 'alert'
+export type BuildingBadgeLevel = 'info' | 'warn' | 'alert' | 'ok'
+
+export interface ScreenBuilding {
+  code: string
+  name: string
+  status: BuildingStatus
+  badge: string
+  badge_level: BuildingBadgeLevel
+  /** 院区图锚点，百分比坐标（left/top %） */
+  anchor: { x: number; y: number }
+  /** 楼宇级指标包，键集随楼种（frontend-api §15 末表） */
+  metrics: Record<string, number>
+}
+
+export interface DeptRankItem {
+  rank: number
+  dept_id: number
+  name: string
+  category: DeptCategory
+  cmi: number
+  surg_cnt: number
+  alos: number
+  /** DRG结余，单位万元 */
+  profit: number
+  eff_score: number
+}
+
+export interface ScreenAlert {
+  id: number
+  level: AlertLevel
+  title: string
+  dept: string
+  /** ISO 8601 */
+  occurred_at: string
+}
+
+export interface ScreenSnapshotResp {
+  server_time: string
+  status: ScreenStatus
+  kpis: ScreenKpi[]
+  drg_quadrant: DrgQuadrant
+  buildings: ScreenBuilding[]
+  dept_ranking: DeptRankItem[]
+  alerts: { total_open: number; list: ScreenAlert[] }
+  /** series 键 = KPI code，与 kpis[].spark 同源 */
+  trends: { days: number; dates: string[]; series: Record<string, number[]> }
 }

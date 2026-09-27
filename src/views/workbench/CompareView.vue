@@ -1,10 +1,20 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="对比分析" sub="科室横向对比 · 区域对标 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="dim" :options="['业务量', '收入', '效率', '质量']" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无对比数据" />
+      </div>
+    </div>
+    <template v-else>
     <!-- 科室横向对比表：当前维度指标内嵌条形 -->
     <div class="wb-panel">
       <div class="wb-panel-head">
@@ -56,6 +66,7 @@
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -65,13 +76,20 @@ import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
-import WbTable, { type WbTableColumn } from '../../components/workbench/WbTable.vue'
-import { wbPalette, wbTooltip } from '../../components/workbench/chartPresets'
+import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
+import { wbAlpha, wbChart, wbPalette, wbTooltip } from '../../components/workbench/chartPresets'
 import { getCompare } from '../../api/workbench'
-import type { CompareDim, CompareResp, RangeKey, WbTableData } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { CompareDim, RangeKey, WbTableColumn, WbTableData } from '../../api/types'
 
 const dim = ref('业务量')
 const range = ref('本月')
+// WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
+const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 
 // 契约 §12.1：WbSeg 选项为中文 UI 标签，入参需映射为 dim 枚举
 const DIM_TO_PARAM: Record<string, CompareDim> = {
@@ -81,18 +99,16 @@ const DIM_TO_PARAM: Record<string, CompareDim> = {
   质量: 'quality',
 }
 
-const radar = ref<CompareResp['radar'] | null>(null)
-const benchmarks = ref<CompareResp['benchmarks']>([])
-const table = ref<WbTableData>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）：watch(dim/range) 重取走 reload
+const { data, loading, error, stale, reload } = useAsyncData(() =>
+  getCompare(DIM_TO_PARAM[dim.value] ?? 'scale', RANGE_PARAM[range.value] ?? '本月'),
+)
+onMounted(reload)
+watch([dim, range], reload)
 
-const load = async () => {
-  const d = await getCompare(DIM_TO_PARAM[dim.value] ?? 'scale', range.value as RangeKey)
-  radar.value = d.radar
-  benchmarks.value = d.benchmarks
-  table.value = d.table
-}
-onMounted(load)
-watch([dim, range], load)
+const radar = computed(() => data.value?.radar ?? null)
+const benchmarks = computed(() => data.value?.benchmarks ?? [])
+const table = computed((): WbTableData => data.value?.table ?? { columns: [], rows: [] })
 
 const radarOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -101,16 +117,16 @@ const radarOption = computed<EChartsOption>(() => ({
     bottom: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: '#475569' },
+    textStyle: { fontSize: 12, color: wbChart.text },
   },
   radar: {
     indicator: radar.value?.indicators ?? [],
     radius: '62%',
     center: ['50%', '48%'],
-    axisName: { color: '#475569', fontSize: 12 },
-    splitLine: { lineStyle: { color: '#e2eaf4' } },
-    splitArea: { areaStyle: { color: ['#ffffff', '#f7fafd'] } },
-    axisLine: { lineStyle: { color: '#dbe4ef' } },
+    axisName: { color: wbChart.text, fontSize: 12 },
+    splitLine: { lineStyle: { color: wbChart.grid } },
+    splitArea: { areaStyle: { color: [wbChart.white, wbChart.slate50] } },
+    axisLine: { lineStyle: { color: wbChart.axisLine } },
   },
   series: [
     {
@@ -120,7 +136,7 @@ const radarOption = computed<EChartsOption>(() => ({
         value: s.value,
         itemStyle: { color: i === 0 ? wbPalette.primary : wbPalette.gray },
         lineStyle: i === 0 ? { width: 2 } : { width: 1.5, type: 'dashed' as const },
-        areaStyle: { color: i === 0 ? 'rgba(37,99,235,0.12)' : 'rgba(148,163,184,0.08)' },
+        areaStyle: { color: i === 0 ? wbAlpha(wbPalette.primary, 0.12) : wbAlpha(wbPalette.gray, 0.08) },
         symbolSize: i === 0 ? 4 : 3,
       })),
     },
@@ -140,19 +156,19 @@ const benchCols: WbTableColumn[] = [
 .metric-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--wb-space-3);
 }
 
 .metric-val {
   width: 64px;
   text-align: right;
-  font-weight: 600;
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-navy);
   flex-shrink: 0;
 }
 
 .rank-no {
-  font-weight: 700;
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-text-3);
 }
 .rank-no.rank-hi {

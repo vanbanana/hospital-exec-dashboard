@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="运营管理" sub="收支结构 · 费用控制 · 运营效率 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无运营数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2-1">
@@ -24,6 +34,7 @@
         </div>
         <div class="wb-panel-body">
           <div class="ctrl-list">
+            <WbEmpty v-if="!costControls.length" text="暂无控费指标" />
             <div v-for="it in costControls" :key="it.name" class="ctrl-row">
               <div class="ctrl-head">
                 <span class="ctrl-name">{{ it.name }}</span>
@@ -55,6 +66,7 @@
         <WbTable :columns="deptTable.columns" :rows="deptTable.rows" row-key="dept" />
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -66,7 +78,12 @@ import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -74,24 +91,24 @@ import {
   wbGrid,
 } from '../../components/workbench/chartPresets'
 import { getOperations } from '../../api/workbench'
-import type { CostControlItem, OperationsResp, RangeKey, WbStatItem, WbTableData } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { RangeKey, WbTableData } from '../../api/types'
 
 const range = ref('本年')
+// WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
+const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 
-const stats = ref<WbStatItem[]>([])
-const revenueTrend = ref<OperationsResp['revenue_trend'] | null>(null)
-const costControls = ref<CostControlItem[]>([])
-const deptTable = ref<WbTableData>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）：watch(range) 重取走 reload
+const { data, loading, error, stale, reload } = useAsyncData(() =>
+  getOperations(RANGE_PARAM[range.value] ?? '本年'),
+)
+onMounted(reload)
+watch(range, reload)
 
-const load = async () => {
-  const d = await getOperations(range.value as RangeKey)
-  stats.value = d.stats
-  revenueTrend.value = d.revenue_trend
-  costControls.value = d.cost_controls
-  deptTable.value = d.dept_table
-}
-onMounted(load)
-watch(range, load)
+const stats = computed(() => data.value?.stats ?? [])
+const revenueTrend = computed(() => data.value?.revenue_trend ?? null)
+const costControls = computed(() => data.value?.cost_controls ?? [])
+const deptTable = computed((): WbTableData => data.value?.dept_table ?? { columns: [], rows: [] })
 
 const revOption = computed<EChartsOption>(() => {
   const t = revenueTrend.value
@@ -108,14 +125,14 @@ const revOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 14,
       itemHeight: 8,
-      textStyle: { fontSize: 12, color: '#475569' },
+      textStyle: { fontSize: 12, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.months ?? []),
     yAxis: [
-      wbValueAxis({ name: '万元', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+      wbValueAxis({ name: '万元', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
       wbValueAxis({
         name: '%',
-        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+        nameTextStyle: { color: wbChart.axis, fontSize: 11 },
         splitLine: { show: false },
         min: 0,
         max: 10,
@@ -151,13 +168,13 @@ const revOption = computed<EChartsOption>(() => {
   flex-direction: column;
   justify-content: space-evenly;
   height: 100%;
-  gap: 6px;
+  gap: var(--wb-space-1);
 }
 
 .ctrl-row {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--wb-space-1);
 }
 
 .ctrl-head {
@@ -167,34 +184,34 @@ const revOption = computed<EChartsOption>(() => {
 }
 
 .ctrl-name {
-  font-size: 13px;
+  font-size: var(--wb-fs-md);
   color: var(--wb-text-1);
-  font-weight: 500;
+  font-weight: var(--wb-fw-medium);
 }
 
 .ctrl-nums b {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--wb-fs-md);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
 }
 
 .ctrl-limit {
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--wb-fs-xs);
   color: var(--wb-text-4);
-  margin-left: 6px;
+  margin-left: var(--wb-space-1);
 }
 
 .ctrl-track {
   position: relative;
   height: 8px;
-  background: #f1f5f9;
-  border-radius: 4px;
+  background: var(--wb-bar-track);
+  border-radius: var(--wb-radius-tag);
 }
 
 .ctrl-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--wb-radius-tag);
 }
 .ctrl-fill.is-ok { background: var(--wb-accent); }
 .ctrl-fill.is-over { background: var(--wb-red); }
@@ -206,7 +223,7 @@ const revOption = computed<EChartsOption>(() => {
   bottom: -2px;
   width: 2px;
   background: var(--wb-red);
-  border-radius: 1px;
+  border-radius: var(--wb-radius-sm);
   opacity: 0.6;
 }
 </style>

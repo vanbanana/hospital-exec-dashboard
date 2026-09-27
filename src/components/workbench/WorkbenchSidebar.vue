@@ -4,8 +4,8 @@
     <div class="sidebar-brand">
       <img src="../../assets/workbench/hospital_logo.png" alt="院徽" class="brand-logo" />
       <div class="brand-text">
-        <h1 class="brand-title">XX市人民医院</h1>
-        <p class="brand-sub">PEOPLE'S HOSPITAL</p>
+        <h1 class="brand-title">{{ profile.name }}</h1>
+        <p class="brand-sub">{{ profile.english_name }}</p>
       </div>
     </div>
 
@@ -35,16 +35,16 @@
         <img src="../../assets/workbench/building_sketch.png" alt="建筑线描" class="sketch-img" />
       </div>
       <div class="motto-text">
-        <span>厚德</span>
-        <span>精医</span>
-        <span>仁爱</span>
-        <span>创新</span>
+        <span v-for="w in profile.motto" :key="w">{{ w }}</span>
       </div>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { getHospitalProfile } from '../../api/auth'
+import type { HospitalProfileResp } from '../../api/types'
 import {
   Home,
   LayoutGrid,
@@ -59,6 +59,20 @@ import {
   PieChart,
   Settings,
 } from 'lucide-vue-next'
+
+// 品牌区回退硬编码文案：data=null/接口失败时不留白（frontend-api §2.2 空态）
+const profile = ref<HospitalProfileResp>({
+  name: 'XX市人民医院',
+  english_name: "PEOPLE'S HOSPITAL",
+  level: '三级甲等综合医院',
+  motto: ['厚德', '精医', '仁爱', '创新'],
+  slogans: [],
+  pillars: [],
+})
+
+onMounted(async () => {
+  profile.value = (await getHospitalProfile().catch(() => null)) ?? profile.value
+})
 
 const menuItems = [
   { name: '首页', icon: Home, to: '/workbench', exact: true },
@@ -78,7 +92,7 @@ const menuItems = [
 
 <style scoped>
 .workbench-sidebar {
-  width: 204px;
+  width: var(--wb-sidebar-w);
   height: 100vh;
   flex-shrink: 0;
   background: var(--wb-sidebar-bg);
@@ -93,14 +107,14 @@ const menuItems = [
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 16px 12px;
+  gap: var(--wb-space-2);
+  padding: var(--wb-space-4) var(--wb-space-4) var(--wb-space-3);
 }
 
 .brand-logo {
   width: 38px;
   height: 38px;
-  border-radius: 50%;
+  border-radius: var(--wb-radius-pill);
   flex-shrink: 0;
 }
 
@@ -110,8 +124,8 @@ const menuItems = [
 }
 
 .brand-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--wb-fs-lg);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   line-height: 1.25;
   letter-spacing: 0.5px;
@@ -119,20 +133,20 @@ const menuItems = [
 }
 
 .brand-sub {
-  font-size: 9px;
-  font-weight: 600;
+  font-size: var(--wb-fs-2xs);
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-text-3);
   letter-spacing: 1px;
   line-height: 1.2;
-  margin-top: 3px;
+  margin-top: var(--wb-space-1);
 }
 
 .sidebar-nav {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 12px;
+  gap: var(--wb-space-1);
+  padding: var(--wb-space-1) var(--wb-space-3);
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -143,21 +157,21 @@ const menuItems = [
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
+  gap: var(--wb-space-2);
+  padding: var(--wb-space-2) var(--wb-space-3);
   border-radius: var(--wb-radius-inner);
   text-decoration: none;
   color: var(--wb-text-2);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--wb-fs-md);
+  font-weight: var(--wb-fw-medium);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--wb-dur-fast) ease, color var(--wb-dur-fast) ease;
 }
 
 .nav-icon {
   color: var(--wb-text-3);
   flex-shrink: 0;
-  transition: color 0.15s ease;
+  transition: color var(--wb-dur-fast) ease;
 }
 
 .nav-item:hover {
@@ -171,12 +185,12 @@ const menuItems = [
 
 .nav-item.active {
   background: var(--wb-accent);
-  color: #ffffff;
-  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);
+  color: var(--p-white);
+  box-shadow: var(--wb-shadow-accent);
 }
 
 .nav-item.active .nav-icon {
-  color: #ffffff;
+  color: var(--p-white);
 }
 
 .sidebar-footer {
@@ -185,7 +199,7 @@ const menuItems = [
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 14px;
+  padding-bottom: var(--wb-pad-y);
   margin-top: auto;
 }
 
@@ -204,21 +218,21 @@ const menuItems = [
 
 .sketch-img {
   width: 100%;
-  opacity: 0.7;
+  opacity: var(--wb-opacity-dimmed);
   object-fit: cover;
   filter: contrast(1.1);
 }
 
 .motto-text {
   position: relative;
-  z-index: 2;
+  z-index: var(--wb-z-sticky);
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 82%;
   font-family: "STSong", "Songti SC", "SimSun", serif;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--wb-fs-sm);
+  font-weight: var(--wb-fw-medium);
   color: var(--wb-text-2);
   letter-spacing: 2px;
 }

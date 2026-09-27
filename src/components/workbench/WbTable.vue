@@ -26,22 +26,35 @@
           </slot>
         </td>
       </tr>
+      <!-- 空态行：rows=[] 时占满列宽渲染空态（§10.1 empty 态，不报错不白屏） -->
+      <tr v-if="!rows.length" class="wb-table-empty">
+        <td :colspan="columns.length || 1">
+          <WbEmpty :text="emptyText" />
+        </td>
+      </tr>
     </tbody>
   </table>
 </template>
 
 <script setup lang="ts">
-export interface WbTableColumn {
-  key: string
-  title: string
-  width?: string
-  align?: 'left' | 'center' | 'right'
-  num?: boolean
-}
+import type { WbTableColumn } from '../../api/types'
+import WbEmpty from './WbEmpty.vue'
 
-defineProps<{
-  columns: WbTableColumn[]
-  rows: Record<string, unknown>[]
-  rowKey?: string
-}>()
+export type { WbTableColumn }
+
+withDefaults(
+  defineProps<{
+    columns: WbTableColumn[]
+    rows: Record<string, unknown>[]
+    rowKey?: string
+    emptyText?: string
+  }>(),
+  { emptyText: '暂无数据' },
+)
 </script>
+
+<style scoped>
+.wb-table-empty:hover {
+  background: transparent;
+}
+</style>

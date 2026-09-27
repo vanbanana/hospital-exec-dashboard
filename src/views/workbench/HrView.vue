@@ -1,9 +1,19 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="人力资源" sub="人员结构 · 职称梯队 · 科室配置 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无人力资源数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2">
@@ -13,15 +23,18 @@
           <span class="wb-panel-sub">按岗位类别</span>
         </div>
         <div class="wb-panel-body structure-body">
-          <WbChart :option="structureOption" class="structure-donut" />
-          <ul class="structure-legend">
-            <li v-for="(it, i) in structureData" :key="it.name">
-              <span class="wb-dot" :style="{ backgroundColor: wbDonutColors[i] }"></span>
-              <span class="structure-name">{{ it.name }}</span>
-              <span class="structure-cnt wb-num">{{ it.count }}</span>
-              <span class="structure-pct wb-num">{{ it.value }}%</span>
-            </li>
-          </ul>
+          <WbEmpty v-if="!structureData.length" text="暂无人员构成数据" />
+          <template v-else>
+            <WbChart :option="structureOption" class="structure-donut" />
+            <ul class="structure-legend">
+              <li v-for="(it, i) in structureData" :key="it.name">
+                <span class="wb-dot" :style="{ backgroundColor: wbDonutColor(i) }"></span>
+                <span class="structure-name">{{ it.name }}</span>
+                <span class="structure-cnt wb-num">{{ it.count }}</span>
+                <span class="structure-pct wb-num">{{ it.value }}%</span>
+              </li>
+            </ul>
+          </template>
         </div>
       </div>
 
@@ -54,6 +67,7 @@
         </WbTable>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -65,32 +79,38 @@ import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
-  wbDonutColors,
+  wbChart,
+  wbDonutColor,
+  wbBlueScale,
   wbCategoryAxis,
   wbValueAxis,
   wbTooltip,
   wbGrid,
 } from '../../components/workbench/chartPresets'
 import { getHr } from '../../api/workbench'
-import type { HrResp, RangeKey, WbStatItem, WbTableData } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { RangeKey, WbTableData } from '../../api/types'
 
 const range = ref('本年')
+// WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
+const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 
-const stats = ref<WbStatItem[]>([])
-const structureData = ref<HrResp['structure']['list']>([])
-const titles = ref<HrResp['titles'] | null>(null)
-const staffing = ref<WbTableData>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）：watch(range) 重取走 reload
+const { data, loading, error, stale, reload } = useAsyncData(() =>
+  getHr(RANGE_PARAM[range.value] ?? '本年'),
+)
+onMounted(reload)
+watch(range, reload)
 
-const load = async () => {
-  const d = await getHr(range.value as RangeKey)
-  stats.value = d.stats
-  structureData.value = d.structure.list
-  titles.value = d.titles
-  staffing.value = d.dept_staffing
-}
-onMounted(load)
-watch(range, load)
+const stats = computed(() => data.value?.stats ?? [])
+const structureData = computed(() => data.value?.structure.list ?? [])
+const titles = computed(() => data.value?.titles ?? null)
+const staffing = computed((): WbTableData => data.value?.dept_staffing ?? { columns: [], rows: [] })
 
 const structureOption = computed<EChartsOption>(() => ({
   animation: false,
@@ -100,19 +120,19 @@ const structureOption = computed<EChartsOption>(() => ({
       type: 'pie',
       radius: ['56%', '80%'],
       center: ['50%', '50%'],
-      itemStyle: { borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderColor: wbChart.white, borderWidth: 2 },
       label: { show: false },
       data: structureData.value.map((d, i) => ({
         name: d.name,
         value: d.value,
-        itemStyle: { color: wbDonutColors[i] },
+        itemStyle: { color: wbDonutColor(i) },
       })),
     },
   ],
 }))
 
-// 职称层级配色沿用原视觉序（正高→初级及以下），契约 titles.series 仅下发 name+values（§7.1）
-const TITLE_COLORS = ['#1d4ed8', '#2563eb', '#60a5fa', '#bfdbfe']
+// 职称层级配色沿用蓝阶深→浅视觉序（正高→初级及以下），契约 titles.series 仅下发 name+values（§7.1）
+// 色阶唯一来源 --wb-chart-blue-1..4(design-tokens §6 R5);序列超 4 层时循环取色防越界
 
 const titleOption = computed<EChartsOption>(() => {
   const t = titles.value
@@ -126,17 +146,17 @@ const titleOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 10,
       itemHeight: 10,
-      textStyle: { fontSize: 12, color: '#475569' },
+      textStyle: { fontSize: 12, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.categories ?? []),
-    yAxis: wbValueAxis({ name: t?.unit ?? '人', nameTextStyle: { color: '#94a3b8', fontSize: 11 } }),
+    yAxis: wbValueAxis({ name: t?.unit ?? '人', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
     series: (t?.series ?? []).map((s, i) => ({
       name: s.name,
       type: 'bar' as const,
       stack: 'total',
       barWidth: i === 0 ? 34 : undefined,
       data: s.values,
-      itemStyle: { color: TITLE_COLORS[i], borderRadius: i === last ? [3, 3, 0, 0] : undefined },
+      itemStyle: { color: wbBlueScale[i % wbBlueScale.length], borderRadius: i === last ? [3, 3, 0, 0] : undefined },
     })),
   }
 })
@@ -160,15 +180,15 @@ const titleOption = computed<EChartsOption>(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--wb-space-1);
 }
 
 .structure-legend li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  padding: 7px 0;
+  gap: var(--wb-space-2);
+  font-size: var(--wb-fs-md);
+  padding: var(--wb-space-2) 0;
   border-bottom: 1px solid var(--wb-hairline);
 }
 .structure-legend li:last-child {
@@ -181,19 +201,19 @@ const titleOption = computed<EChartsOption>(() => {
 
 .structure-cnt {
   margin-left: auto;
-  font-weight: 600;
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-navy);
 }
 
 .structure-pct {
   width: 42px;
   text-align: right;
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
 }
 
 .gap-warn {
   color: var(--wb-red);
-  font-weight: 700;
+  font-weight: var(--wb-fw-bold);
 }
 </style>

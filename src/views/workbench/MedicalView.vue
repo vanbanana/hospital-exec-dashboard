@@ -1,10 +1,20 @@
 <template>
   <div class="wb-page">
     <WbPageHead title="医疗业务" sub="门急诊 · 住院 · 手术明细分析 · 数据截至 2026-10-28">
+      <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="bizTab" :options="['门急诊', '住院', '手术']" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
+    <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
+    <div v-if="data === null" class="wb-panel">
+      <div class="wb-panel-body">
+        <WbErrorPanel v-if="error" :error="error" :loading="loading" @retry="reload" />
+        <WbSkeleton v-else-if="loading" :rows="8" />
+        <WbEmpty v-else text="暂无医疗业务数据" />
+      </div>
+    </div>
+    <template v-else>
     <WbStatStrip :items="stats" />
 
     <div class="wb-grid wb-grid-2-1">
@@ -38,6 +48,7 @@
         <WbTable :columns="table.columns" :rows="table.rows" row-key="dept" />
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -49,9 +60,14 @@ import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
+import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
+import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
+import WbEmpty from '../../components/workbench/WbEmpty.vue'
+import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
+  wbChart,
   wbPalette,
-  wbDonutColors,
+  wbDonutColor,
   wbCategoryAxis,
   wbValueAxis,
   wbTooltip,
@@ -59,25 +75,26 @@ import {
   wbAreaGradient,
 } from '../../components/workbench/chartPresets'
 import { getMedical } from '../../api/workbench'
-import type { MedicalResp, MedicalTab, RangeKey, WbStatItem, WbTableData } from '../../api/types'
+import { useAsyncData } from '../../api/useAsyncData'
+import type { MedicalTab, RangeKey, WbTableData } from '../../api/types'
 
 const bizTab = ref('门急诊')
 const range = ref('本年')
+// WbSeg 出参为中文标签,映射为契约 tab/range 枚举(§1.4-1,非法值后端回 10001)
+const TAB_PARAM: Record<string, MedicalTab> = { 门急诊: '门急诊', 住院: '住院', 手术: '手术' }
+const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 
-const stats = ref<WbStatItem[]>([])
-const trend = ref<MedicalResp['trend'] | null>(null)
-const dist = ref<MedicalResp['distribution'] | null>(null)
-const table = ref<WbTableData>({ columns: [], rows: [] })
+// 五态取数经 useAsyncData（frontend-architecture §10.1）：watch(tab/range) 重取走 reload
+const { data, loading, error, stale, reload } = useAsyncData(() =>
+  getMedical(TAB_PARAM[bizTab.value] ?? '门急诊', RANGE_PARAM[range.value] ?? '本年'),
+)
+onMounted(reload)
+watch([bizTab, range], reload)
 
-const load = async () => {
-  const d = await getMedical(bizTab.value as MedicalTab, range.value as RangeKey)
-  stats.value = d.stats
-  trend.value = d.trend
-  dist.value = d.distribution
-  table.value = d.table
-}
-onMounted(load)
-watch([bizTab, range], load)
+const stats = computed(() => data.value?.stats ?? [])
+const trend = computed(() => data.value?.trend ?? null)
+const dist = computed(() => data.value?.distribution ?? null)
+const table = computed((): WbTableData => data.value?.table ?? { columns: [], rows: [] })
 
 const trendOption = computed<EChartsOption>(() => {
   const t = trend.value
@@ -87,7 +104,7 @@ const trendOption = computed<EChartsOption>(() => {
     tooltip: wbTooltip('axis'),
     xAxis: wbCategoryAxis(t?.months ?? [], { boundaryGap: false }),
     yAxis: wbValueAxis({
-      axisLabel: { color: '#64748b', fontSize: 11, formatter: (v: number) => v.toLocaleString() },
+      axisLabel: { color: wbChart.text, fontSize: 11, formatter: (v: number) => v.toLocaleString() },
     }),
     series: [
       {
@@ -97,7 +114,7 @@ const trendOption = computed<EChartsOption>(() => {
         data: t?.values ?? [],
         symbol: 'circle',
         symbolSize: 5,
-        itemStyle: { color: wbPalette.primary, borderColor: '#fff', borderWidth: 1.5 },
+        itemStyle: { color: wbPalette.primary, borderColor: wbChart.white, borderWidth: 1.5 },
         lineStyle: { color: wbPalette.primary, width: 2.5 },
         areaStyle: { color: wbAreaGradient(wbPalette.primary) },
       },
@@ -115,24 +132,24 @@ const distOption = computed<EChartsOption>(() => {
         bottom: 0,
         itemWidth: 10,
         itemHeight: 10,
-        textStyle: { fontSize: 12, color: '#475569' },
+        textStyle: { fontSize: 12, color: wbChart.text },
       },
       series: [
         {
           type: 'pie',
           radius: ['50%', '72%'],
           center: ['50%', '46%'],
-          itemStyle: { borderColor: '#fff', borderWidth: 2 },
+          itemStyle: { borderColor: wbChart.white, borderWidth: 2 },
           label: {
             show: true,
             formatter: '{d}%',
             fontSize: 11,
-            color: '#475569',
+            color: wbChart.text,
           },
           data: d.categories.map((name, i) => ({
             name,
             value: d.values[i],
-            itemStyle: { color: wbDonutColors[i] },
+            itemStyle: { color: wbDonutColor(i) },
           })),
         },
       ],
@@ -142,7 +159,7 @@ const distOption = computed<EChartsOption>(() => {
     animation: false,
     grid: wbGrid({ top: 16 }),
     tooltip: wbTooltip('axis'),
-    xAxis: wbCategoryAxis(d?.categories ?? [], { axisLabel: { color: '#64748b', fontSize: 10, margin: 8 } }),
+    xAxis: wbCategoryAxis(d?.categories ?? [], { axisLabel: { color: wbChart.text, fontSize: 10, margin: 8 } }),
     yAxis: wbValueAxis(),
     series: [
       {

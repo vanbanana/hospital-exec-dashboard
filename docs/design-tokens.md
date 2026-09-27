@@ -134,6 +134,17 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
   --scr-shadow-panel:0 8px 24px rgba(0,4,15,.55), inset 0 1px 0 rgba(255,255,255,.05);
   --scr-fs-axis:9px; --scr-fs-sm:11px; --scr-fs-md:13px;
   --scr-fs-title:20px; --scr-fs-num:26px;
+  /* 间距阶梯(收编 screen 域全部 padding/gap/margin 字面量,就近吸附) */
+  --scr-space-1:2px;  --scr-space-2:4px;  --scr-space-3:6px;  --scr-space-4:8px;
+  --scr-space-5:10px; --scr-space-6:12px; --scr-space-7:14px; --scr-space-8:16px;
+  --scr-space-9:20px; --scr-space-10:22px;
+  /* 图表语义(scrTokens.ts 唯一引用源;alpha 变体色基注明原色档) */
+  --scr-chart-axis:rgba(148,163,184,.30);      /* p-slate-400 @ .30 轴线 */
+  --scr-chart-grid:rgba(148,163,184,.08);      /* p-slate-400 @ .08 分隔线 */
+  --scr-chart-mark:rgba(56,189,248,.035);      /* p-cyan-400 @ .035 象限高亮底 */
+  --scr-chart-area-top:rgba(56,189,248,.22);   /* p-cyan-400 @ .22 面积渐变顶 */
+  --scr-chart-area-bottom:rgba(56,189,248,0);  /* p-cyan-400 @ 0 面积渐变底(保色相防黑化) */
+  --scr-tooltip-bg:rgba(6,11,23,.94);          /* p-ink-950 @ .94 图表浮层底 */
   /* 画布:1920×1080(裁决:cockpit 真大屏实际实现 + 会议室主流分辨率;
      archive/output 冻结稿 2048×1152 为旧稿值,不再采用) */
   --scr-canvas-w:1920px; --scr-canvas-h:1080px;
@@ -148,7 +159,7 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
 | R2 文档先行 | 新增/修改 token → 先改本文档 → 再改代码；代码里出现文档未登记的 token 名 = 违例 |
 | R3 语义优先 | 能挂语义层就不许直用原色层；两个 .vue 需要同一取值 → 升语义 token |
 | R4 归并不扩 | 与原色 ΔE 不可分辨的值归并最近档；禁止再出现"第 6 个蓝" |
-| R5 图表同源 | ECharts 配色/字号只允许经 `chartPresets.ts`;script 内 hex map（toneStyle/cardStyle/TITLE_COLORS）全部消灭，改为 token 引用 |
+| R5 图表同源 | ECharts 配色/字号只允许经各域**单一出口**取色：wb 侧 `chartPresets.ts`（静态表，字面值必须行内注释标注对应 token 名，值与 token 同步）；scr 侧 `scrTokens.ts::readScrPalette()`（运行时 getComputedStyle 读 --scr-*/--p-*）。script 内 hex map（toneStyle/cardStyle/TITLE_COLORS）与 inline rgba 字面量全部消灭 |
 | R6 死 token 清零 | 无消费方的 token 立即删除（variables.css 13 个深色死 token 为首个执行对象） |
 | R7 别名言明 | 同值双名必须注释互指（--wb-up↔--wb-red） |
 

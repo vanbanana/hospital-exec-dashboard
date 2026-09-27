@@ -34,20 +34,43 @@ const BASE: Pick<CompareResp, 'radar' | 'benchmarks'> = {
   ],
 }
 
+// 契约示例锚定 range=本月；outp/inpt 为月量，随 range 按全院月度序列（§3.2 同源）累计放大
+const OUTP_MONTHLY = [54000, 46000, 68000, 70000, 85000, 90000, 108000, 97000, 105000, 123000, 122000, 120000]
+const INPT_MONTHLY = [5900, 4970, 6410, 6820, 7240, 7450, 8070, 8480, 7850, 8120, 7650, 7450]
+
+const rangeSlice: Record<RangeKey, [number, number]> = { 本月: [9, 10], 本季: [7, 10], 本年: [0, 10] }
+const sumRange = (arr: number[], r: RangeKey) => {
+  const [a, b] = rangeSlice[r]
+  return arr.slice(a, b).reduce((x, y) => x + y, 0)
+}
+const fmt = (n: number) => n.toLocaleString('en-US')
+
 const ROWS = [
-  { rank: 1, dept: '心血管内科', metric: '25,360', bar_pct: 100, yoy: '+6.2%', outp: 12860, inpt: 1250, days: 9.2, sat: 96.2 },
-  { rank: 2, dept: '呼吸与危重症医学科', metric: '21,480', bar_pct: 85, yoy: '+8.7%', outp: 11580, inpt: 990, days: 10.4, sat: 94.8 },
-  { rank: 3, dept: '骨科', metric: '18,360', bar_pct: 72, yoy: '+5.8%', outp: 7160, inpt: 1120, days: 8.6, sat: 95.4 },
-  { rank: 4, dept: '神经内科', metric: '17,680', bar_pct: 70, yoy: '+4.1%', outp: 9680, inpt: 800, days: 11.2, sat: 93.6 },
-  { rank: 5, dept: '普通外科', metric: '15,280', bar_pct: 58, yoy: '+3.4%', outp: 6080, inpt: 920, days: 7.8, sat: 94.2 },
-  { rank: 6, dept: '肿瘤科', metric: '11,800', bar_pct: 45, yoy: '+5.9%', outp: 4450, inpt: 735, days: 12.6, sat: 92.8 },
+  { dept: '心血管内科', yoy: '+6.2%', outp: 12860, inpt: 1250, days: 9.2, sat: 96.2 },
+  { dept: '呼吸与危重症医学科', yoy: '+8.7%', outp: 11580, inpt: 990, days: 10.4, sat: 94.8 },
+  { dept: '骨科', yoy: '+5.8%', outp: 7160, inpt: 1120, days: 8.6, sat: 95.4 },
+  { dept: '神经内科', yoy: '+4.1%', outp: 9680, inpt: 800, days: 11.2, sat: 93.6 },
+  { dept: '普通外科', yoy: '+3.4%', outp: 6080, inpt: 920, days: 7.8, sat: 94.2 },
+  { dept: '肿瘤科', yoy: '+5.9%', outp: 4450, inpt: 735, days: 12.6, sat: 92.8 },
 ]
 
-/** §12.1 GET /workbench/compare；契约仅锚定 dim=scale 行集，其余 dim 复用同口径行并换 metric 列名 */
+/**
+ * §12.1 GET /workbench/compare — range 语义实算：
+ * outp/inpt 按各自全院月度序列累计系数缩放；metric 按契约冻结公式 outp + inpt×10 重算（§12.1 注4），
+ * rank/bar_pct 随缩放后量值重排；days/sat/yoy/radar/benchmarks 为比率或年度对标值不随 range 变。
+ */
 export function getCompareMock(dim?: string, range?: string): CompareResp {
   const d: CompareDim =
     dim === 'benefit' || dim === 'efficiency' || dim === 'quality' ? dim : 'scale'
   const r: RangeKey = range === '本季' || range === '本年' ? range : '本月'
+  const fOutp = sumRange(OUTP_MONTHLY, r) / OUTP_MONTHLY[9]
+  const fInpt = sumRange(INPT_MONTHLY, r) / INPT_MONTHLY[9]
+  const scaled = ROWS.map((row) => {
+    const outp = Math.round(row.outp * fOutp)
+    const inpt = Math.round(row.inpt * fInpt)
+    return { ...row, outp, inpt, metric: outp + inpt * 10 }
+  }).sort((x, y) => y.metric - x.metric)
+  const maxMetric = scaled[0]?.metric ?? 1
   return {
     dimension: d,
     range: r,
@@ -63,7 +86,17 @@ export function getCompareMock(dim?: string, range?: string): CompareResp {
         { key: 'days', title: '平均住院日', align: 'right', num: true },
         { key: 'sat', title: '满意度', align: 'right', num: true },
       ],
-      rows: ROWS,
+      rows: scaled.map((row, i) => ({
+        rank: i + 1,
+        dept: row.dept,
+        metric: fmt(row.metric),
+        bar_pct: Math.round((row.metric / maxMetric) * 100),
+        yoy: row.yoy,
+        outp: row.outp,
+        inpt: row.inpt,
+        days: row.days,
+        sat: row.sat,
+      })),
     },
   }
 }

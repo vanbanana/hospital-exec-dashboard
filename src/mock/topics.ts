@@ -1,5 +1,25 @@
-// 专题分析数据包 — api-contract §13.1 四个 topic 示例锚定
-import type { RangeKey, TopicKey, TopicsResp } from '../api/types'
+// 专题分析数据包 — api-contract §13.1 四个 topic 示例锚定（range=本年）
+import type { RangeKey, TopicKey, TopicsResp, WbStatItem } from '../api/types'
+
+// range 实算用的全院月度锚序列（§3.2 同源）；各专题按业务口径取代理序列
+const INPT_MONTHLY = [5900, 4970, 6410, 6820, 7240, 7450, 8070, 8480, 7850, 8120, 7650, 7450]
+const OUTP_MONTHLY = [54000, 46000, 68000, 70000, 85000, 90000, 108000, 97000, 105000, 123000, 122000, 120000]
+const INCOME_MONTHLY = [8950, 8060, 10800, 11650, 12450, 12980, 13940, 13550, 13080, 14800, 14240, 13720]
+
+const rangeSlice: Record<RangeKey, [number, number]> = { 本月: [9, 10], 本季: [7, 10], 本年: [0, 10] }
+const sumRange = (arr: number[], r: RangeKey) => {
+  const [a, b] = rangeSlice[r]
+  return arr.slice(a, b).reduce((x, y) => x + y, 0)
+}
+const num = (v: string | number) => Number(String(v).replace(/,/g, ''))
+const fmt = (n: number) => n.toLocaleString('en-US')
+// 保形缩放：整数千分位 / 一位小数 / 带正负号结余值三种形态
+const scaleInt = (v: string | number, f: number) => fmt(Math.round(num(v) * f))
+const scaleDec = (v: string | number, f: number) => (num(v) * f).toFixed(1)
+const scaleSign = (v: string | number, f: number) =>
+  `${num(v) < 0 ? '-' : '+'}${(Math.abs(num(v)) * f).toFixed(1)}`
+const scaleStats = (list: WbStatItem[], f: number, labels: string[]) =>
+  list.map((s) => (labels.includes(s.label) ? { ...s, value: scaleInt(s.value, f) } : s))
 
 const BY_TOPIC: Record<TopicKey, Omit<TopicsResp, 'topic' | 'range'>> = {
   drg: {
@@ -156,10 +176,74 @@ const BY_TOPIC: Record<TopicKey, Omit<TopicsResp, 'topic' | 'range'>> = {
   },
 }
 
-/** §13.1 GET /workbench/topics */
+/**
+ * §13.1 GET /workbench/topics — range 语义实算：
+ * 累计量字段（结算人次/基金支付/入组病例/DRG 结余/RW 分段例数）以契约示例（range=本年）为锚，
+ * 按各专题代理月度序列切片占比缩放（drg→出院、insurance→出院+收入、outp_fund→门急诊）；
+ * 比率/指数/得分字段、近 6 个月窗口图不随 range 变；exam 全为比率得分恒等返回。
+ */
 export function getTopicsMock(topic?: string, range?: string): TopicsResp {
   const t: TopicKey =
     topic === 'insurance' || topic === 'exam' || topic === 'outp_fund' ? topic : 'drg'
   const r: RangeKey = range === '本月' || range === '本季' ? range : '本年'
-  return { topic: t, range: r, ...BY_TOPIC[t] }
+  const base = BY_TOPIC[t]
+  if (r === '本年' || t === 'exam') return { topic: t, range: r, ...base }
+
+  const fInpt = sumRange(INPT_MONTHLY, r) / sumRange(INPT_MONTHLY, '本年')
+  const fOutp = sumRange(OUTP_MONTHLY, r) / sumRange(OUTP_MONTHLY, '本年')
+  const fInc = sumRange(INCOME_MONTHLY, r) / sumRange(INCOME_MONTHLY, '本年')
+
+  if (t === 'drg') {
+    return {
+      topic: t,
+      range: r,
+      stats: base.stats,
+      chart: { ...base.chart, values: base.chart.values.map((v) => Math.round(v * fInpt)) },
+      table: {
+        ...base.table,
+        rows: base.table.rows.map((row) => ({
+          ...row,
+          cases: scaleInt(row.cases, fInpt),
+          profit: scaleSign(row.profit, fInpt),
+        })),
+      },
+    }
+  }
+  if (t === 'insurance') {
+    return {
+      topic: t,
+      range: r,
+      stats: base.stats.map((s) =>
+        s.label === '医保基金支付'
+          ? { ...s, value: scaleInt(s.value, fInc) }
+          : s.label === '医保结算人次' || s.label === '异地就医结算'
+            ? { ...s, value: scaleInt(s.value, fInpt) }
+            : s,
+      ),
+      chart: base.chart,
+      table: {
+        ...base.table,
+        rows: base.table.rows.map((row) => ({
+          ...row,
+          cases: scaleInt(row.cases, fInpt),
+          fund: scaleInt(row.fund, fInc),
+          self: scaleInt(row.self, fInc),
+        })),
+      },
+    }
+  }
+  return {
+    topic: t,
+    range: r,
+    stats: scaleStats(base.stats, fOutp, ['门诊统筹结算人次', '统筹基金支付', '个人账户支出', '慢特病结算']),
+    chart: base.chart,
+    table: {
+      ...base.table,
+      rows: base.table.rows.map((row) => ({
+        ...row,
+        cases: scaleInt(row.cases, fOutp),
+        fund: scaleDec(row.fund, fOutp),
+      })),
+    },
+  }
 }

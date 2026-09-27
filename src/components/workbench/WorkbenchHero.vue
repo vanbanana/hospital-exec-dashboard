@@ -2,8 +2,8 @@
   <section class="workbench-hero">
     <!-- Left Slogan Text -->
     <div class="hero-left">
-      <div class="slogan-line first-line">以数据洞察全局</div>
-      <div class="slogan-line second-line">以科学决策引领医院高质量发展</div>
+      <div class="slogan-line first-line">{{ profile.slogans[0] }}</div>
+      <div class="slogan-line second-line">{{ profile.slogans[1] }}</div>
       <div class="slogan-accent-bar"></div>
     </div>
 
@@ -19,76 +19,92 @@
     <!-- Right Calligraphy Pillars -->
     <div class="hero-calligraphy">
       <div class="calligraphy-col col-jiankang">
-        <img src="../../assets/workbench/slogan_col3.png" alt="健康至上" />
+        <img src="../../assets/workbench/slogan_col3.png" :alt="profile.pillars[2]" />
       </div>
       <div class="calligraphy-col col-shengming">
-        <img src="../../assets/workbench/slogan_col2.png" alt="生命至上" />
+        <img src="../../assets/workbench/slogan_col2.png" :alt="profile.pillars[1]" />
       </div>
       <div class="calligraphy-col col-renmin">
-        <img src="../../assets/workbench/slogan_col1.png" alt="人民至上" />
+        <img src="../../assets/workbench/slogan_col1.png" :alt="profile.pillars[0]" />
       </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-// Hero component
+import { onMounted, ref } from 'vue'
+import { getHospitalProfile } from '../../api/auth'
+import type { HospitalProfileResp } from '../../api/types'
+
+// 文案回退硬编码：data=null/接口失败时不留白（frontend-api §2.2 空态）
+const profile = ref<HospitalProfileResp>({
+  name: '',
+  english_name: '',
+  level: '',
+  motto: [],
+  slogans: ['以数据洞察全局', '以科学决策引领医院高质量发展'],
+  pillars: ['人民至上', '生命至上', '健康至上'],
+})
+
+onMounted(async () => {
+  profile.value = (await getHospitalProfile().catch(() => null)) ?? profile.value
+})
 </script>
 
 <style scoped>
 .workbench-hero {
   position: relative;
-  height: 130px;
+  height: 130px; /* 美术稿 */
   flex-shrink: 0;
-  background: linear-gradient(135deg, #dcecfe 0%, #ebf3fe 38%, #e1effe 72%, #d9e9fe 100%);
+  background: linear-gradient(135deg, #dcecfe 0%, #ebf3fe 38%, #e1effe 72%, #d9e9fe 100%); /* 美术稿 */
   border-radius: var(--wb-radius-card);
   border: 1px solid var(--wb-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding-inline: 32px; /* 美术稿 */
   overflow: hidden;
   user-select: none;
 }
 
 .hero-left {
   position: relative;
-  z-index: 2;
+  z-index: var(--wb-z-sticky);
   display: flex;
   flex-direction: column;
 }
 
 .slogan-line {
-  font-size: 24px;
-  font-weight: 700;
-  color: #123e8c;
+  font-size: var(--wb-fs-hero);
+  font-weight: var(--wb-fw-bold);
+  color: #123e8c; /* 美术稿 */
   letter-spacing: 1px;
-  line-height: 1.35;
+  line-height: var(--wb-lh-normal);
   white-space: nowrap;
 }
 
 .second-line {
-  margin-top: 4px;
-  margin-left: 44px;
+  margin-top: var(--wb-space-1);
+  margin-left: 44px; /* 美术稿 */
 }
 
 .slogan-accent-bar {
-  width: 32px;
+  width: 32px; /* 美术稿 */
   height: 3px;
-  background-color: #1d5ec9;
-  border-radius: 2px;
-  margin-top: 10px;
+  background-color: #1d5ec9; /* 美术稿 */
+  border-radius: var(--wb-radius-sm);
+  margin-top: var(--wb-space-2);
 }
 
 .hero-building-container {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 216px;
-  width: 520px;
+  right: 216px; /* 美术稿 */
+  width: 520px; /* 美术稿 */
   height: 100%;
   pointer-events: none;
-  z-index: 1;
+  z-index: var(--wb-z-raised);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,10 +119,10 @@
 
 .hero-calligraphy {
   position: relative;
-  z-index: 2;
+  z-index: var(--wb-z-sticky);
   display: flex;
   align-items: flex-start;
-  gap: 18px;
+  gap: var(--wb-space-5);
 }
 
 .calligraphy-col {
@@ -116,7 +132,7 @@
 }
 
 .calligraphy-col img {
-  height: 80px;
+  height: 80px; /* 美术稿 */
   width: auto;
   object-fit: contain;
 }
@@ -127,10 +143,10 @@
 }
 
 .col-shengming {
-  margin-top: 18px;
+  margin-top: var(--wb-space-5);
 }
 
 .col-jiankang {
-  margin-top: 36px;
+  margin-top: 36px; /* 美术稿 */
 }
 </style>

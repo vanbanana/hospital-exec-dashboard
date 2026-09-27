@@ -43,7 +43,7 @@ export function getHomeIndicators() {
   return api<HomeIndicatorsResp>('workbench/home/indicators')
 }
 
-export function getHomeWorkitems() {
+export function getHomeProgress() {
   return api<HomeProgressResp>('workbench/home/progress')
 }
 

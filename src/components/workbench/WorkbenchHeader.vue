@@ -10,20 +10,21 @@
     <!-- Right Controls & Info -->
     <div class="header-right">
       <div class="header-top-row">
-        <!-- Search Box -->
+        <!-- 搜索无契约端点支撑，禁用防死交互 -->
         <div class="search-box">
           <Search class="search-icon" :size="15" />
           <input
             type="text"
             placeholder="请输入关键词（如：科室、指标、日期等）"
             class="search-input"
+            disabled
           />
         </div>
 
-        <!-- Notification Bell -->
+        <!-- Notification Bell：角标 = 风险预警条数（复用 home/alerts），无数据隐藏徽标 -->
         <div class="notice-badge-wrapper">
           <Bell class="bell-icon" :size="19" />
-          <span class="badge-dot">4</span>
+          <span v-if="alertCount > 0" class="badge-dot">{{ alertCount }}</span>
         </div>
 
         <div class="action-divider"></div>
@@ -31,35 +32,58 @@
         <!-- Director Profile -->
         <div class="user-profile">
           <img
-            src="../../assets/workbench/director_avatar.png"
-            alt="院长头像"
+            :src="profile?.user.avatar || fallbackAvatar"
+            alt="头像"
             class="avatar-img"
           />
-          <span class="user-role">院长</span>
+          <span class="user-role">{{ profile?.user.title ?? '院长' }}</span>
           <ChevronDown class="dropdown-icon" :size="14" />
         </div>
       </div>
 
-      <!-- Date Display -->
+      <!-- Date Display：auth/profile system_date + weekday -->
       <div class="header-bottom-date">
-        2026年10月28日 星期三
+        {{ dateText }}
       </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { Search, Bell, ChevronDown } from 'lucide-vue-next'
+import { getAuthProfile } from '../../api/auth'
+import { getHomeAlerts } from '../../api/workbench'
+import type { AuthProfileResp } from '../../api/types'
+
+const profile = ref<AuthProfileResp | null>(null)
+const alertCount = ref(0)
+
+// 头像降级：data=null/接口失败时回退默认身份展示（frontend-api §2.1 空态）
+const fallbackAvatar = new URL('../../assets/workbench/director_avatar.png', import.meta.url).href
+
+onMounted(async () => {
+  profile.value = await getAuthProfile().catch(() => null)
+  alertCount.value = await getHomeAlerts().then((r) => r.list.length).catch(() => 0)
+})
+
+// system_date(YYYY-MM-DD) + weekday → "2026年10月28日 星期三"
+const dateText = computed(() => {
+  const p = profile.value
+  if (!p?.system_date) return ''
+  const [y, m, d] = p.system_date.split('-').map(Number)
+  return `${y}年${m}月${d}日 ${p.weekday}`
+})
 </script>
 
 <style scoped>
 .workbench-header {
-  height: 64px;
+  height: var(--wb-header-h);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding-inline: var(--wb-space-4);
   user-select: none;
 }
 
@@ -69,8 +93,8 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
 }
 
 .system-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--wb-fs-xl);
+  font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   letter-spacing: 0.5px;
   margin: 0;
@@ -79,14 +103,14 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
 .title-divider {
   width: 1px;
   height: 15px;
-  background-color: #cbd5e1;
-  margin: 0 12px;
+  background-color: var(--p-slate-300);
+  margin-inline: var(--wb-space-3);
 }
 
 .system-subtitle {
-  font-size: 13px;
+  font-size: var(--wb-fs-md);
   color: var(--wb-text-2);
-  font-weight: 400;
+  font-weight: var(--wb-fw-normal);
   letter-spacing: 0.3px;
 }
 
@@ -94,13 +118,13 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
+  gap: var(--wb-space-1);
 }
 
 .header-top-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--wb-space-4);
 }
 
 .search-box {
@@ -108,11 +132,11 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
   height: 34px;
   background: var(--wb-surface);
   border: 1px solid var(--wb-input-border);
-  border-radius: 17px;
+  border-radius: var(--wb-radius-pill);
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  gap: 8px;
+  padding-inline: var(--wb-space-3);
+  gap: var(--wb-space-2);
 }
 
 .search-icon {
@@ -125,7 +149,7 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
   outline: none;
   background: transparent;
   width: 100%;
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-1);
 }
 
@@ -145,7 +169,7 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
 
 .bell-icon {
   color: var(--wb-text-2);
-  transition: color 0.15s;
+  transition: color var(--wb-dur-fast);
 }
 
 .bell-icon:hover {
@@ -157,43 +181,43 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
   top: 1px;
   right: 1px;
   background-color: var(--wb-red);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 700;
+  color: var(--p-white);
+  font-size: var(--wb-fs-2xs);
+  font-weight: var(--wb-fw-bold);
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--wb-radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid #ffffff;
+  border: 1.5px solid var(--p-white);
   line-height: 1;
 }
 
 .action-divider {
   width: 1px;
   height: 18px;
-  background-color: #e2e8f0;
+  background-color: var(--p-slate-200);
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--wb-space-2);
   cursor: pointer;
 }
 
 .avatar-img {
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--wb-radius-pill);
   object-fit: cover;
-  border: 1px solid #dbeafe;
+  border: 1px solid var(--wb-border);
 }
 
 .user-role {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--wb-fs-md);
+  font-weight: var(--wb-fw-semibold);
   color: var(--wb-text-1);
 }
 
@@ -202,7 +226,7 @@ import { Search, Bell, ChevronDown } from 'lucide-vue-next'
 }
 
 .header-bottom-date {
-  font-size: 12px;
+  font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   letter-spacing: 0.2px;
 }

@@ -1,0 +1,225 @@
+/* ========================================================================
+   设计令牌（docs/design-tokens.md §3/§4/§5 落地）
+   L0 原色层 :root --p-*（只有值，不带用途语义，双形态共用）
+   L1 语义层 .workbench-layout --wb-* / .screen-layout --scr-*（绑定用途，指向原色层）
+   字面设计值唯一出处；其余 .css/.vue/.ts 一律 var() 消费
+   ======================================================================== */
+
+/* ---------- L0 原色层 primitive ---------- */
+:root {
+  /* 中性 slate（双形态共用，Tailwind 档位） */
+  --p-slate-50: #f8fafd;
+  --p-slate-100: #f1f5f9;
+  --p-slate-150: #eef2f7;
+  --p-slate-200: #e2e8f0;
+  --p-slate-300: #cbd5e1;
+  --p-slate-400: #94a3b8;
+  --p-slate-500: #64748b;
+  --p-slate-600: #475569;
+  --p-slate-800: #1e293b;
+
+  /* 蓝族（wb 主色 + scr 共享） */
+  --p-blue-100: #eaf1fe;
+  --p-blue-300: #93c5fd;
+  --p-blue-500: #3b82f6;
+  --p-blue-600: #2563eb;
+  --p-blue-700: #1d4ed8;
+  --p-navy-900: #0b1f47;
+
+  /* scr 深色底族（cockpit 基准） */
+  --p-ink-950: #060b17;
+  --p-ink-900: #0b1325;
+  --p-ink-800: #132244;
+  --p-cyan-400: #38bdf8;
+  --p-cyan-500: #00b4d8;
+  --p-cyan-glow: #00d2ff;
+
+  /* 信号色（双形态共用原色） */
+  --p-red-500: #ef4444;
+  --p-amber-500: #f59e0b;
+  --p-amber-600: #d97706;
+  --p-green-500: #10b981;
+  --p-green-600: #059669;
+  --p-teal-600: #0d9488;
+
+  /* 信号浅底（wb tag/badge 族） */
+  --p-green-bg: #e8f6ee;
+  --p-red-bg: #feecec;
+  --p-amber-bg: #fdf3e3;
+  --p-teal-bg: #e5f6f3;
+  --p-blue-bg: #e9f0fe;
+
+  --p-white: #ffffff;
+
+  /* 字体族（自 variables.css --font-family-* 迁入） */
+  --p-font-base: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --p-font-number: "DIN Alternate", "Helvetica Neue", "Arial", sans-serif;
+}
+
+/* ---------- L1 语义层 — 工作台（.workbench-layout） ---------- */
+.workbench-layout {
+  /* —— 既有 token（值不变，改为 var(--p-*) 引用） —— */
+  /* 浅灰蓝底色族无对应原色档，按 design-tokens §4 先例在 L1 登记字面 */
+  --wb-bg: #f0f5fc;                /* 页面主背景（浅灰蓝） */
+  --wb-surface: var(--p-white);    /* 面板卡片底色 */
+  --wb-sidebar-bg: #f1f6fd;        /* 侧边栏专属底色 */
+  --wb-border: #e4ecf7;            /* 面板外描边 */
+  --wb-hairline: #edf2f9;          /* 面板内细分隔线 */
+  --wb-input-border: #d6e2f0;      /* 表单与输入框边框 */
+  --wb-hover-bg: #f4f8fe;          /* 行 hover / 浅底 */
+
+  --wb-navy: var(--p-navy-900);        /* 标题 / 大数字 */
+  --wb-primary: var(--p-blue-700);     /* 交互强调色（链接、选中态文字） */
+  --wb-accent: var(--p-blue-600);      /* 填充强调色（选中底、图表主色） */
+  --wb-accent-soft: var(--p-blue-100);
+
+  --wb-text-1: var(--p-slate-800);
+  --wb-text-2: var(--p-slate-600);
+  --wb-text-3: var(--p-slate-500);
+  --wb-text-4: var(--p-slate-400);
+
+  --wb-up: var(--p-red-500);       /* 环比上升（红）——语义别名，同 --wb-red */
+  --wb-down: var(--p-green-600);   /* 环比下降（绿）——语义别名，同 --wb-green */
+  --wb-green: var(--p-green-600);  /* 语义别名，同 --wb-down */
+  --wb-teal: var(--p-teal-600);
+  --wb-amber: var(--p-amber-600);
+  --wb-red: var(--p-red-500);      /* 语义别名，同 --wb-up；图表侧绿色用 --wb-chart-green */
+
+  --wb-radius-card: 10px;
+  --wb-radius-inner: 6px;
+  --wb-radius-tag: 4px;
+  --wb-gap: 12px;                  /* 栅格全局统一间距 */
+  --wb-pad-x: 16px;                /* 面板内部水平内边距 */
+  --wb-pad-y: 14px;                /* 面板内部垂直内边距 */
+  --wb-shadow-card: 0 1px 3px rgba(15, 23, 42, 0.04);  /* slate-800 基 */
+
+  /* —— 字号阶梯（11/12/13/15/18/22/24，阶梯外裸值归并最近档） —— */
+  --wb-fs-2xs: 10px;
+  --wb-fs-xs: 11px;
+  --wb-fs-sm: 12px;
+  --wb-fs-md: 13px;
+  --wb-fs-lg: 15px;
+  --wb-fs-xl: 18px;
+  --wb-fs-num: 22px;
+  --wb-fs-hero: 24px;
+
+  /* —— 字重 / 行高 —— */
+  --wb-fw-normal: 400;
+  --wb-fw-medium: 500;
+  --wb-fw-semibold: 600;
+  --wb-fw-bold: 700;
+  --wb-lh-tight: 1.15;
+  --wb-lh-normal: 1.35;
+  --wb-lh-loose: 1.5;
+
+  /* —— 间距阶梯 —— */
+  --wb-space-1: 4px;
+  --wb-space-2: 8px;
+  --wb-space-3: 12px;
+  --wb-space-4: 16px;
+  --wb-space-5: 20px;
+
+  /* —— 圆角补齐 —— */
+  --wb-radius-sm: 2px;
+  --wb-radius-pill: 999px;
+
+  /* —— tag/badge 浅底族 —— */
+  --wb-tag-green-bg: var(--p-green-bg);
+  --wb-tag-red-bg: var(--p-red-bg);
+  --wb-tag-amber-bg: var(--p-amber-bg);
+  --wb-tag-teal-bg: var(--p-teal-bg);
+  --wb-tag-blue-bg: var(--p-blue-bg);
+  --wb-tag-gray-bg: var(--p-slate-150);
+
+  /* —— 组件件（收编基元内裸值） —— */
+  --wb-th-bg: var(--p-slate-50);
+  --wb-bar-track: var(--p-slate-100);
+  --wb-seg-bg: #eef3fa;
+  --wb-switch-off: var(--p-slate-300);
+  --wb-scrollbar: var(--p-slate-300);
+
+  /* —— 阴影族（复合阴影内联 rgba，色基 slate-800 / blue-600） —— */
+  --wb-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --wb-shadow-accent: 0 3px 8px rgba(37, 99, 235, 0.25);
+  --wb-shadow-raised: 0 1px 2px rgba(15, 23, 42, 0.08);
+
+  /* —— 图表语义（chartPresets.ts 唯一引用源） —— */
+  --wb-chart-text: var(--p-slate-500);
+  --wb-chart-axis: var(--p-slate-400);
+  --wb-chart-grid: #eef3f9;
+  --wb-chart-axis-line: #d7e0ee;
+  --wb-chart-green: var(--p-green-500);
+  --wb-chart-amber: var(--p-amber-500);
+  --wb-chart-blue-1: var(--p-blue-700);
+  --wb-chart-blue-2: var(--p-blue-600);
+  --wb-chart-blue-3: var(--p-blue-500);
+  --wb-chart-blue-4: var(--p-blue-300);
+
+  /* —— 奖牌色 —— */
+  --wb-rank-1: var(--p-amber-500);
+  --wb-rank-2: var(--p-slate-400);
+  --wb-rank-3: var(--p-amber-600);
+
+  /* —— 布局度量 —— */
+  --wb-sidebar-w: 204px;
+  --wb-header-h: 64px;
+  --wb-scrollbar-w: 6px;
+
+  /* —— 杂项 —— */
+  --wb-opacity-dimmed: 0.7;
+  --wb-z-raised: 1;
+  --wb-z-sticky: 2;
+  --wb-dur-fast: 0.15s;
+  --wb-dur-normal: 0.2s;
+}
+
+/* ---------- L1 语义层 — 大屏（.screen-layout，视觉基准 archive/smart-hospital-cockpit） ---------- */
+.screen-layout {
+  --scr-bg: var(--p-ink-950);
+  --scr-bg-deep: #061021;
+  --scr-panel: rgba(14, 23, 42, 0.92);          /* ink-900 玻璃底 */
+  --scr-panel-hover: rgba(26, 44, 78, 0.9);
+  --scr-border: rgba(30, 64, 115, 0.45);        /* 基础描边 */
+  --scr-border-glow: rgba(56, 189, 248, 0.25);  /* cyan 辉光描边 */
+  --scr-accent: var(--p-cyan-500);
+  --scr-accent-bright: var(--p-cyan-400);
+  --scr-text-1: var(--p-white);
+  --scr-text-2: var(--p-slate-200);
+  --scr-text-3: #8fa0bf;
+  --scr-text-4: var(--p-slate-500);
+  --scr-up: var(--p-red-500);
+  --scr-down: var(--p-green-500);
+  --scr-warn: var(--p-amber-500);
+  --scr-radius-card: 4px;
+  --scr-radius-tag: 3px;
+  --scr-radius-badge: 2px;
+  --scr-shadow-panel: 0 8px 24px rgba(0, 4, 15, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --scr-fs-axis: 9px;
+  --scr-fs-sm: 11px;
+  --scr-fs-md: 13px;
+  --scr-fs-title: 20px;
+  --scr-fs-num: 26px;
+  /* —— 间距阶梯（收编 screen 域全部 padding/gap/margin 字面量，就近吸附） —— */
+  --scr-space-1: 2px;
+  --scr-space-2: 4px;
+  --scr-space-3: 6px;
+  --scr-space-4: 8px;
+  --scr-space-5: 10px;
+  --scr-space-6: 12px;
+  --scr-space-7: 14px;
+  --scr-space-8: 16px;
+  --scr-space-9: 20px;
+  --scr-space-10: 22px;
+  /* —— 图表语义（scrTokens.ts 唯一引用源；alpha 变体色基注明原色档） —— */
+  --scr-chart-axis: rgba(148, 163, 184, 0.3);       /* p-slate-400 @ .30 轴线 */
+  --scr-chart-grid: rgba(148, 163, 184, 0.08);      /* p-slate-400 @ .08 分隔线 */
+  --scr-chart-mark: rgba(56, 189, 248, 0.035);      /* p-cyan-400 @ .035 象限高亮底 */
+  --scr-chart-area-top: rgba(56, 189, 248, 0.22);   /* p-cyan-400 @ .22 面积渐变顶 */
+  --scr-chart-area-bottom: rgba(56, 189, 248, 0);   /* p-cyan-400 @ 0 面积渐变底（保色相防黑化） */
+  --scr-tooltip-bg: rgba(6, 11, 23, 0.94);          /* p-ink-950 @ .94 图表浮层底 */
+  /* 画布 1920×1080（裁决：cockpit 真大屏实现 + 会议室主流分辨率；
+     archive/output 冻结稿 2048×1152 为旧稿值，不再采用） */
+  --scr-canvas-w: 1920px;
+  --scr-canvas-h: 1080px;
+}
