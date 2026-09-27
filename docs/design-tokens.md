@@ -152,7 +152,7 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   /* 间距阶梯(收编 screen 域全部 padding/gap/margin 字面量,就近吸附) */
   --scr-space-1:2px;  --scr-space-2:4px;  --scr-space-3:6px;  --scr-space-4:8px;
   --scr-space-5:10px; --scr-space-6:12px; --scr-space-7:14px; --scr-space-8:16px;
-  --scr-space-9:20px; --scr-space-10:22px;
+  --scr-space-9:20px; --scr-space-10:24px;
   /* 图表语义(scrTokens.ts 唯一引用源;alpha 变体色基注明原色档) */
   --scr-chart-axis:rgba(255,255,255,.12);      /* p-white @ .12 轴线(REF 白基弱化) */
   --scr-chart-grid:rgba(255,255,255,.06);      /* p-white @ .06 分隔线 dashed */
@@ -169,7 +169,7 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   --scr-royal-deep:#1546af;                    /* REF 表头/tab 渐变底;无原色档(§5.2 拟 --p-blue-800) */
   --scr-navy-deep:#1e40af;                     /* REF 柱/进度条渐变底;无原色档(§5.2 拟 --p-navy-700) */
   --scr-inset-bg:var(--p-ink-800);             /* REF 徽章/芯片/卡内底 #132244 */
-  --scr-inset-border:#192c55;                  /* REF 小件描边(§5.2 归并 #1c3664/#1e3a68 同档) */
+  --scr-inset-border:#1e3a68;                  /* REF 小件描边(review F7 归位精确档) */
   --scr-iconbox-bg:#172b52;                    /* REF res-icon-box 底;无原色档 */
   --scr-bar-track:#0d172e;                     /* REF 进度条轨道;无原色档(§5.2 拟 --p-ink-820) */
   --scr-th-bg:linear-gradient(180deg, var(--scr-royal), var(--scr-royal-deep));

@@ -1,5 +1,5 @@
 <template>
-  <ScrPanel title="楼宇运行" sub="主指标负荷">
+  <ScrPanel title="楼宇运行">
     <!-- REF 医疗资源占用 res-row 解剖：图标盒 + 名称/指标名 + 指标值 + 渐变条 + 右侧% -->
     <div v-if="rows.length" class="bld-rows">
       <div v-for="r in rows" :key="r.code" class="bld-row">
@@ -122,11 +122,6 @@ const rows = computed(() => (props.buildings ?? []).map(buildRow))
   align-items: center;
   gap: var(--scr-space-5);
   font-size: var(--scr-fs-12);
-  border-bottom: 1px solid rgb(from var(--p-white) r g b / 0.05);
-}
-
-.bld-row:last-child {
-  border-bottom: none;
 }
 
 /* REF res-icon-box：24×24、ink 底 + 描边、icon 15 亮青 */

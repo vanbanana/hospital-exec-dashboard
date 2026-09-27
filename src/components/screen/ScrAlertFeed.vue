@@ -1,5 +1,5 @@
 <template>
-  <ScrPanel title="实时告警" :sub="total !== undefined ? `未闭环 ${total}` : ''">
+  <ScrPanel title="实时告警">
     <div v-if="items.length" ref="boxRef" class="alert-feed">
       <div class="feed-track" :class="{ 'is-scroll': scrolling }" :style="trackStyle">
         <!-- 首份为测量探针（RO 测 offsetHeight），滚动时追加副本保证轨道=单份×2 -->

@@ -284,7 +284,7 @@ const toggleFullscreen = () => {
 .hdr-right {
   display: flex;
   align-items: center;
-  gap: var(--scr-space-7);
+  gap: var(--scr-space-8);
 }
 
 .adapt-pill {

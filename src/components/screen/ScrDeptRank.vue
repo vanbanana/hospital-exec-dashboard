@@ -1,5 +1,5 @@
 <template>
-  <ScrPanel title="科室效能榜" sub="CMI · DRG结余 · 效能分">
+  <ScrPanel title="科室效能榜">
     <!-- B6：行数超容器时静默裁切 → 独立滚动层 + 细滚动条；表头 sticky 由 .scr-table th 承担 -->
     <div v-if="list && list.length" class="rank-scroll">
       <table class="scr-table rank-table">

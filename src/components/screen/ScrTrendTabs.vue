@@ -1,5 +1,5 @@
 <template>
-  <ScrPanel title="业务趋势" :sub="subText">
+  <ScrPanel title="业务趋势">
     <template v-if="tabs.length">
       <!-- REF nav-tabs 解剖：深色胶囊容器 + 选中态蓝渐变 -->
       <div class="trend-tabs">
@@ -44,7 +44,6 @@ const props = defineProps<{
   kpis?: ScreenKpi[]
 }>()
 
-const subText = computed(() => (props.trends ? `近${props.trends.days}日` : ''))
 
 interface TrendTab {
   code: string

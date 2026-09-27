@@ -4,7 +4,7 @@
       <template v-for="(r, i) in rows" :key="r.k.code">
         <div v-if="i > 0" class="hero-divider"></div>
         <div class="hero-item">
-          <div class="hero-icon" :class="{ 'icon-warn': r.k.status === 'warn' }">
+          <div class="hero-icon" :class="r.iconCls">
             <component :is="iconOf(r.k.code)" :size="16" :stroke-width="2" />
           </div>
           <div class="hero-content">
@@ -77,12 +77,19 @@ function sparkPoints(spark: number[]): string {
     .join(' ')
 }
 
+/* 图标色变体对齐 REF（review F1）：cyan 常规 / amber 手术/告警 / green 率类健康指标 */
+const iconClass = (k: ScreenKpi) => {
+  if (k.status === 'warn' || k.code === 'SURG_DAILY_CNT') return 'icon-warn'
+  if (k.code === 'BED_USE_RATE') return 'icon-ok'
+  return ''
+}
+
 /* B13：spark 折线点+末点随 kpis 一次性算好，模板零重算 */
 const rows = computed(() =>
   (props.kpis ?? []).map((k) => {
     const points = sparkPoints(k.spark)
     const [ex = '0', ey = '0'] = points.split(' ').pop()?.split(',') ?? []
-    return { k, points, ex, ey, badgeCls: badgeClass(k) }
+    return { k, points, ex, ey, badgeCls: badgeClass(k), iconCls: iconClass(k) }
   })
 )
 </script>
@@ -115,6 +122,12 @@ const rows = computed(() =>
   background: rgb(from var(--p-amber-500) r g b / 0.16);
   border-color: rgb(from var(--p-amber-500) r g b / 0.35);
   color: var(--scr-warn);
+}
+
+.hero-icon.icon-ok {
+  background: rgb(from var(--p-green-500) r g b / 0.16);
+  border-color: rgb(from var(--p-green-500) r g b / 0.35);
+  color: var(--p-green-500); /* 原色直取：REF icon-green #10b981 同档 */
 }
 
 .hero-content {
@@ -153,7 +166,7 @@ const rows = computed(() =>
   font-size: var(--scr-fs-xs);
   font-weight: var(--scr-fw-semibold);
   font-family: var(--p-font-number);
-  padding: var(--scr-space-1) 5px; /* REF pad 1px 5px */
+  padding: 1px 5px; /* REF pad 1px 5px（badge 高 15px） */
   border-radius: var(--scr-radius-badge);
   margin-left: var(--scr-space-2);
   white-space: nowrap;

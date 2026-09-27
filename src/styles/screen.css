@@ -51,18 +51,10 @@
     linear-gradient(var(--scr-royal), var(--scr-royal)) 100% 50% / 2.5px 10px no-repeat;
 }
 
-.scr-panel-head .scr-head-sub {
-  margin-left: auto;
-  font-size: var(--scr-fs-sm);
-  font-weight: var(--scr-fw-normal);
-  color: var(--scr-text-4);
-  letter-spacing: var(--scr-ls-xs);
-}
-
 .scr-panel-body {
   flex: 1;
   min-height: 0;
-  padding: var(--scr-space-6) var(--scr-space-7);
+  padding: var(--scr-space-5) var(--scr-space-7);
   display: flex;
   flex-direction: column;
 }
