@@ -30,7 +30,7 @@ func getOverview(t *testing.T, query string) ovTestEnvelope {
 	t.Helper()
 	r := newTestEngine(t)
 	var env ovTestEnvelope
-	body := get(t, r, "/api/v1/workbench/overview"+query, 200)
+	body := getOps(t, r, "/api/v1/workbench/overview"+query, 200)
 	if err := json.Unmarshal([]byte(body), &env); err != nil {
 		t.Fatalf("decode: %v; body=%s", err, body)
 	}
@@ -65,7 +65,7 @@ func TestOverviewRanges(t *testing.T) {
 	traces := map[string]bool{}
 	for _, rk := range []string{"本月", "本季", "本年"} {
 		var env ovTestEnvelope
-		body := get(t, r, "/api/v1/workbench/overview?range="+url.QueryEscape(rk), 200)
+		body := getOps(t, r, "/api/v1/workbench/overview?range="+url.QueryEscape(rk), 200)
 		if err := json.Unmarshal([]byte(body), &env); err != nil {
 			t.Fatalf("range=%s decode: %v; body=%s", rk, err, body)
 		}
@@ -84,7 +84,7 @@ func TestOverviewDefaultRange(t *testing.T) {
 
 func TestOverviewInvalidRange(t *testing.T) {
 	r := newTestEngine(t)
-	body := get(t, r, "/api/v1/workbench/overview?range=bad", 400)
+	body := getOps(t, r, "/api/v1/workbench/overview?range=bad", 400)
 	var env struct {
 		Code int `json:"code"`
 		Data struct {

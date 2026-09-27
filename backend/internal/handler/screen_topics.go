@@ -24,12 +24,12 @@ import (
 
 // TopicsHandler §13.1 四专题；注册见 register_screen.go（签名已钉，勿改）
 type TopicsHandler struct {
-	repo  *repo.TopicsRepo
-	clock *clock.Source
+	repo *repo.TopicsRepo
+	ck   *clock.Source
 }
 
 func NewTopicsHandler(db *gorm.DB, clk *clock.Source) *TopicsHandler {
-	return &TopicsHandler{repo: repo.NewTopicsRepo(db), clock: clk}
+	return &TopicsHandler{repo: repo.NewTopicsRepo(db), ck: clk}
 }
 
 // Topics GET /workbench/topics?topic=&range=
@@ -53,9 +53,9 @@ func (h *TopicsHandler) Topics(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	today, err := h.clock.Today(ctx)
+	today, err := h.ck.Today(ctx)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙，请稍后重试", nil)
+		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 		return
 	}
 
@@ -71,7 +71,7 @@ func (h *TopicsHandler) Topics(c *gin.Context) {
 		data, err = h.opfTopic(ctx, rng, today)
 	}
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙，请稍后重试", nil)
+		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 		return
 	}
 	data["topic"] = topic
@@ -294,11 +294,11 @@ func (h *TopicsHandler) drgTopic(ctx context.Context, rng string, today time.Tim
 	const dl = "较上月" // drg stats 恒最新月快照，delta 恒对上月（e4-design §3.2）
 	stats := []gin.H{
 		tpStat("CMI 值", tpF2(c.CMI), "", signedDec(c.CMI-p.CMI, 2), dl, c.CMI-p.CMI),
-		tpStat("入组率", tpF1(enr*100), "%", signedPct(dEnr*100), dl, dEnr),
+		tpStat("入组率", tpF1(enr*100), "%", signedPctScr(dEnr*100), dl, dEnr),
 		tpStat("费用消耗指数", tpF2(c.CostIdx), "", signedDec(c.CostIdx-p.CostIdx, 2), dl, c.CostIdx-p.CostIdx),
 		tpStat("时间消耗指数", tpF2(c.TimeIdx), "", signedDec(c.TimeIdx-p.TimeIdx, 2), dl, c.TimeIdx-p.TimeIdx),
-		tpStat("RW≥2 占比", tpF1(c.Rw2*100), "%", signedPct((c.Rw2-p.Rw2)*100), dl, c.Rw2-p.Rw2),
-		tpStat("低风险组死亡率", tpF2(c.LowMort*100), "%", signedPct((c.LowMort-p.LowMort)*100), dl, c.LowMort-p.LowMort),
+		tpStat("RW≥2 占比", tpF1(c.Rw2*100), "%", signedPctScr((c.Rw2-p.Rw2)*100), dl, c.Rw2-p.Rw2),
+		tpStat("低风险组死亡率", tpF2(c.LowMort*100), "%", signedPctScr((c.LowMort-p.LowMort)*100), dl, c.LowMort-p.LowMort),
 	}
 
 	w := winAgg[0]
@@ -377,13 +377,13 @@ func (h *TopicsHandler) insTopic(ctx context.Context, rng string, today time.Tim
 	dAvg := tpPctDelta(cAvg, pAvg)
 	dRm := tpPctDelta(c.Remote, p.Remote)
 	stats := []gin.H{
-		tpStat("医保结算人次", commaInt(c.Settle), "", signedPct(dSt), lbl, dSt),
-		tpStat("医保基金支付", commaInt(c.Fund/1e4), "万元", signedPct(dFd), lbl, dFd),
+		tpStat("医保结算人次", commaInt(c.Settle), "", signedPctScr(dSt), lbl, dSt),
+		tpStat("医保基金支付", commaInt(c.Fund/1e4), "万元", signedPctScr(dFd), lbl, dFd),
 		// 基金结余率库无收入侧事实源 → 契约示例值直发（e4-design §3.5）
 		tpStat("基金结余率", "6.8", "%", "+0.4%", lbl, 0.4),
-		tpStat("拒付/扣款率", tpF1(cRej), "%", signedPct(cRej-pRej), lbl, cRej-pRej),
-		tpStat("次均医保费用", commaInt(cAvg), "元", signedPct(dAvg), lbl, dAvg),
-		tpStat("异地就医结算", commaInt(c.Remote), "人次", signedPct(dRm), lbl, dRm),
+		tpStat("拒付/扣款率", tpF1(cRej), "%", signedPctScr(cRej-pRej), lbl, cRej-pRej),
+		tpStat("次均医保费用", commaInt(cAvg), "元", signedPctScr(dAvg), lbl, dAvg),
+		tpStat("异地就医结算", commaInt(c.Remote), "人次", signedPctScr(dRm), lbl, dRm),
 	}
 
 	byType := make(map[string]repo.InsTypeRow, len(tRows))
@@ -486,12 +486,12 @@ func (h *TopicsHandler) examTopic(ctx context.Context, rng string, today time.Ti
 		prevRate = latest.Rate
 	}
 	dRate := (latest.Rate - prevRate) * 100
-	stats = append(stats, tpStat("指标达标率", tpF1(latest.Rate*100), "%", signedPct(dRate), dl, dRate))
+	stats = append(stats, tpStat("指标达标率", tpF1(latest.Rate*100), "%", signedPctScr(dRate), dl, dRate))
 
 	for _, d := range tpExamDims {
 		r, rp := cur[d.code], prv[d.code]
 		dv := (r.ScoreRate.Float64 - rp.ScoreRate.Float64) * 100
-		stats = append(stats, tpStat(d.label, tpF1(r.ScoreRate.Float64*100), "%", signedPct(dv), dl, dv))
+		stats = append(stats, tpStat(d.label, tpF1(r.ScoreRate.Float64*100), "%", signedPctScr(dv), dl, dv))
 	}
 
 	months := make([]string, 0, len(rates))
@@ -566,11 +566,11 @@ func (h *TopicsHandler) opfTopic(ctx context.Context, rng string, today time.Tim
 	dAc := tpPctDelta(c.Account, p.Account)
 	dCh := tpPctDelta(c.Chronic, p.Chronic)
 	stats := []gin.H{
-		tpStat("门诊统筹结算人次", commaInt(c.Settle), "", signedPct(dSt), lbl, dSt),
-		tpStat("统筹基金支付", commaInt(c.Fund/1e4), "万元", signedPct(dFd), lbl, dFd),
-		tpStat("人均统筹费用", commaInt(cAvg), "元", signedPct(dAvg), lbl, dAvg),
-		tpStat("个人账户支出", commaInt(c.Account/1e4), "万元", signedPct(dAc), lbl, dAc),
-		tpStat("慢特病结算", commaInt(c.Chronic), "人次", signedPct(dCh), lbl, dCh),
+		tpStat("门诊统筹结算人次", commaInt(c.Settle), "", signedPctScr(dSt), lbl, dSt),
+		tpStat("统筹基金支付", commaInt(c.Fund/1e4), "万元", signedPctScr(dFd), lbl, dFd),
+		tpStat("人均统筹费用", commaInt(cAvg), "元", signedPctScr(dAvg), lbl, dAvg),
+		tpStat("个人账户支出", commaInt(c.Account/1e4), "万元", signedPctScr(dAc), lbl, dAc),
+		tpStat("慢特病结算", commaInt(c.Chronic), "人次", signedPctScr(dCh), lbl, dCh),
 		// 处方外流率库无处方域事实源 → 契约示例值直发（e4-design §3.5）
 		tpStat("处方外流率", "12.4", "%", "+2.8%", lbl, 2.8),
 	}

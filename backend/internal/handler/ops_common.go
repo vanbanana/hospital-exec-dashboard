@@ -121,7 +121,7 @@ func fmtF(x float64, prec int) string { return strconv.FormatFloat(x, 'f', prec,
 func pctStr(x float64, prec int) string { return fmtF(x, prec) + "%" }
 
 // signedPct 带符号百分变动("+6.2%"/"-1.2%")
-func signedPct(x float64, prec int) string {
+func signedPctOps(x float64, prec int) string {
 	if x > 0 {
 		return "+" + fmtF(x, prec) + "%"
 	}
@@ -137,7 +137,7 @@ func signedNum(x float64, prec int) string {
 }
 
 // dirOf delta→dir 三态;eps 为 flat 死区(比率项用 0.05,量项 0)
-func dirOf(d, eps float64) string {
+func dirOfEps(d, eps float64) string {
 	if d > eps {
 		return "up"
 	}

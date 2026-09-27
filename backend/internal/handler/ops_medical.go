@@ -92,19 +92,19 @@ func round1(x float64) float64 {
 // statYoy 量/费用项:delta=同比相对变化 "+x.x%"
 func statYoy(label, unit, value string, cur, prev float64) StatItem {
 	d := round1(yoyPct(cur, prev))
-	return StatItem{Label: label, Value: value, Unit: unit, Delta: signedPct(d, 1), DeltaLabel: "较去年", Dir: dirOf(d, 0.05)}
+	return StatItem{Label: label, Value: value, Unit: unit, Delta: signedPctOps(d, 1), DeltaLabel: "较去年", Dir: dirOfEps(d, 0.05)}
 }
 
 // statPP 率项:delta=百分点差,展示仍为 "+x.x%"(契约示例 床位使用率 "+1.2%")
 func statPP(label, unit, value string, cur, prev float64) StatItem {
 	d := round1(cur - prev)
-	return StatItem{Label: label, Value: value, Unit: unit, Delta: signedPct(d, 1), DeltaLabel: "较去年", Dir: dirOf(d, 0.05)}
+	return StatItem{Label: label, Value: value, Unit: unit, Delta: signedPctOps(d, 1), DeltaLabel: "较去年", Dir: dirOfEps(d, 0.05)}
 }
 
 // statAbs 均值/次数项:delta=绝对差 "+/-x.x"+du(契约示例 "-0.3"/"-3分钟")
 func statAbs(label, unit, value string, cur, prev float64, du string) StatItem {
 	d := round1(cur - prev)
-	return StatItem{Label: label, Value: value, Unit: unit, Delta: signedNum(d, 1) + du, DeltaLabel: "较去年", Dir: dirOf(d, 0.05)}
+	return StatItem{Label: label, Value: value, Unit: unit, Delta: signedNum(d, 1) + du, DeltaLabel: "较去年", Dir: dirOfEps(d, 0.05)}
 }
 
 /* ===== 共享小件 ===== */
@@ -174,7 +174,7 @@ func emitMedTable(rows []medRow, lyCnt map[int64]float64, total int64, cntTitle,
 		out = append(out, map[string]any{
 			"dept":  r.name,
 			"cnt":   fmtInt(r.cnt),
-			"yoy":   signedPct(round1(yoyPct(float64(r.cnt), lyCnt[r.id])), 1),
+			"yoy":   signedPctOps(round1(yoyPct(float64(r.cnt), lyCnt[r.id])), 1),
 			"share": pctStr(round1(divf(float64(r.cnt), float64(total))*100), 1),
 			"avg":   r.avg,
 			"drug":  pctStr(round1(r.drug), 1),

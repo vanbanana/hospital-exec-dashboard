@@ -14,17 +14,17 @@ import (
 
 // StaffRepo E3 六端点(hr/research/patient/quality/assets/settings)共享数据基座
 type StaffRepo struct {
-	DB    *gorm.DB
-	Clock *clock.Source
+	db *gorm.DB
+	ck *clock.Source
 }
 
 func NewStaffRepo(db *gorm.DB, clk *clock.Source) *StaffRepo {
-	return &StaffRepo{DB: db, Clock: clk}
+	return &StaffRepo{db: db, ck: clk}
 }
 
 // Today 业务当天(虚拟时钟),各端点"本月/当日"口径唯一定位点
 func (r *StaffRepo) Today(ctx context.Context) (time.Time, error) {
-	return r.Clock.Today(ctx)
+	return r.ck.Today(ctx)
 }
 
 // ---- 指标字典与值行 -------------------------------------------------------
@@ -42,7 +42,7 @@ type MetricDef struct {
 
 func (r *StaffRepo) MetricDef(ctx context.Context, code string) (*MetricDef, error) {
 	var m MetricDef
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("sys.metric_def").
 		Select("code", "name", "disp_unit", "value_kind", "period", "warn_low", "warn_high").
 		Where("code = ?", code).
@@ -82,7 +82,7 @@ func PrevPeriodStart(t time.Time, period string) time.Time {
 // MetricAt 读 metric_value 单点值;无行→ok=false(非错误,由 handler 决定省略或置零)
 func (r *StaffRepo) MetricAt(ctx context.Context, code string, deptID int64, date time.Time) (float64, bool, error) {
 	var vals []float64
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dws.metric_value").
 		Where("metric_code = ? AND dept_id = ? AND group_id = 0 AND date = ?", code, deptID, date.Format("2006-01-02")).
 		Limit(1).
@@ -107,7 +107,7 @@ func (r *StaffRepo) MetricSeries(ctx context.Context, code string, deptID int64,
 		Value float64
 	}
 	var rows []row
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dws.metric_value").
 		Select("date, value").
 		Where("metric_code = ? AND dept_id = ? AND group_id = 0 AND date IN ?", code, deptID, ds).
@@ -130,7 +130,7 @@ type DictRow struct {
 
 func (r *StaffRepo) DictList(ctx context.Context, dictType string) ([]DictRow, error) {
 	var rows []DictRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("sys.dict").
 		Select("dict_key AS key, dict_label AS label").
 		Where("dict_type = ?", dictType).

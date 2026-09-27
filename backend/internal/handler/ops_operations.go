@@ -97,11 +97,11 @@ func (h *OpsHandler) Operations(c *gin.Context) {
 		return a / b * 100
 	}
 	delta := func(d float64) (string, string) {
-		dir := dirOf(d, 0.05)
+		dir := dirOfEps(d, 0.05)
 		if dir == "flat" {
 			return "持平", dir
 		}
-		return signedPct(d, 1), dir
+		return signedPctOps(d, 1), dir
 	}
 	qDelta := func(cur, prev float64) (string, string) { return delta(yoyPct(cur, prev)) }
 	perVisit := func(fee float64, n int64) float64 {

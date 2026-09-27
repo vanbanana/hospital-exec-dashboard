@@ -5,7 +5,6 @@ package handler
 import (
 	"fmt"
 	"math"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -128,7 +127,7 @@ func (h *Home) Kpis(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	curFirst, curNext := aggMonthSpan(today)
@@ -136,22 +135,22 @@ func (h *Home) Kpis(c *gin.Context) {
 
 	cur, err := repo.HomeMonthlyAgg(ctx, h.db, curFirst, curNext)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	prev, err := repo.HomeMonthlyAgg(ctx, h.db, prevFirst, curFirst)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	staffCur, err := repo.HomeMetricValue(ctx, h.db, "STAFF_CNT", curFirst)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	staffPrev, err := repo.HomeMetricValue(ctx, h.db, "STAFF_CNT", prevFirst)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 
@@ -190,7 +189,7 @@ func (h *Home) Trends(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	yearFirst := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, today.Location())
@@ -199,12 +198,12 @@ func (h *Home) Trends(c *gin.Context) {
 
 	curPts, err := repo.HomeYearMonths(ctx, h.db, yearFirst, yearNext)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	lastPts, err := repo.HomeYearMonths(ctx, h.db, lastFirst, yearFirst)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 
@@ -251,7 +250,7 @@ func (h *Home) Indicators(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	curFirst, curNext := aggMonthSpan(today)
@@ -259,22 +258,22 @@ func (h *Home) Indicators(c *gin.Context) {
 
 	cur, err := repo.HomeMonthlyAgg(ctx, h.db, curFirst, curNext)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	prev, err := repo.HomeMonthlyAgg(ctx, h.db, prevFirst, curFirst)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	svcCur, err := repo.HomeMedSvcRatio(ctx, h.db, curFirst, curNext)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 	svcPrev, err := repo.HomeMedSvcRatio(ctx, h.db, prevFirst, curFirst)
 	if err != nil {
-		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		failInternal(c)
 		return
 	}
 

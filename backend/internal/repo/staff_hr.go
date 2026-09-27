@@ -15,7 +15,7 @@ type StaffTypeRow struct {
 // StaffTypeCounts 在岗人员按 staff_type 计数(§7.1 structure 源;STAFF_STRUCT_SHARE 不落 metric_value,实时推导)
 func (r *StaffRepo) StaffTypeCounts(ctx context.Context) ([]StaffTypeRow, error) {
 	var rows []StaffTypeRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dim.staff").
 		Select("staff_type, count(*) AS cnt").
 		Where("active = true").
@@ -34,7 +34,7 @@ type StaffTitleRow struct {
 // StaffTitleCounts 在岗人员按 (staff_type,title_level) 计数(§7.1 titles 矩阵源)
 func (r *StaffRepo) StaffTitleCounts(ctx context.Context) ([]StaffTitleRow, error) {
 	var rows []StaffTitleRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dim.staff").
 		Select("staff_type, title_level, count(*) AS cnt").
 		Where("active = true").
@@ -56,7 +56,7 @@ type DeptStaffingRow struct {
 // DeptStaffing 按契约白名单 code 集查定编/在岗/医护计数;出行序由 handler 按白名单重排
 func (r *StaffRepo) DeptStaffing(ctx context.Context, codes []string) ([]DeptStaffingRow, error) {
 	var rows []DeptStaffingRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dim.department AS d").
 		Select(`d.code, d.name, COALESCE(d.staff_quota, 0) AS quota,
 			count(s.id) AS actual,

@@ -72,7 +72,7 @@ func medURL(tab, rng string) string {
 func getMed(t *testing.T, tab, rng string) medTestResp {
 	t.Helper()
 	r := newTestEngine(t)
-	body := get(t, r, medURL(tab, rng), 200)
+	body := getOps(t, r, medURL(tab, rng), 200)
 	var resp medTestResp
 	if err := json.Unmarshal([]byte(body), &resp); err != nil {
 		t.Fatalf("decode: %v; body=%s", err, body)
@@ -203,7 +203,7 @@ func TestMedicalDefaults(t *testing.T) {
 func TestMedicalInvalidParams(t *testing.T) {
 	r := newTestEngine(t)
 	var e medErrResp
-	body := get(t, r, medURL("坏", "本年"), 400)
+	body := getOps(t, r, medURL("坏", "本年"), 400)
 	if err := json.Unmarshal([]byte(body), &e); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestMedicalInvalidParams(t *testing.T) {
 		t.Fatalf("invalid tab: %+v", e)
 	}
 	e = medErrResp{}
-	body = get(t, r, medURL("门急诊", "坏"), 400)
+	body = getOps(t, r, medURL("门急诊", "坏"), 400)
 	if err := json.Unmarshal([]byte(body), &e); err != nil {
 		t.Fatalf("decode: %v", err)
 	}

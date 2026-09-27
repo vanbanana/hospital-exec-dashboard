@@ -192,7 +192,7 @@ func screenQuadrantOf(cmi, profit float64) int {
 }
 
 func (h *ScreenHandler) fail(c *gin.Context) {
-	envelope.Fail(c, 500, envelope.CodeInternal, "系统繁忙，请稍后重试", nil)
+	envelope.Fail(c, 500, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 }
 
 func (h *ScreenHandler) Snapshot(c *gin.Context) {

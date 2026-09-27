@@ -9,7 +9,7 @@ import (
 
 func registerContextHome(v1 *gin.RouterGroup, d *Deps) {
 	ch := handler.NewContext(d.DB, d.Clock)
-	v1.GET("auth/profile", ch.AuthProfile)       // §2.1
+	v1.GET("auth/profile", ch.AuthProfile)         // §2.1
 	v1.GET("hospital/profile", ch.HospitalProfile) // §2.2
 
 	hh := handler.NewHome(d.DB, d.Clock)

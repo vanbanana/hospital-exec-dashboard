@@ -16,7 +16,7 @@ type AdverseCatRow struct {
 // AdverseEventCounts [start,end) 内按 adverse_cat 计数(§10.1 adverse_events 源;Σ 与 ADVERSE_EVENT_CNT 自洽)
 func (r *StaffRepo) AdverseEventCounts(ctx context.Context, start, end time.Time) ([]AdverseCatRow, error) {
 	var rows []AdverseCatRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dwd.adverse_event").
 		Select("adverse_cat, count(*) AS cnt").
 		Where("event_date >= ? AND event_date < ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
@@ -37,7 +37,7 @@ type QualityRuleRow struct {
 // QualityRuleAudit 当月(period_type='month')制度抽检行;出行序由 handler 按契约码序重排
 func (r *StaffRepo) QualityRuleAudit(ctx context.Context, periodStart time.Time) ([]QualityRuleRow, error) {
 	var rows []QualityRuleRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dws.quality_rule_audit").
 		Select("rule_code, rule_name, sample_cnt, pass_cnt, issues").
 		Where("period_type = 'month' AND period_start = ?", periodStart.Format("2006-01-02")).

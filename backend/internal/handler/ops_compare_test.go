@@ -68,7 +68,7 @@ func getCompare(t *testing.T, dim, rk string, wantStatus int) cpTestEnvelope {
 	if rk != "" {
 		q.Set("range", rk)
 	}
-	body := get(t, r, "/api/v1/workbench/compare?"+q.Encode(), wantStatus)
+	body := getOps(t, r, "/api/v1/workbench/compare?"+q.Encode(), wantStatus)
 	if wantStatus == 200 {
 		if err := json.Unmarshal([]byte(body), &env); err != nil {
 			t.Fatalf("dim=%s range=%s decode: %v; body=%s", dim, rk, err, body)
@@ -156,7 +156,7 @@ func TestCompareDefaults(t *testing.T) {
 func TestCompareInvalidParams(t *testing.T) {
 	r := newTestEngine(t)
 	for _, q := range []string{"dim=bad", "range=bad"} {
-		body := get(t, r, "/api/v1/workbench/compare?"+q, 400)
+		body := getOps(t, r, "/api/v1/workbench/compare?"+q, 400)
 		var env struct {
 			Code int `json:"code"`
 			Data struct {

@@ -14,7 +14,7 @@ func (r *StaffRepo) RegChannelMonth(ctx context.Context, monthStart time.Time) (
 		Cnt     int64
 	}
 	var rows []row
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dwd.reg_channel_day").
 		Select("channel, SUM(reg_cnt) AS cnt").
 		Where("date >= ? AND date < ?", monthStart.Format("2006-01-02"), monthStart.AddDate(0, 1, 0).Format("2006-01-02")).
@@ -45,7 +45,7 @@ type FeedbackRow struct {
 // FeedbackLatest 台账最近 N 行;event_date<=today 过滤未来播种行(契约只认已受理事件)
 func (r *StaffRepo) FeedbackLatest(ctx context.Context, today time.Time, limit int) ([]FeedbackRow, error) {
 	rows := make([]FeedbackRow, 0, limit)
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dwd.feedback_event f").
 		Select("f.id, f.event_date, f.fb_type, d.name AS dept, f.fb_channel, f.content, f.fb_status, f.visit_eval").
 		Joins("JOIN dim.department d ON d.id = f.dept_id").

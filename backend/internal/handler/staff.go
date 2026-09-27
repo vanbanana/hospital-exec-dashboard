@@ -183,11 +183,6 @@ func fmtComma(v float64) string {
 	return b.String()
 }
 
-// fmtF 定点小数(strconv 简洁口径;"12.0"/"96.4")
-func fmtF(v float64, prec int) string {
-	return strconv.FormatFloat(v, 'f', prec, 64)
-}
-
 // fmtTrim 去尾零小数(1.25→"1.25",2.00→"2")
 func fmtTrim(v float64, prec int) string {
 	s := fmtF(v, prec)

@@ -3,7 +3,6 @@
 package handler
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -58,15 +57,11 @@ type homeNoticesResp struct {
 	List []homeNoticeItem `json:"list"`
 }
 
-func (h *Home) failInternal(c *gin.Context) {
-	envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
-}
-
 // Top10 GET /workbench/home/top10——当月所在自然月科室出院人次榜
 func (h *Home) Top10(c *gin.Context) {
 	today, err := h.clk.Today(c.Request.Context())
 	if err != nil {
-		h.failInternal(c)
+		failInternal(c)
 		return
 	}
 	start := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
@@ -74,7 +69,7 @@ func (h *Home) Top10(c *gin.Context) {
 
 	rows, err := repo.HomeTop10(c.Request.Context(), h.db, start, end)
 	if err != nil {
-		h.failInternal(c)
+		failInternal(c)
 		return
 	}
 	list := make([]homeTop10Item, 0, len(rows))
@@ -92,14 +87,14 @@ func (h *Home) Top10(c *gin.Context) {
 func (h *Home) Progress(c *gin.Context) {
 	today, err := h.clk.Today(c.Request.Context())
 	if err != nil {
-		h.failInternal(c)
+		failInternal(c)
 		return
 	}
 	periodStart := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
 
 	rows, err := repo.HomeProgress(c.Request.Context(), h.db, periodStart)
 	if err != nil {
-		h.failInternal(c)
+		failInternal(c)
 		return
 	}
 	list := make([]homeProgressItem, 0, len(rows))
@@ -113,7 +108,7 @@ func (h *Home) Progress(c *gin.Context) {
 func (h *Home) Alerts(c *gin.Context) {
 	rows, err := repo.HomeAlerts(c.Request.Context(), h.db)
 	if err != nil {
-		h.failInternal(c)
+		failInternal(c)
 		return
 	}
 	list := make([]homeAlertItem, 0, len(rows))
@@ -133,7 +128,7 @@ func (h *Home) Alerts(c *gin.Context) {
 func (h *Home) Notices(c *gin.Context) {
 	rows, err := repo.HomeNotices(c.Request.Context(), h.db)
 	if err != nil {
-		h.failInternal(c)
+		failInternal(c)
 		return
 	}
 	list := make([]homeNoticeItem, 0, len(rows))

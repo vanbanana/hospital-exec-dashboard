@@ -21,7 +21,7 @@ func (r *StaffRepo) EnergyMonths(ctx context.Context, starts []time.Time) ([]Ene
 		ds[i] = d.Format("2006-01-02")
 	}
 	rows := make([]EnergyMonthRow, 0, len(ds)*3)
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dws.energy_month").
 		Select("period_start, energy_type, energy_amt").
 		Where("period_type = 'month' AND period_start IN ?", ds).
@@ -40,7 +40,7 @@ type StockAlertRow struct {
 // StockAlerts 最近快照日(≤today)全量库存行;avg_daily_use<=0 行剔除(除零护栏)
 func (r *StaffRepo) StockAlerts(ctx context.Context, today time.Time) ([]StockAlertRow, error) {
 	var snap string
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dwd.material_stock_day").
 		Select("COALESCE(MAX(date)::text, '')").
 		Where("date <= ?", today.Format("2006-01-02")).
@@ -49,7 +49,7 @@ func (r *StaffRepo) StockAlerts(ctx context.Context, today time.Time) ([]StockAl
 		return nil, err
 	}
 	var rows []StockAlertRow
-	err = r.DB.WithContext(ctx).
+	err = r.db.WithContext(ctx).
 		Table("dwd.material_stock_day s").
 		Select("m.name, s.onhand_qty, s.avg_daily_use, m.warn_days").
 		Joins("JOIN dim.material m ON m.code = s.material_code").
@@ -72,7 +72,7 @@ type EquipAggRow struct {
 // LargeEquipMonth dim.device+dwd.device_run_day 按 (name,dept) 聚合整月
 func (r *StaffRepo) LargeEquipMonth(ctx context.Context, monthStart time.Time, names []string) ([]EquipAggRow, error) {
 	var rows []EquipAggRow
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dwd.device_run_day f").
 		Select("d.name, dp.name AS dept, COUNT(DISTINCT d.code) AS cnt, "+
 			"SUM(f.run_hours) AS run_h, SUM(f.plan_hours) AS plan_h, "+

@@ -114,7 +114,7 @@ func assertOpShape(t *testing.T, e opEnvelope) {
 func TestOperationsRanges(t *testing.T) {
 	r := newTestEngine(t)
 	for _, rk := range []string{"本月", "本季", "本年", ""} {
-		e := decodeOp(t, get(t, r, opURL(rk), 200))
+		e := decodeOp(t, getOps(t, r, opURL(rk), 200))
 		assertOpShape(t, e)
 	}
 }
@@ -122,7 +122,7 @@ func TestOperationsRanges(t *testing.T) {
 // 契约 §6.1 响应不回显 range(OperationsResp 无该字段)
 func TestOperationsNoRangeEcho(t *testing.T) {
 	r := newTestEngine(t)
-	body := get(t, r, opURL("本月"), 200)
+	body := getOps(t, r, opURL("本月"), 200)
 	var m map[string]any
 	if err := json.Unmarshal([]byte(body), &m); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -136,7 +136,7 @@ func TestOperationsNoRangeEcho(t *testing.T) {
 // 锚值:本年总收入 120,260 万;trend.income 前 10 月序列;门诊输液率超标
 func TestOperationsAnchors(t *testing.T) {
 	r := newTestEngine(t)
-	e := decodeOp(t, get(t, r, opURL("本年"), 200))
+	e := decodeOp(t, getOps(t, r, opURL("本年"), 200))
 	assertOpShape(t, e)
 	if e.Data.Stats[0].Label != "医疗总收入" || e.Data.Stats[0].Value != "120,260" {
 		t.Fatalf("stats[0]=%+v, want 医疗总收入 120,260", e.Data.Stats[0])
@@ -164,7 +164,7 @@ func TestOperationsAnchors(t *testing.T) {
 // 非法 range → 400 + code 10001 + data.fields.range
 func TestOperationsBadRange(t *testing.T) {
 	r := newTestEngine(t)
-	body := get(t, r, opURL("bad"), 400)
+	body := getOps(t, r, opURL("bad"), 400)
 	var e struct {
 		Code int `json:"code"`
 		Data struct {

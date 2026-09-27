@@ -21,8 +21,6 @@ type Ops struct {
 func NewOps(db *gorm.DB, ck *clock.Source) *Ops { return &Ops{db: db, ck: ck} }
 
 // Today 业务"今天"(sim.clock 唯一时间源)
-func (r *Ops) Today(ctx context.Context) (time.Time, error) { return r.ck.Today(ctx) }
-
 /* ========== range 窗口(契约注 + mock rangeSlice 口径) ========== */
 
 // RangeWin 月度窗口 [Start,End),Months 为窗口内月首序列
@@ -64,21 +62,21 @@ func (w RangeWin) LastYear() RangeWin {
 
 // HospAgg 院级聚合行;金额=元,比率已展开
 type HospAgg struct {
-	Month    time.Time `gorm:"column:month"`
-	Outpt    int64     `gorm:"column:outpt"`
-	Emerg    int64     `gorm:"column:emerg"`
-	Disch    int64     `gorm:"column:disch"`
-	Admit    int64     `gorm:"column:admit"`
-	InHosp   int64     `gorm:"column:in_hosp"`
-	BedDays  int64     `gorm:"column:bed_days"`  // Σbed_open(床日)
-	UseDays  int64     `gorm:"column:use_days"`  // Σbed_used
-	BedOpen  float64   `gorm:"column:bed_open"`  // 日均开放床位(周转分母)
-	Alos     float64   `gorm:"column:alos"`      // 出院加权平均住院日
-	Revenue  float64   `gorm:"column:revenue"`
-	Cost     float64   `gorm:"column:cost"`
-	Profit   float64   `gorm:"column:profit"`
-	DrugFee  float64   `gorm:"column:drug_fee"`
-	MatFee   float64   `gorm:"column:mat_fee"`
+	Month   time.Time `gorm:"column:month"`
+	Outpt   int64     `gorm:"column:outpt"`
+	Emerg   int64     `gorm:"column:emerg"`
+	Disch   int64     `gorm:"column:disch"`
+	Admit   int64     `gorm:"column:admit"`
+	InHosp  int64     `gorm:"column:in_hosp"`
+	BedDays int64     `gorm:"column:bed_days"` // Σbed_open(床日)
+	UseDays int64     `gorm:"column:use_days"` // Σbed_used
+	BedOpen float64   `gorm:"column:bed_open"` // 日均开放床位(周转分母)
+	Alos    float64   `gorm:"column:alos"`     // 出院加权平均住院日
+	Revenue float64   `gorm:"column:revenue"`
+	Cost    float64   `gorm:"column:cost"`
+	Profit  float64   `gorm:"column:profit"`
+	DrugFee float64   `gorm:"column:drug_fee"`
+	MatFee  float64   `gorm:"column:mat_fee"`
 }
 
 const hospAggCols = `
@@ -391,11 +389,11 @@ func (r *Ops) MetricSum(ctx context.Context, code string, deptID int64, w RangeW
 // MetricLatest 窗口内最新一月院级指标(ABX_DDD_IP/OP_INFUSION_RATE 等)
 func (r *Ops) MetricLatest(ctx context.Context, code string, deptID int64, w RangeWin) (float64, bool, error) {
 	var v float64
-	err := r.db.WithContext(ctx).Raw(
+	res := r.db.WithContext(ctx).Raw(
 		`SELECT value FROM dws.metric_value
 		 WHERE metric_code = ? AND dept_id = ? AND date >= ? AND date < ?
-		 ORDER BY date DESC LIMIT 1`, code, deptID, w.Start, w.End).Scan(&v).Error
-	return v, err == nil, err
+		 ORDER BY date DESC LIMIT 1`, code, deptID, w.Start, w.End).Scan(&v)
+	return v, res.RowsAffected > 0, res.Error
 }
 
 // DeptMetricAt 单月科室指标图(QUALITY_SCORE/SAT_IP_SCORE/DRUG_RATIO 等)

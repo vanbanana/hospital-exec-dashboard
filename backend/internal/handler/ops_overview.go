@@ -70,7 +70,7 @@ func ovMonthMap(rows []repo.HospAgg) map[int]repo.HospAgg {
 // (signedPct/signedNum 对 0 不加号;raw −0.0x 直接格式会出 "-0.0%" 伪负号)
 func ovDPct(x float64) string {
 	if r := math.Round(x*10) / 10; r != 0 {
-		return signedPct(r, 1)
+		return signedPctOps(r, 1)
 	}
 	return "+0.0%"
 }
@@ -137,7 +137,7 @@ func (h *OpsHandler) Overview(c *gin.Context) {
 	vol := func(label string, cur, prv int64, unit string) StatItem {
 		d := yoyPct(float64(cur), float64(prv))
 		return StatItem{Label: label, Value: fmtInt(cur), Unit: unit,
-			Delta: ovDPct(d), Dir: dirOf(d, 0.05), DeltaLabel: dl}
+			Delta: ovDPct(d), Dir: dirOfEps(d, 0.05), DeltaLabel: dl}
 	}
 	bedPct, bedPctPrev := ovDiv(float64(cur.useDays), float64(cur.bedDays))*100,
 		ovDiv(float64(prv.useDays), float64(prv.bedDays))*100
@@ -150,9 +150,9 @@ func (h *OpsHandler) Overview(c *gin.Context) {
 		vol("手术台次", cur.surg, prv.surg, ""),
 		vol("医疗收入", cur.revWan, prv.revWan, "万元"),
 		{Label: "床位使用率", Value: fmtF(bedPct, 1), Unit: "%",
-			Delta: ovDPct(dBed), Dir: dirOf(dBed, 0.05), DeltaLabel: dl},
+			Delta: ovDPct(dBed), Dir: dirOfEps(dBed, 0.05), DeltaLabel: dl},
 		{Label: "平均住院日", Value: fmtF(alos, 1), Unit: "天",
-			Delta: ovDNum(dAlos), Dir: dirOf(dAlos, 0.05), DeltaLabel: dl},
+			Delta: ovDNum(dAlos), Dir: dirOfEps(dAlos, 0.05), DeltaLabel: dl},
 	}
 
 	outp, revT := make([]int64, 12), make([]int64, 12)

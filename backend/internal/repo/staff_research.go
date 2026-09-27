@@ -26,7 +26,7 @@ func (r *StaffRepo) ResearchProjectYears(ctx context.Context, years []int) (map[
 		Funds     float64
 	}
 	var rows []row
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dwd.research_project").
 		Select("apply_year, project_level AS level, COUNT(*) AS cnt, COALESCE(SUM(funds_amt),0) AS funds").
 		Where("project_status <> 'applying' AND apply_year IN ?", years).
@@ -59,7 +59,7 @@ func (r *StaffRepo) ResearchPaperYear(ctx context.Context, yearStart time.Time) 
 		Cnt      int
 	}
 	var rows []row
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dws.research_paper_period").
 		Select("quartile, SUM(paper_cnt) AS cnt").
 		Where("period_type = 'year' AND period_start = ?", yearStart.Format("2006-01-02")).
@@ -85,7 +85,7 @@ type DisciplineRow struct {
 
 func (r *StaffRepo) DisciplineList(ctx context.Context) ([]DisciplineRow, error) {
 	rows := make([]DisciplineRow, 0, 4)
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("dim.discipline AS d").
 		Select("d.name, d.discipline_level AS level_key, d.dept_id, TRIM(CONCAT_WS(' ', s.name, s.title)) AS leader").
 		Joins("LEFT JOIN dim.staff s ON s.id = d.leader_id").

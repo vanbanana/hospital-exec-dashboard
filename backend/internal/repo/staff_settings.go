@@ -18,7 +18,7 @@ type DataSourceRow struct {
 // SettingDataSources 数据源全行;CASE 序=契约 §13.2 固定行序(表无 sort 列)
 func (r *StaffRepo) SettingDataSources(ctx context.Context) ([]DataSourceRow, error) {
 	rows := make([]DataSourceRow, 0, 8)
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("sys.data_source").
 		Select("name, ds_type AS type_key, ds_status AS status_key, last_sync_at AS last_sync").
 		Order("CASE code WHEN 'HIS_OP' THEN 0 WHEN 'HIS_IP' THEN 1 WHEN 'EMR' THEN 2 " +
@@ -43,7 +43,7 @@ func (r *StaffRepo) SettingRules(ctx context.Context) ([]AlertRuleRow, error) {
 	codes := []string{"BED_OVER_95", "DRUG_RATIO_WARN", "MAT_OVER_20", "INPT_FEE_SURGE",
 		"STOCK_TURN_SLOW", "CRIT_TIMEOUT_95", "EQUIP_RUN_LOW"}
 	rows := make([]AlertRuleRow, 0, len(codes))
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("ads.alert_rule AS ar").
 		Select("ar.code, ar.alert_level, ar.op, ar.threshold, ar.eval_json, ar.enabled, md.value_kind").
 		Joins("JOIN sys.metric_def md ON md.code = ar.metric_code").
@@ -70,7 +70,7 @@ type UserRow struct {
 // 院级(NULL)殿后 → id(e3-design §13.2 实测序;与同角色内 user.id 序不一致处以实测为准)
 func (r *StaffRepo) SettingUsers(ctx context.Context) ([]UserRow, error) {
 	rows := make([]UserRow, 0, 8)
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("sys.user AS u").
 		Select("u.real_name, u.role AS role_key, u.scope_type, u.scope_val, " +
 			"dp.name AS dept_name, u.last_login_at AS last_login, u.user_status").
@@ -88,7 +88,7 @@ func (r *StaffRepo) SettingPrefs(ctx context.Context, userID int64) (map[string]
 		Val []byte
 	}
 	var rows []row
-	err := r.DB.WithContext(ctx).
+	err := r.db.WithContext(ctx).
 		Table("sys.user_pref").
 		Select("pref_key AS key, pref_val AS val").
 		Where("user_id = ?", userID).

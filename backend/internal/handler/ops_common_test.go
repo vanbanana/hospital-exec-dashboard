@@ -37,7 +37,7 @@ func newTestEngine(t *testing.T) *gin.Engine {
 }
 
 // get 发请求并断言 HTTP 状态码,返回原始 body
-func get(t *testing.T, r *gin.Engine, path string, wantStatus int) string {
+func getOps(t *testing.T, r *gin.Engine, path string, wantStatus int) string {
 	t.Helper()
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", path, nil)

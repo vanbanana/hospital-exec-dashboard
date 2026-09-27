@@ -38,7 +38,7 @@ func commaInt(v float64) string {
 }
 
 // signedPct 环比/同比百分变动文案(契约 §1.4-3:"+3.6%"/"-0.3%"/"持平")
-func signedPct(deltaPctPoints float64) string {
+func signedPctScr(deltaPctPoints float64) string {
 	if math.Abs(deltaPctPoints) < 0.05 {
 		return "持平"
 	}
@@ -59,18 +59,6 @@ func signedUnit(d float64, unit string) string {
 		return "持平"
 	}
 	return fmt.Sprintf("%+.0f%s", d, unit)
-}
-
-// dirOf 变动方向三态(契约 dir 枚举)
-func dirOf(d float64) string {
-	switch {
-	case d > 0:
-		return "up"
-	case d < 0:
-		return "down"
-	default:
-		return "flat"
-	}
 }
 
 // trendArrow 国考趋势渲染(exam table.trend;exam_indicator.direction 1/0/-1)
