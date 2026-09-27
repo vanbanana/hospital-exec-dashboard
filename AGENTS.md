@@ -96,6 +96,8 @@
 
 - 任务范围 = 用户字面意思；范围外文件保持原样（含格式、import 顺序）
 - 范围模糊 → 先问再动手
+- **并行 agent 一律走 herdr**：`herdr tab create` / `herdr pane split` 在当前工作区开 pane 后 `herdr pane send-text` 下发任务、`herdr pane read` / `wait-output` 收报告——双向可观测；**禁用 subagent 工具、禁开原生 Terminal 窗口**（无读回通道，曾致 fix-wb 断连 27 分钟不可见）
+- agent 任务书落盘 `/tmp` 后 send 路径，避免终端转义；完工的 pane/tab 及时 `herdr pane/tab close` 清场
 - 收尾前：`git status` 逐文件对回指令
 
 ### 3.6 简单优先
