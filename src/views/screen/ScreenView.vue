@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import ScrHeader from '../../components/screen/ScrHeader.vue'
 import ScrKpiStrip from '../../components/screen/ScrKpiStrip.vue'
 import ScrDrgQuadrant from '../../components/screen/ScrDrgQuadrant.vue'
@@ -68,7 +68,23 @@ async function load() {
   }
 }
 
-onMounted(load)
+// refresh 静默轮询(契约 §16 档 A:大屏随虚拟时钟滚动,30s 一拍)——不置 loading 防闪烁;
+// 成功换快照并清错误态;失败仅在无旧数据兜底时才落错误屏,有旧数据保持展示
+async function refresh() {
+  try {
+    snap.value = await getScreenSnapshot()
+    error.value = null
+  } catch (e) {
+    if (!snap.value) error.value = toApiError(e)
+  }
+}
+
+let timer: number | undefined
+onMounted(() => {
+  load()
+  timer = window.setInterval(refresh, 30000)
+})
+onUnmounted(() => window.clearInterval(timer))
 </script>
 
 <style scoped>

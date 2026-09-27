@@ -111,13 +111,14 @@ type ScreenDeptRankRow struct {
 	EffScore *float64
 }
 
+// ScreenDeptRanking 取 ≤today 最近可得快照(契约 §16 档 A 冻结语义:跨日后不重跑派生,回看最近切面)
 func ScreenDeptRanking(ctx context.Context, db *gorm.DB, date time.Time) ([]ScreenDeptRankRow, error) {
 	var rows []ScreenDeptRankRow
 	err := db.WithContext(ctx).Raw(`
 		SELECT r.rank_no, r.dept_id, dep.name, dep.category, r.cmi, r.surg_cnt, r.alos,
 		       ROUND(r.profit/10000,1) AS profit_w, r.eff_score
 		FROM ads.dept_rank_day r JOIN dim.department dep ON dep.id=r.dept_id
-		WHERE r.date=? AND r.period='d30'
+		WHERE r.date=(SELECT MAX(date) FROM ads.dept_rank_day WHERE date <= ?) AND r.period='d30'
 		ORDER BY r.rank_no`, date).Scan(&rows).Error
 	return rows, err
 }
