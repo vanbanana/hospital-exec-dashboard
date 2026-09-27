@@ -106,9 +106,10 @@ export async function api<T>(key: string, params: MockParams = {}, opts: ApiOpts
     const data = env.data as { fields?: Record<string, string> } | null
     if (data?.fields) err.fields = data.fields
     if (env.trace_id) err.trace_id = env.trace_id
-    // 401 会话失效:清会话态+硬跳登录页(auth/login 自身除外防环,frontend-api §1.7)
+    // 401 会话失效:清会话态+硬跳登录页;auth/* 自检族全豁免——守卫以 profile 20001 判
+    // 未登录,拦截会引起 /login?redirect=/login?... 无限套娃(frontend-api §1.7)
     if (env.code === 20001 || env.code === 20002 || env.code === 20003) {
-      if (key !== 'auth/login') {
+      if (!key.startsWith('auth/')) {
         unauthorizedHandler?.()
         location.assign(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)
       }

@@ -149,7 +149,8 @@ npx vue-tsc -b && npm run build
 # 后端（在 backend/ 目录跑）
 cd backend && go vet ./... && go build ./... && go test ./... -run Contract
 
-# 机械自查（期望输出仅剩 envelope.go 两处 time.Now——包络 ts 为传输墙钟字段，豁免业务时钟纪律）
+# 机械自查（time.Now 豁免清单=传输层墙钟:envelope.go 包络 ts、requestlog.go 延迟计时、
+# write_alert.go failData ts(包络冻结故本地实现);其余命中=违例）
 grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ backend/ 2>/dev/null
 ```
 
