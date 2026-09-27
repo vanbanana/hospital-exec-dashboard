@@ -11,7 +11,7 @@
 
 ### 0.1 为什么升级到 v2.0？（范围裁决理由）
 1. **形态重心转移**：原 `api-contract v1.1` 完全围绕“单一大屏（/screen）+ 五级下钻弹窗（L1~L5）”展开；但真实产品实践表明，院长与管理部门 90% 的日常决策发生于 **PC 浅色工作台**（高信息密度、多维交叉报表、全业务域监控），大屏更偏向指挥中心与会议汇报。系统已正式演进为**“/workbench 浅色工作台（12页为主）+ /screen 科技大屏（为辅）”**的双形态架构。
-2. **落地阶段匹配**：前端已有 12 个完整的 Vue 工作台视图（`src/views/workbench/*.vue`）和 1 个大屏视图（`src/views/ScreenView.vue`），但数据分散硬编码于组件内部。v2.0 的首要任务是**收敛并定义这 13 个视图全部消费的标准化 API 契约**，使前端能零摩擦抽离出独立的 `src/api/` 模块与 Mock 拦截器。
+2. **落地阶段匹配**：前端 12 个工作台视图（`src/views/workbench/*.vue`）已全部经 `src/api/` 端点函数 + `src/mock/` 注册表按本契约取数；大屏视图（`/screen`）正在按 `archive/smart-hospital-cockpit/` 视觉基准重建，旧过渡稿已删除。v2.0 契约持续约束两侧实现。
 3. **认证与交互务实降级**：在纯演示与前端解耦阶段，强制要求 JWT 双 Token 轮换、黑名单拦截会产生大量非核心工程阻塞。v2.0 将认证降级为**“免密/可选角色切换”**的轻量模式，前端可通过下拉框切换院长、运营主任、科主任三种身份。
 
 ### 0.2 与原 v1.1 契约的关系（继承、重构与预留）
@@ -1193,7 +1193,7 @@
 
 ## 14. 辅助形态：科技大屏快照 /screen/snapshot
 
-对应页面：`src/views/ScreenView.vue` 及根目录 `src/components/*.vue`。
+对应页面：`/screen` 大屏（重建中，视觉基准 `archive/smart-hospital-cockpit/`，旧过渡组件已删除）。
 
 ### 14.1 GET /screen/snapshot
 - **说明**：科技大屏一站式加载快照。继承并升级原结构，一次性供给大屏态势展示渲染。
@@ -1294,16 +1294,16 @@
 ```
 src/
 ├── api/                   # API 请求定义（TypeScript）
-│   ├── types.ts           # 镜像本契约中的所有接口类型
-│   ├── auth.ts            # /auth/*, /hospital/*
-│   ├── workbench.ts       # /workbench/home/*, /workbench/overview, /workbench/medical ...
-│   └── screen.ts          # /screen/snapshot
+│   ├── types.ts           # 镜像本契约中的所有接口类型（已就位）
+│   ├── client.ts          # 统一解析层：mock 注册表查取，VITE_USE_MOCK 开关位预留 http 切换（已就位）
+│   ├── auth.ts            # /auth/*, /hospital/*（待补）
+│   ├── workbench.ts       # /workbench/*（已就位）
+│   └── screen.ts          # /screen/snapshot（随大屏重建补齐）
 ├── mock/                  # 本地 Mock 数据集（可随时被真实 HTTP 拦截替换）
-│   ├── index.ts           # Mock 拦截开关（通过 VITE_USE_MOCK 控制）
-│   ├── home.json          # 首页 KPI、趋势、TOP10
-│   ├── overview.json      # 概览页数据
-│   ├── medical.json       # 医疗业务多维数据
-│   └── ...                # 其他各模块静态数据包
+│   ├── index.ts           # mockResolvers 注册表：key=契约端点路径（已就位）
+│   ├── home.ts overview.ts medical.ts operations.ts hr.ts research.ts
+│   ├── patient.ts quality.ts assets.ts compare.ts topics.ts settings.ts
+│   └── screen.ts          # 大屏快照 mock（随大屏重建补齐）
 ```
 
 **实施要诀**：

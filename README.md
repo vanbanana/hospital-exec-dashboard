@@ -14,7 +14,7 @@ npm install && npm run dev   # http://localhost:5173 → 自动重定向 /workbe
 | :--- | :--- |
 | `/workbench` | 工作台首页（KPI/趋势/排行/预警/待办） |
 | `/workbench/{overview,medical,operations,hr,research,patient,quality,assets,compare,topics,settings}` | 11 个业务子页 |
-| `/screen` | 深蓝大屏（过渡稿；目标设计见 `archive/smart-hospital-cockpit/` 视觉参考） |
+| `/screen` | 深蓝大屏（重建中；唯一视觉基准 `archive/smart-hospital-cockpit/`，旧过渡稿已删） |
 
 ## 文档与工作方式
 

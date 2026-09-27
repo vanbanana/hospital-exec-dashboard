@@ -32,15 +32,18 @@
 | 5 | `docs/simulation-plan.md` | 数据供给分层（mock→契约层→仿真）、演示 runbook |
 | 6 | `docs/acceptance.md` | 验收门禁 |
 | 7 | `docs/database-schema.md` | 后端库表设计（**未实施**，后端动工时启用） |
+| 8 | `docs/frontend-api.md` | 前端接口使用文档：每端点怎么调、字段怎么用、空错态怎么渲染 |
+| 9 | `docs/design-tokens.md` | 设计令牌治理：颜色/字号/间距/圆角唯一出处，token 增改先过本文 |
 
 ## 2. 硬规则
 
 1. **契约演进唯一方式**：新需求 → 先改 `api-contract.md`（加端点或加可选字段）→ 再写代码。已有路径/字段名/枚举值/语义保持原样。
+1.1 **文档先行铁律**：任何结构性/接口性/样式性变动 → 先改对应 `docs/` 文档（frontend-api / frontend-architecture / design-tokens）→ 再写代码。文档没改就不允许写码；发现文档与现实矛盾 → 停下报告，先修文档。
 2. **包管理一律 npm**：`package-lock.json` 是唯一锁文件。
 3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/axios/element-plus——需要时先确认再装。
-4. **文件边界**：`archive/`（全部历史设计参考资产）只读；`src/components/*.vue`（非 workbench 目录）是旧大屏组件，在 /screen 整合前保持原样。
+4. **文件边界**：`archive/`（全部历史设计参考资产）只读；大屏唯一视觉基准为 `archive/smart-hospital-cockpit/`（旧 `src/components/` 大屏过渡稿已删除，勿再以任何历史稿为基准）。/screen 重建按 `frontend-architecture.md` §10 路线进行。
 5. **密钥只写进 `.env`**（已在 `.gitignore`）。
-6. **数据纪律**：当前页面数据为组件内 mock；**抽 mock → `src/mock/` 集中管理，字段名对齐契约 snake_case**，禁止在视图里散落不可对回契约的字段。接 store/api 层时 mock 数据整体迁移，页面不改字段。
+6. **数据纪律**：视图数据一律经 `src/api/` 端点函数 → `client.ts` → `src/mock/` 注册表；字段名对齐契约 snake_case，禁止视图内散落不可对回契约的字段。目标形态 组件→store→api（Pinia），当前组件直连 api 为过渡态。
 7. **commit**：每条信息说明"为什么"；`git status` 里每个文件都能对回用户指令。
 8. **agy 产物原则**：AI 复刻 agent（agy/pixel 类）的产出是参考素材，代码工程性不保证——合并前按本文件标准审查，能用的用，不达标的重写。
 
