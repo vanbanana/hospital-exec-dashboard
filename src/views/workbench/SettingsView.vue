@@ -45,7 +45,7 @@
                 <button
                   class="wb-switch"
                   :class="{ on: row.enabled }"
-                  @click="row.enabled = !row.enabled"
+                  @click="toggleRule(row)"
                 ></button>
               </template>
             </WbTable>
@@ -85,7 +85,7 @@
                 <div class="wb-form-label">默认时间范围</div>
                 <div class="wb-form-desc">进入工作台时默认展示的统计口径</div>
               </div>
-              <select class="wb-select" v-model="pref.default_range">
+              <select class="wb-select" v-model="pref.default_range" @change="savePref('default_range')">
                 <option>本月</option>
                 <option>本季</option>
                 <option>本年</option>
@@ -96,7 +96,7 @@
                 <div class="wb-form-label">数据刷新频率</div>
                 <div class="wb-form-desc">实时类指标的自动刷新间隔</div>
               </div>
-              <select class="wb-select" v-model="pref.refresh_interval">
+              <select class="wb-select" v-model="pref.refresh_interval" @change="savePref('refresh_interval')">
                 <option>5 分钟</option>
                 <option>15 分钟</option>
                 <option>30 分钟</option>
@@ -107,26 +107,27 @@
                 <div class="wb-form-label">新预警声音提醒</div>
                 <div class="wb-form-desc">出现高风险预警时播放提示音</div>
               </div>
-              <button class="wb-switch" :class="{ on: pref.alert_sound }" @click="pref.alert_sound = !pref.alert_sound"></button>
+              <button class="wb-switch" :class="{ on: pref.alert_sound }" @click="flipPref('alert_sound')"></button>
             </div>
             <div class="wb-form-row">
               <div>
                 <div class="wb-form-label">金额单位缩写</div>
                 <div class="wb-form-desc">大额指标以「万元/亿元」缩写展示</div>
               </div>
-              <button class="wb-switch" :class="{ on: pref.unit_abbreviation }" @click="pref.unit_abbreviation = !pref.unit_abbreviation"></button>
+              <button class="wb-switch" :class="{ on: pref.unit_abbreviation }" @click="flipPref('unit_abbreviation')"></button>
             </div>
             <div class="wb-form-row">
               <div>
                 <div class="wb-form-label">敏感数据脱敏</div>
                 <div class="wb-form-desc">人员姓名等字段在非管理端脱敏显示</div>
               </div>
-              <button class="wb-switch" :class="{ on: pref.privacy_mask }" @click="pref.privacy_mask = !pref.privacy_mask"></button>
+              <button class="wb-switch" :class="{ on: pref.privacy_mask }" @click="flipPref('privacy_mask')"></button>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <WbToast />
   </div>
 </template>
 
@@ -138,9 +139,11 @@ import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
 import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
 import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
+import WbToast, { toast } from '../../components/workbench/WbToast.vue'
 import { getSettings } from '../../api/workbench'
+import { setRuleEnabled, savePreferences } from '../../api/settings'
 import { useAsyncData } from '../../api/useAsyncData'
-import type { SettingsResp } from '../../api/types'
+import type { PreferencesPatch, SettingsResp } from '../../api/types'
 
 // §13.2 三个列表非 WbTableData 形状（契约未下发 columns），列定义留本地
 const dsCols: WbTableColumn[] = [
@@ -176,7 +179,7 @@ const dsRows = computed(() => data.value?.data_sources ?? [])
 const thRows = computed(() => data.value?.thresholds ?? [])
 const userRows = computed(() => data.value?.users ?? [])
 
-// 偏好为本地可编辑态（无持久化端点，契约 §13.2 只读展示）——成功落地后拷入 reactive
+// 偏好为本地可编辑态,变更即经 R16 写回持久化(契约 §15.8)——成功落地后拷入 reactive
 const pref = reactive<SettingsResp['preferences']>({
   default_range: '本月',
   refresh_interval: '5 分钟',
@@ -187,6 +190,54 @@ const pref = reactive<SettingsResp['preferences']>({
 watch(data, (d) => {
   if (d) Object.assign(pref, d.preferences)
 })
+
+interface WriteErr {
+  code?: number
+  message: string
+}
+const errInfo = (e: unknown) => e as WriteErr
+
+/* ===== R15 阈值启停:乐观翻转 → 写回 → 失败回滚(§15.7) ===== */
+const pendingRules = reactive(new Set<string>())
+async function toggleRule(row: Record<string, unknown>) {
+  const code = String(row.code)
+  if (pendingRules.has(code)) return
+  const next = !row.enabled
+  row.enabled = next
+  pendingRules.add(code)
+  try {
+    await setRuleEnabled(code, next)
+    toast.success('已更新')
+  } catch (e) {
+    row.enabled = !next
+    toast.warning(errInfo(e).message)
+  } finally {
+    pendingRules.delete(code)
+  }
+}
+
+/* ===== R16 偏好写回:乐观生效 → 失败回滚到上次读值(§15.8) ===== */
+const pendingPrefs = reactive(new Set<keyof SettingsResp['preferences']>())
+async function savePref<K extends keyof SettingsResp['preferences']>(key: K) {
+  if (pendingPrefs.has(key)) return
+  pendingPrefs.add(key)
+  const patch: PreferencesPatch = {}
+  patch[key] = pref[key]
+  try {
+    await savePreferences(patch)
+    toast.success('已保存')
+  } catch (e) {
+    if (data.value) pref[key] = data.value.preferences[key]
+    toast.warning(errInfo(e).message)
+  } finally {
+    pendingPrefs.delete(key)
+  }
+}
+function flipPref(key: 'alert_sound' | 'unit_abbreviation' | 'privacy_mask') {
+  if (pendingPrefs.has(key)) return
+  pref[key] = !pref[key]
+  savePref(key)
+}
 </script>
 
 <style scoped>

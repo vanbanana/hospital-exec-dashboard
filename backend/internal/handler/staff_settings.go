@@ -49,6 +49,7 @@ func (h *StaffHandler) SettingsConfig(c *gin.Context) {
 	for _, rr := range rules {
 		thRows = append(thRows, gin.H{
 			"name":    settingsRuleNames[rr.Code],
+			"code":    rr.Code,
 			"rule":    settingsRuleText(rr),
 			"level":   rr.AlertLevel,
 			"enabled": rr.Enabled,
