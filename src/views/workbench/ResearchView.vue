@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="科研教学" sub="课题 · 论文 · 重点学科 · 教学培训 · 数据截至 2026-10-28">
+    <WbPageHead title="科研教学" :sub="`课题 · 论文 · 重点学科 · 教学培训 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本季', '本年']" />
     </WbPageHead>
@@ -20,7 +20,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">立项课题与经费</h3>
-          <span class="wb-panel-sub">立项数（柱） × 经费（线 · 万元）</span>
+          <span class="wb-panel-sub">课题立项（国家级/省级堆叠柱） × 经费（线 · {{ projectTrend?.unit ?? '万元' }}）</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="projectOption" />
@@ -30,7 +30,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">论文发表</h3>
-          <span class="wb-panel-sub">近五年 SCI / 核心 / 普刊</span>
+          <span class="wb-panel-sub">近五年 · {{ (paperDist?.categories ?? []).join(' / ') }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="paperOption" />
@@ -83,10 +83,12 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getResearch } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { WbTableData } from '../../api/types'
 
 // 契约 §8.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数;
 // 选项只列 RangeKey 枚举内值(原'近三年'超枚举已移除)
+const systemDate = useSystemDate()
 const range = ref('本年')
 
 // 五态取数经 useAsyncData（frontend-architecture §10.1）
@@ -121,13 +123,21 @@ const projectOption = computed<EChartsOption>(() => {
       }),
     ],
     series: [
+      // 契约 §8.1 下发国家级/省级两序列，堆叠呈现即各自独立又合计=立项课题数（与 stats 42 自洽）
       {
-        name: '立项课题数',
+        name: '国家级课题',
         type: 'bar',
-        // 契约按国家级/省级两序列下发，柱形合计还原"立项课题数"口径（§8.1 注：与 stats 年度新立项 42 自洽）
-        data: t ? t.national.map((n, i) => n + (t.provincial[i] ?? 0)) : [],
+        stack: '课题',
+        data: t?.national ?? [],
         barWidth: 22,
-        itemStyle: { color: wbPalette.primary, borderRadius: [3, 3, 0, 0] },
+        itemStyle: { color: wbPalette.primary, borderRadius: [0, 0, 0, 0] },
+      },
+      {
+        name: '省级课题',
+        type: 'bar',
+        stack: '课题',
+        data: t?.provincial ?? [],
+        itemStyle: { color: wbPalette.teal, borderRadius: [3, 3, 0, 0] },
       },
       {
         name: '科研经费',

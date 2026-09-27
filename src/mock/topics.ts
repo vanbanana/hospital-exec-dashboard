@@ -24,12 +24,12 @@ const scaleStats = (list: WbStatItem[], f: number, labels: string[]) =>
 const BY_TOPIC: Record<TopicKey, Omit<TopicsResp, 'topic' | 'range'>> = {
   drg: {
     stats: [
-      { label: 'CMI 值', value: '1.08', delta: '+0.04', dir: 'up' },
-      { label: '入组率', value: '98.5', unit: '%', delta: '+0.6%', dir: 'up' },
-      { label: '费用消耗指数', value: '0.92', delta: '-0.03', dir: 'down' },
-      { label: '时间消耗指数', value: '0.95', delta: '-0.02', dir: 'down' },
-      { label: 'RW≥2 占比', value: '10.2', unit: '%', delta: '+1.8%', dir: 'up' },
-      { label: '低风险组死亡率', value: '0.02', unit: '%', delta: '持平', dir: 'flat' },
+      { label: 'CMI 值', value: '1.08', delta: '+0.04', dir: 'up', delta_label: '较上月' },
+      { label: '入组率', value: '98.5', unit: '%', delta: '+0.6%', dir: 'up', delta_label: '较上月' },
+      { label: '费用消耗指数', value: '0.92', delta: '-0.03', dir: 'down', delta_label: '较上月' },
+      { label: '时间消耗指数', value: '0.95', delta: '-0.02', dir: 'down', delta_label: '较上月' },
+      { label: 'RW≥2 占比', value: '10.2', unit: '%', delta: '+1.8%', dir: 'up', delta_label: '较上月' },
+      { label: '低风险组死亡率', value: '0.02', unit: '%', delta: '持平', dir: 'flat', delta_label: '较上月' },
     ],
     chart: {
       title: '病组权重（RW）分布',
@@ -65,12 +65,12 @@ const BY_TOPIC: Record<TopicKey, Omit<TopicsResp, 'topic' | 'range'>> = {
   },
   insurance: {
     stats: [
-      { label: '医保结算人次', value: '8,462', delta: '+4.2%', dir: 'up' },
-      { label: '医保基金支付', value: '9,860', unit: '万元', delta: '+3.8%', dir: 'up' },
-      { label: '基金结余率', value: '6.8', unit: '%', delta: '+0.4%', dir: 'up' },
-      { label: '拒付/扣款率', value: '0.8', unit: '%', delta: '-0.2%', dir: 'down' },
-      { label: '次均医保费用', value: '11,652', unit: '元', delta: '+1.6%', dir: 'up' },
-      { label: '异地就医结算', value: '486', unit: '人次', delta: '+12.4%', dir: 'up' },
+      { label: '医保结算人次', value: '8,462', delta: '+4.2%', dir: 'up', delta_label: '较上月' },
+      { label: '医保基金支付', value: '9,860', unit: '万元', delta: '+3.8%', dir: 'up', delta_label: '较上月' },
+      { label: '基金结余率', value: '6.8', unit: '%', delta: '+0.4%', dir: 'up', delta_label: '较上月' },
+      { label: '拒付/扣款率', value: '0.8', unit: '%', delta: '-0.2%', dir: 'down', delta_label: '较上月' },
+      { label: '次均医保费用', value: '11,652', unit: '元', delta: '+1.6%', dir: 'up', delta_label: '较上月' },
+      { label: '异地就医结算', value: '486', unit: '人次', delta: '+12.4%', dir: 'up', delta_label: '较上月' },
     ],
     chart: {
       title: '医保基金月度支付',
@@ -102,12 +102,12 @@ const BY_TOPIC: Record<TopicKey, Omit<TopicsResp, 'topic' | 'range'>> = {
   },
   exam: {
     stats: [
-      { label: '国考预估得分', value: '786', unit: '分', delta: '+18分', dir: 'up' },
-      { label: '指标达标率', value: '82.4', unit: '%', delta: '+3.6%', dir: 'up' },
-      { label: '医疗质量得分率', value: '86.2', unit: '%', delta: '+2.4%', dir: 'up' },
-      { label: '运营效率得分率', value: '78.6', unit: '%', delta: '+4.2%', dir: 'up' },
-      { label: '持续发展得分率', value: '74.8', unit: '%', delta: '+1.8%', dir: 'up' },
-      { label: '满意度得分率', value: '91.2', unit: '%', delta: '+0.6%', dir: 'up' },
+      { label: '国考预估得分', value: '786', unit: '分', delta: '+18分', dir: 'up', delta_label: '较上月' },
+      { label: '指标达标率', value: '82.4', unit: '%', delta: '+3.6%', dir: 'up', delta_label: '较上月' },
+      { label: '医疗质量得分率', value: '86.2', unit: '%', delta: '+2.4%', dir: 'up', delta_label: '较上月' },
+      { label: '运营效率得分率', value: '78.6', unit: '%', delta: '+4.2%', dir: 'up', delta_label: '较上月' },
+      { label: '持续发展得分率', value: '74.8', unit: '%', delta: '+1.8%', dir: 'up', delta_label: '较上月' },
+      { label: '满意度得分率', value: '91.2', unit: '%', delta: '+0.6%', dir: 'up', delta_label: '较上月' },
     ],
     chart: {
       title: '近 6 个月指标达标率',
@@ -139,12 +139,12 @@ const BY_TOPIC: Record<TopicKey, Omit<TopicsResp, 'topic' | 'range'>> = {
   },
   outp_fund: {
     stats: [
-      { label: '门诊统筹结算人次', value: '6,248', delta: '+18.6%', dir: 'up' },
-      { label: '统筹基金支付', value: '486', unit: '万元', delta: '+22.4%', dir: 'up' },
-      { label: '人均统筹费用', value: '778', unit: '元', delta: '+3.2%', dir: 'up' },
-      { label: '个人账户支出', value: '326', unit: '万元', delta: '-4.6%', dir: 'down' },
-      { label: '慢特病结算', value: '1,846', unit: '人次', delta: '+8.4%', dir: 'up' },
-      { label: '处方外流率', value: '12.4', unit: '%', delta: '+2.8%', dir: 'up' },
+      { label: '门诊统筹结算人次', value: '6,248', delta: '+18.6%', dir: 'up', delta_label: '较上月' },
+      { label: '统筹基金支付', value: '486', unit: '万元', delta: '+22.4%', dir: 'up', delta_label: '较上月' },
+      { label: '人均统筹费用', value: '778', unit: '元', delta: '+3.2%', dir: 'up', delta_label: '较上月' },
+      { label: '个人账户支出', value: '326', unit: '万元', delta: '-4.6%', dir: 'down', delta_label: '较上月' },
+      { label: '慢特病结算', value: '1,846', unit: '人次', delta: '+8.4%', dir: 'up', delta_label: '较上月' },
+      { label: '处方外流率', value: '12.4', unit: '%', delta: '+2.8%', dir: 'up', delta_label: '较上月' },
     ],
     chart: {
       title: '门诊统筹基金月度支出',

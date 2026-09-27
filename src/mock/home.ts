@@ -13,11 +13,11 @@ import type {
 export const homeKpis: HomeKpisResp = {
   period: '本月',
   list: [
-    { key: 'outpatient', label: '门急诊人次', value: '123,000', unit: '', delta: '+3.6%', dir: 'up', icon: 'Stethoscope', tone: 'primary' },
-    { key: 'inpatient', label: '住院人次', value: '8,120', unit: '', delta: '+5.1%', dir: 'up', icon: 'BedDouble', tone: 'primary' },
-    { key: 'surgery', label: '手术台次', value: '1,286', unit: '', delta: '+4.8%', dir: 'up', icon: 'Scissors', tone: 'teal' },
-    { key: 'revenue', label: '医疗总收入', value: '14,800', unit: '万元', delta: '+2.9%', dir: 'up', icon: 'Banknote', tone: 'green' },
-    { key: 'staff', label: '在岗职工', value: '2,368', unit: '', delta: '+0.4%', dir: 'up', icon: 'Users', tone: 'navy' },
+    { key: 'outpatient', label: '门急诊人次', value: '123,000', unit: '', delta: '+3.6%', dir: 'up', delta_label: '较上月', icon: 'Stethoscope', tone: 'primary' },
+    { key: 'inpatient', label: '住院人次', value: '8,120', unit: '', delta: '+5.1%', dir: 'up', delta_label: '较上月', icon: 'BedDouble', tone: 'primary' },
+    { key: 'surgery', label: '手术台次', value: '1,286', unit: '', delta: '+4.8%', dir: 'up', delta_label: '较上月', icon: 'Scissors', tone: 'teal' },
+    { key: 'revenue', label: '医疗总收入', value: '14,800', unit: '万元', delta: '+2.9%', dir: 'up', delta_label: '较上月', icon: 'Banknote', tone: 'green' },
+    { key: 'staff', label: '在岗职工', value: '2,368', unit: '', delta: '+0.4%', dir: 'up', delta_label: '较上月', icon: 'Users', tone: 'navy' },
   ],
 }
 
@@ -69,11 +69,11 @@ export const homeTop10: HomeTop10Resp = {
 /** §3.4 GET /workbench/home/indicators */
 export const homeIndicators: HomeIndicatorsResp = {
   list: [
-    { code: 'ALOS', name: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down', icon: 'CalendarDays', tone: 'primary' },
-    { code: 'BED_USE_RATE', name: '床位使用率', value: '92.1', unit: '%', delta: '+1.2', dir: 'up', icon: 'BedDouble', tone: 'primary' },
-    { code: 'DRUG_RATIO', name: '药占比', value: '28.4', unit: '%', delta: '-0.6', dir: 'down', icon: 'Pill', tone: 'primary' },
-    { code: 'MATERIAL_RATIO', name: '耗材占比', value: '17.9', unit: '%', delta: '-0.4', dir: 'down', icon: 'Package', tone: 'teal' },
-    { code: 'MED_SVC_RATIO', name: '医疗服务收入占比', value: '43.6', unit: '%', delta: '+0.8', dir: 'up', icon: 'HeartPulse', tone: 'green' },
+    { code: 'ALOS', name: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down', delta_label: '较上月', icon: 'CalendarDays', tone: 'primary' },
+    { code: 'BED_USE_RATE', name: '床位使用率', value: '92.1', unit: '%', delta: '+1.2', dir: 'up', delta_label: '较上月', icon: 'BedDouble', tone: 'primary' },
+    { code: 'DRUG_RATIO', name: '药占比', value: '28.4', unit: '%', delta: '-0.6', dir: 'down', delta_label: '较上月', icon: 'Pill', tone: 'primary' },
+    { code: 'MATERIAL_RATIO', name: '耗材占比', value: '17.9', unit: '%', delta: '-0.4', dir: 'down', delta_label: '较上月', icon: 'Package', tone: 'teal' },
+    { code: 'MED_SVC_RATIO', name: '医疗服务收入占比', value: '43.6', unit: '%', delta: '+0.8', dir: 'up', delta_label: '较上月', icon: 'HeartPulse', tone: 'green' },
   ],
 }
 

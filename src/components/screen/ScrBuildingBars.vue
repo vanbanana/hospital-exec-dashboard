@@ -10,15 +10,17 @@
           <span class="bld-name">{{ r.name }}</span>
           <span class="bld-metric">{{ r.metricLabel }}</span>
         </div>
-        <span class="bld-val scr-num">
-          {{ r.valText }}<span v-if="r.valSub" class="bld-slash">/{{ r.valSub }}</span>
-        </span>
-        <div class="bld-pct-box">
-          <div class="bld-track">
-            <div class="bld-fill" :class="r.fill" :style="{ width: `${r.pct}%` }"></div>
+        <!-- primary_metric 缺席的降级行：仅名称+badge 文本，不渲值/量程条（§14.1 注8） -->
+        <template v-if="!r.degraded">
+          <span class="bld-val scr-num">{{ r.valText }}</span>
+          <div class="bld-pct-box">
+            <div class="bld-track">
+              <div class="bld-fill" :class="r.fill" :style="{ width: `${r.pct}%` }"></div>
+            </div>
+            <span class="bld-pct scr-num">{{ r.pct }}%</span>
           </div>
-          <span class="bld-pct scr-num">{{ r.pct }}%</span>
-        </div>
+        </template>
+        <span v-else class="bld-badge scr-tag" :class="`is-${r.badgeLevel}`">{{ r.badge }}</span>
       </div>
     </div>
     <div v-else class="scr-empty">暂无楼宇数据</div>
@@ -30,7 +32,7 @@ import { computed } from 'vue'
 import type { Component } from 'vue'
 import { BedDouble, Building2, Microscope, Siren, Stethoscope } from 'lucide-vue-next'
 import ScrPanel from './ScrPanel.vue'
-import type { ScreenBuilding } from '../../api/types'
+import type { BuildingBadgeLevel, ScreenBuilding } from '../../api/types'
 
 const props = defineProps<{ buildings?: ScreenBuilding[] }>()
 
@@ -39,70 +41,54 @@ interface BldRow {
   name: string
   icon: Component
   metricLabel: string
+  degraded: boolean
+  badge: string
+  badgeLevel: BuildingBadgeLevel
   valText: string
-  valSub?: string
   pct: number
   fill: '' | 'fill-sky' | 'fill-cyan' | 'fill-alert'
 }
 
 const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)))
 
-/* 各楼主指标与条的量程（metrics 键集见 frontend-api §15 末表） */
-function buildRow(b: ScreenBuilding): BldRow {
-  const m = b.metrics
-  let icon: Component = Building2
-  let metricLabel = '运行指标'
-  let valText = ''
-  let valSub: string | undefined
-  let pct = 0
-
-  switch (b.code) {
-    case 'mz': // 门诊楼：候诊均时，60min 展示量程（契约无量程字段，归一参数）
-      icon = Stethoscope
-      metricLabel = '候诊均时'
-      valText = `${m.queue_avg_min ?? 0}分`
-      pct = clampPct(((m.queue_avg_min ?? 0) / 60) * 100)
-      break
-    case 'wk': // 外科楼：床位使用率
-      icon = BedDouble
-      metricLabel = '床位使用率'
-      valText = `${m.bed_used ?? 0}`
-      valSub = `${m.bed_open ?? 0}`
-      pct = clampPct(m.bed_use_rate ?? 0)
-      break
-    case 'jz': // 急诊楼：留观超时 计数/在观总数
-      icon = Siren
-      metricLabel = '留观超时'
-      valText = `${m.obs_over6h ?? 0}`
-      valSub = `${m.obs_cnt ?? 0}`
-      pct = clampPct(m.obs_cnt ? ((m.obs_over6h ?? 0) / m.obs_cnt) * 100 : 0)
-      break
-    case 'yj': // 医技楼：设备运行 运行数/(运行+告警)
-      icon = Microscope
-      metricLabel = '设备运行率'
-      valText = `${m.device_run ?? 0}台`
-      pct = clampPct(
-        (m.device_run ?? 0) + (m.device_alert ?? 0)
-          ? ((m.device_run ?? 0) / ((m.device_run ?? 0) + (m.device_alert ?? 0))) * 100
-          : 0
-      )
-      break
-    default: { // 未知楼种兜底：取 metrics 首键，≤100 直读为百分比
-      const [k, v] = Object.entries(m)[0] ?? ['—', 0]
-      metricLabel = k
-      valText = `${v}`
-      pct = v <= 100 ? clampPct(v) : 0
-    }
+/* 楼宇图标位（纯展示映射，与 ScrCampusMap 同族；未知 code 落 Building2） */
+const iconOf = (code: string): Component => {
+  const map: Record<string, Component> = {
+    mz: Stethoscope,
+    wk: BedDouble,
+    jz: Siren,
+    yj: Microscope,
   }
+  return map[code] ?? Building2
+}
 
-  /* REF fill 色阶映射：告警>红、busy>亮蓝、≥85%>满档青、其余默认蓝 */
+/* 主指标取值与量程全部走契约 primary_metric（§14.1 注8：key→metrics 取值、max 归一）；
+   字段缺席时不得自造展示口径——行降级为名称+badge */
+function buildRow(b: ScreenBuilding): BldRow {
+  const base = {
+    code: b.code,
+    name: b.name,
+    icon: iconOf(b.code),
+    badge: b.badge,
+    badgeLevel: b.badge_level,
+  }
+  const pm = b.primary_metric
+  if (!pm) {
+    return { ...base, metricLabel: '', degraded: true, valText: '', pct: 0, fill: '' }
+  }
+  const v = b.metrics[pm.key] ?? 0
+  const valText = `${v}${pm.unit}`
+  const pct = pm.max > 0 ? clampPct((v / pm.max) * 100) : 0
+
+  /* REF fill 色阶映射：告警>红、busy>亮蓝、≥85%>满档青、其余默认蓝。
+     pct>=85 仅样式满档阈值（视觉分档），非业务预警口径 */
   const fill: BldRow['fill'] =
     b.status === 'alert' ? 'fill-alert'
     : b.status === 'busy' ? 'fill-sky'
     : pct >= 85 ? 'fill-cyan'
     : ''
 
-  return { code: b.code, name: b.name, icon, metricLabel, valText, valSub, pct, fill }
+  return { ...base, metricLabel: pm.label, degraded: false, valText, pct, fill }
 }
 
 const rows = computed(() => (props.buildings ?? []).map(buildRow))
@@ -164,9 +150,9 @@ const rows = computed(() => (props.buildings ?? []).map(buildRow))
   color: var(--scr-text-1);
 }
 
-.bld-slash {
-  font-size: var(--scr-fs-xs);
-  color: var(--scr-text-4);
+/* 降级行的 badge 右对齐（primary_metric 缺席分支） */
+.bld-badge {
+  margin-left: auto;
 }
 
 .bld-pct-box {

@@ -58,6 +58,7 @@ export const screenSnapshot: ScreenSnapshotResp = {
   ],
   drg_quadrant: {
     period: 'd30',
+    period_label: '近30日',
     axis: { x: 'DRG盈亏(万元)', y: 'CMI' },
     split: { x: 0, y: 1.0 },
     points: [
@@ -66,11 +67,13 @@ export const screenSnapshot: ScreenSnapshotResp = {
       { dept_id: 3, name: '肿瘤科', category: 'med', cmi: 1.24, profit: -34.6, case_cnt: 810, quadrant: 1 },
       { dept_id: 4, name: '神经外科', category: 'surg', cmi: 1.68, profit: -12.8, case_cnt: 294, quadrant: 1 },
       { dept_id: 5, name: '儿科', category: 'med', cmi: 0.68, profit: 28.4, case_cnt: 707, quadrant: 4 },
-      { dept_id: 6, name: '神经内科', category: 'med', cmi: 1.15, profit: 42.8, case_cnt: 906, quadrant: 2 },
-      { dept_id: 7, name: '普通外科', category: 'surg', cmi: 0.92, profit: 56.2, case_cnt: 1032, quadrant: 4 },
+      // 神经内科/普通外科按 §13.1 冻结表订正（§14.1 注10）：cmi/profit/入组病例原值偏离已修
+      { dept_id: 6, name: '神经内科', category: 'med', cmi: 0.94, profit: 38.2, case_cnt: 885, quadrant: 4 },
+      { dept_id: 7, name: '普通外科', category: 'surg', cmi: 1.18, profit: 98.2, case_cnt: 1005, quadrant: 2 },
       { dept_id: 8, name: '妇产科', category: 'surg', cmi: 0.78, profit: -18.5, case_cnt: 804, quadrant: 3 },
     ],
   },
+  // anchor = 渲染后图像矩形内 % 坐标（§14.1 注7，当前底图校准值）；primary_metric 按注8 逐楼下发展示元数据
   buildings: [
     {
       code: 'mz',
@@ -78,8 +81,9 @@ export const screenSnapshot: ScreenSnapshotResp = {
       status: 'normal',
       badge: '4,200 人',
       badge_level: 'info',
-      anchor: { x: 32, y: 58 },
+      anchor: { x: 24.0, y: 36.2 },
       metrics: { today_visit: 4200, queue_avg_min: 18 },
+      primary_metric: { key: 'queue_avg_min', label: '候诊均时', unit: '分', max: 60 },
     },
     {
       code: 'wk',
@@ -87,8 +91,9 @@ export const screenSnapshot: ScreenSnapshotResp = {
       status: 'busy',
       badge: '96% 负荷',
       badge_level: 'warn',
-      anchor: { x: 50, y: 30 },
+      anchor: { x: 51.0, y: 23.7 },
       metrics: { bed_use_rate: 96.0, bed_used: 192, bed_open: 200 },
+      primary_metric: { key: 'bed_use_rate', label: '床位使用率', unit: '%', max: 100 },
     },
     {
       code: 'jz',
@@ -96,8 +101,9 @@ export const screenSnapshot: ScreenSnapshotResp = {
       status: 'alert',
       badge: '留观超时',
       badge_level: 'alert',
-      anchor: { x: 66, y: 42 },
+      anchor: { x: 71.8, y: 42.4 },
       metrics: { obs_over6h: 3, obs_cnt: 11, obs_max_min: 560 },
+      primary_metric: { key: 'obs_over6h', label: '留观超时', unit: '起', max: 10 },
     },
     {
       code: 'yj',
@@ -105,15 +111,17 @@ export const screenSnapshot: ScreenSnapshotResp = {
       status: 'normal',
       badge: '设备正常',
       badge_level: 'ok',
-      anchor: { x: 60, y: 66 },
+      anchor: { x: 57.1, y: 39.1 },
       metrics: { device_run: 12, device_alert: 0 },
+      primary_metric: { key: 'device_run', label: '设备运行', unit: '台', max: 12 },
     },
   ],
   dept_ranking: [
     { rank: 1, dept_id: 1, name: '骨科', category: 'surg', cmi: 1.36, surg_cnt: 280, alos: 8.6, profit: 124.6, eff_score: 94.2 },
     { rank: 2, dept_id: 2, name: '心血管内科', category: 'med', cmi: 1.42, surg_cnt: 240, alos: 9.2, profit: 86.4, eff_score: 92.8 },
-    { rank: 3, dept_id: 6, name: '神经内科', category: 'med', cmi: 1.15, surg_cnt: 96, alos: 9.8, profit: 42.8, eff_score: 89.5 },
-    { rank: 4, dept_id: 7, name: '普通外科', category: 'surg', cmi: 0.92, surg_cnt: 210, alos: 7.4, profit: 56.2, eff_score: 87.3 },
+    // 神经内科/普通外科 cmi/profit 与 §13.1 冻结表互洽（§14.1 注10）
+    { rank: 3, dept_id: 6, name: '神经内科', category: 'med', cmi: 0.94, surg_cnt: 96, alos: 9.8, profit: 38.2, eff_score: 89.5 },
+    { rank: 4, dept_id: 7, name: '普通外科', category: 'surg', cmi: 1.18, surg_cnt: 210, alos: 7.4, profit: 98.2, eff_score: 87.3 },
     { rank: 5, dept_id: 5, name: '儿科', category: 'med', cmi: 0.68, surg_cnt: 0, alos: 4.8, profit: 28.4, eff_score: 82.1 },
     { rank: 6, dept_id: 4, name: '神经外科', category: 'surg', cmi: 1.68, surg_cnt: 156, alos: 12.6, profit: -12.8, eff_score: 78.2 },
     { rank: 7, dept_id: 3, name: '肿瘤科', category: 'med', cmi: 1.24, surg_cnt: 88, alos: 11.2, profit: -34.6, eff_score: 76.4 },

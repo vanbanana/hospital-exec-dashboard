@@ -2,9 +2,9 @@
 import { api } from './client'
 import type { AuthProfileResp, HospitalProfileResp } from './types'
 
-/** §2.1 GET /auth/profile */
-export function getAuthProfile() {
-  return api<AuthProfileResp>('auth/profile')
+/** §2.1 GET /auth/profile（?role= 切换演示上下文，枚举外后端回 10001） */
+export function getAuthProfile(role?: string) {
+  return api<AuthProfileResp>('auth/profile', role ? { role } : {})
 }
 
 /** §2.2 GET /hospital/profile */

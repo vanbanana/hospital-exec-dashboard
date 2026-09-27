@@ -5,12 +5,12 @@ const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', 
 
 const OUTPATIENT: Omit<MedicalResp, 'tab' | 'range'> = {
   stats: [
-    { label: '门急诊总人次', value: '123,000', delta: '+3.6%', dir: 'up' },
-    { label: '普通门诊', value: '81,900', delta: '+2.1%', dir: 'up' },
-    { label: '专家门诊', value: '29,800', delta: '+6.4%', dir: 'up' },
-    { label: '急诊人次', value: '11,300', delta: '+4.2%', dir: 'up' },
-    { label: '次均费用', value: '300', unit: '元', delta: '+1.8%', dir: 'up' },
-    { label: '平均候诊', value: '18', unit: '分钟', delta: '-3分钟', dir: 'down' },
+    { label: '门急诊总人次', value: '123,000', delta: '+3.6%', dir: 'up', delta_label: '较上月' },
+    { label: '普通门诊', value: '81,900', delta: '+2.1%', dir: 'up', delta_label: '较上月' },
+    { label: '专家门诊', value: '29,800', delta: '+6.4%', dir: 'up', delta_label: '较上月' },
+    { label: '急诊人次', value: '11,300', delta: '+4.2%', dir: 'up', delta_label: '较上月' },
+    { label: '次均费用', value: '300', unit: '元', delta: '+1.8%', dir: 'up', delta_label: '较上月' },
+    { label: '平均候诊', value: '18', unit: '分钟', delta: '-3分钟', dir: 'down', delta_label: '较上月' },
   ],
   trend: {
     title: '门急诊人次趋势',
@@ -52,11 +52,11 @@ const OUTPATIENT: Omit<MedicalResp, 'tab' | 'range'> = {
 const INPATIENT: Omit<MedicalResp, 'tab' | 'range'> = {
   stats: [
     { label: '在院人数', value: '1,846', note: '当前实时' },
-    { label: '本月出院', value: '8,120', delta: '+5.1%', dir: 'up' },
-    { label: '床位使用率', value: '92.1', unit: '%', delta: '+1.2%', dir: 'up' },
-    { label: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down' },
-    { label: '床位周转次数', value: '4.0', delta: '+0.2', dir: 'up' },
-    { label: '次均住院费用', value: '13,000', unit: '元', delta: '+2.4%', dir: 'up' },
+    { label: '本月出院', value: '8,120', delta: '+5.1%', dir: 'up', delta_label: '较上月' },
+    { label: '床位使用率', value: '92.1', unit: '%', delta: '+1.2%', dir: 'up', delta_label: '较上月' },
+    { label: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down', delta_label: '较上月' },
+    { label: '床位周转次数', value: '4.0', delta: '+0.2', dir: 'up', delta_label: '较上月' },
+    { label: '次均住院费用', value: '13,000', unit: '元', delta: '+2.4%', dir: 'up', delta_label: '较上月' },
   ],
   trend: {
     title: '出院人数趋势',
@@ -97,12 +97,12 @@ const INPATIENT: Omit<MedicalResp, 'tab' | 'range'> = {
 
 const SURGERY: Omit<MedicalResp, 'tab' | 'range'> = {
   stats: [
-    { label: '本月手术台次', value: '1,286', delta: '+4.8%', dir: 'up' },
-    { label: '三四级手术占比', value: '58.6', unit: '%', delta: '+2.2%', dir: 'up' },
-    { label: '微创手术占比', value: '42.3', unit: '%', delta: '+3.1%', dir: 'up' },
-    { label: '择期手术', value: '1,048', delta: '+5.2%', dir: 'up' },
-    { label: '急诊手术', value: '238', delta: '+3.1%', dir: 'up' },
-    { label: '手术间利用率', value: '86.4', unit: '%', delta: '+1.6%', dir: 'up' },
+    { label: '本月手术台次', value: '1,286', delta: '+4.8%', dir: 'up', delta_label: '较上月' },
+    { label: '三四级手术占比', value: '58.6', unit: '%', delta: '+2.2%', dir: 'up', delta_label: '较上月' },
+    { label: '微创手术占比', value: '42.3', unit: '%', delta: '+3.1%', dir: 'up', delta_label: '较上月' },
+    { label: '择期手术', value: '1,048', delta: '+5.2%', dir: 'up', delta_label: '较上月' },
+    { label: '急诊手术', value: '238', delta: '+3.1%', dir: 'up', delta_label: '较上月' },
+    { label: '手术间利用率', value: '86.4', unit: '%', delta: '+1.6%', dir: 'up', delta_label: '较上月' },
   ],
   trend: {
     title: '手术台次趋势',

@@ -4,12 +4,12 @@ import type { QualityResp } from '../api/types'
 /** §10.1 GET /workbench/quality */
 export const qualityData: QualityResp = {
   stats: [
-    { label: '甲级病案率', value: '98.6', unit: '%', delta: '+0.4%', dir: 'up' },
-    { label: '院感发生率', value: '1.24', unit: '%', delta: '-0.18%', dir: 'down' },
-    { label: '危急值处理及时率', value: '99.1', unit: '%', delta: '+0.3%', dir: 'up' },
+    { label: '甲级病案率', value: '98.6', unit: '%', delta: '+0.4%', dir: 'up', delta_label: '较上月' },
+    { label: '院感发生率', value: '1.24', unit: '%', delta: '-0.18%', dir: 'down', delta_label: '较上月' },
+    { label: '危急值处理及时率', value: '99.1', unit: '%', delta: '+0.3%', dir: 'up', delta_label: '较上月' },
     { label: '不良事件上报', value: '36', unit: '起', note: '百床 1.95 起' },
-    { label: 'I类切口感染率', value: '0.38', unit: '%', delta: '-0.06%', dir: 'down' },
-    { label: '抗菌药物使用强度', value: '36.2', unit: 'DDDs', delta: '-2.1', dir: 'down' },
+    { label: 'I类切口感染率', value: '0.38', unit: '%', delta: '-0.06%', dir: 'down', delta_label: '较上月' },
+    { label: '抗菌药物使用强度', value: '36.2', unit: 'DDDs', delta: '-2.1', dir: 'down', delta_label: '较上月' },
   ],
   infection_trend: {
     unit: '%',

@@ -4,12 +4,12 @@ import type { ResearchResp } from '../api/types'
 /** §8.1 GET /workbench/research */
 export const researchData: ResearchResp = {
   stats: [
-    { label: '在研课题', value: '186', unit: '项', delta: '+12项', dir: 'up' },
-    { label: '年度新立项', value: '42', unit: '项', delta: '+6项', dir: 'up' },
-    { label: '科研经费', value: '3,480', unit: '万元', delta: '+18.2%', dir: 'up' },
-    { label: 'SCI 论文', value: '98', unit: '篇', delta: '+14篇', dir: 'up' },
+    { label: '在研课题', value: '186', unit: '项', delta: '+12项', dir: 'up', delta_label: '较去年' },
+    { label: '年度新立项', value: '42', unit: '项', delta: '+6项', dir: 'up', delta_label: '较去年' },
+    { label: '科研经费', value: '3,480', unit: '万元', delta: '+18.2%', dir: 'up', delta_label: '较去年' },
+    { label: 'SCI 论文', value: '98', unit: '篇', delta: '+14篇', dir: 'up', delta_label: '较去年' },
     { label: '住培学员', value: '312', unit: '人', note: '首次结业率 96.2%' },
-    { label: '继教覆盖率', value: '98.4', unit: '%', delta: '+0.8%', dir: 'up' },
+    { label: '继教覆盖率', value: '98.4', unit: '%', delta: '+0.8%', dir: 'up', delta_label: '较去年' },
   ],
   project_trend: {
     unit: '万元',

@@ -6,7 +6,7 @@
       <img class="hdr-logo" src="../../assets/workbench/hospital_logo.png" alt="院徽" />
       <div class="hdr-title">
         <h1>{{ hospitalName }}</h1>
-        <span class="hdr-sub">HOSPITAL EXECUTIVE COMMAND CENTER</span>
+        <span class="hdr-sub">{{ englishName }}</span>
       </div>
       <div class="hdr-tail"></div>
     </div>
@@ -88,12 +88,17 @@ const adaptTitle = computed(() =>
   adapt?.adaptMode.value === 'fill' ? '全屏智能铺满（无黑边），点击切换' : '等比居中（16:9 标准），点击切换'
 )
 
-/* 院名走 hospital/profile（契约 §2.2），失败回退默认名——大屏不阻断 */
+/* 院名/英文副标走 hospital/profile（契约 §2.2），失败回退兜底文案——大屏不阻断；
+   兜底值属品牌文案（frontend-api §15 豁免登记 C20），非契约字段 */
 const hospitalName = ref('XX市人民医院')
+const englishName = ref('HOSPITAL EXECUTIVE COMMAND CENTER')
 onMounted(() => {
   getHospitalProfile()
-    .then((d) => { if (d?.name) hospitalName.value = d.name })
-    .catch(() => { /* 失败保留默认院名，大屏无 error 态 */ })
+    .then((d) => {
+      if (d?.name) hospitalName.value = d.name
+      if (d?.english_name) englishName.value = d.english_name
+    })
+    .catch(() => { /* 失败保留默认院名/副标，大屏无 error 态 */ })
 })
 
 /* 屏显时钟：server_time(+08:00) 按字面墙钟渲染——解析字段后以 UTC 构造/读出，

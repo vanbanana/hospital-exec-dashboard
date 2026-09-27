@@ -9,12 +9,12 @@ import type { HrResp } from '../api/types'
 export function getHrMock(_range?: string): HrResp {
   return {
     stats: [
-      { label: '在岗职工', value: '2,368', delta: '+0.4%', dir: 'up' },
-      { label: '执业医师', value: '812', delta: '+1.8%', dir: 'up' },
-      { label: '注册护士', value: '1,046', delta: '+2.2%', dir: 'up' },
+      { label: '在岗职工', value: '2,368', delta: '+0.4%', dir: 'up', delta_label: '较上月' },
+      { label: '执业医师', value: '812', delta: '+1.8%', dir: 'up', delta_label: '较上月' },
+      { label: '注册护士', value: '1,046', delta: '+2.2%', dir: 'up', delta_label: '较上月' },
       { label: '医护比', value: '1 : 1.29', note: '目标 ≥1:1.25' },
-      { label: '高级职称占比', value: '12.0', unit: '%', delta: '+0.6%', dir: 'up' },
-      { label: '人员经费占比', value: '32.5', unit: '%', delta: '+1.1%', dir: 'up' },
+      { label: '高级职称占比', value: '12.0', unit: '%', delta: '+0.6%', dir: 'up', delta_label: '较上月' },
+      { label: '人员经费占比', value: '32.5', unit: '%', delta: '+1.1%', dir: 'up', delta_label: '较上月' },
     ],
     structure: {
       unit: '%',

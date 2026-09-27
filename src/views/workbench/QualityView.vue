@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="质量与安全" sub="核心制度 · 院感监测 · 不良事件 · 数据截至 2026-10-28">
+    <WbPageHead title="质量与安全" :sub="`核心制度 · 院感监测 · 不良事件 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
@@ -20,7 +20,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">院感发生率趋势</h3>
-          <span class="wb-panel-sub">对照控制目标 2.0%</span>
+          <span class="wb-panel-sub">对照控制目标 {{ infection?.target }}{{ infection?.unit ?? '%' }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="infectionOption" />
@@ -30,7 +30,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">不良事件类型分布</h3>
-          <span class="wb-panel-sub">本年累计上报 {{ adverseTotal }} 起</span>
+          <span class="wb-panel-sub">{{ range }}累计上报 {{ adverseTotal }} {{ adverse?.unit ?? '起' }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="eventOption" />
@@ -41,7 +41,7 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">医疗核心制度执行监测</h3>
-        <span class="wb-panel-sub">本月抽查结果</span>
+        <span class="wb-panel-sub">{{ range }}抽查结果</span>
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="rulesTable.columns" :rows="rulesTable.rows" row-key="name" />
@@ -74,9 +74,11 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getQuality } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { QualityResp } from '../../api/types'
 
 // 契约 §10.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
+const systemDate = useSystemDate()
 const range = ref('本年')
 
 // 五态取数经 useAsyncData（frontend-architecture §10.1）

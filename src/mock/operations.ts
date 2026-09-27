@@ -1,5 +1,6 @@
 // 运营管理数据包 — api-contract §6.1 示例锚定（range=本年）
 import type { OperationsResp, RangeKey } from '../api/types'
+import { DELTA_LABEL } from './labels'
 
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 const INCOME = [8950, 8060, 10800, 11650, 12450, 12980, 13940, 13550, 13080, 14800, 14240, 13720]
@@ -37,12 +38,12 @@ export function getOperationsMock(range?: string): OperationsResp {
   const f = sumRange(INCOME, r) / sumRange(INCOME, '本年')
   return {
     stats: [
-      { label: '医疗总收入', value: fmt(sumRange(INCOME, r)), unit: '万元', delta: '+2.9%', dir: 'up' },
-      { label: '门诊收入', value: scaleWan('30,065', f), unit: '万元', delta: '+1.8%', dir: 'up' },
-      { label: '住院收入', value: scaleWan('85,385', f), unit: '万元', delta: '+3.6%', dir: 'up' },
-      { label: '收支结余率', value: '4.2', unit: '%', delta: '+0.4%', dir: 'up' },
-      { label: '次均门诊费用', value: '300', unit: '元', delta: '+1.8%', dir: 'up' },
-      { label: '次均住院费用', value: '13,000', unit: '元', delta: '+2.4%', dir: 'up' },
+      { label: '医疗总收入', value: fmt(sumRange(INCOME, r)), unit: '万元', delta: '+2.9%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '门诊收入', value: scaleWan('30,065', f), unit: '万元', delta: '+1.8%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '住院收入', value: scaleWan('85,385', f), unit: '万元', delta: '+3.6%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '收支结余率', value: '4.2', unit: '%', delta: '+0.4%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '次均门诊费用', value: '300', unit: '元', delta: '+1.8%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '次均住院费用', value: '13,000', unit: '元', delta: '+2.4%', dir: 'up', delta_label: DELTA_LABEL[r] },
     ],
     revenue_trend: {
       months: MONTHS,

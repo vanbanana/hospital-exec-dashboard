@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="综合概览" sub="全院运营全景 · 数据截至 2026-10-28">
+    <WbPageHead title="综合概览" :sub="`全院运营全景 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
@@ -32,7 +32,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">收入结构</h3>
-          <span class="wb-panel-sub">本年累计</span>
+          <span class="wb-panel-sub">{{ range }}累计</span>
         </div>
         <div class="wb-panel-body income-body">
           <WbEmpty v-if="!incomeData.length" text="暂无收入结构数据" />
@@ -42,7 +42,7 @@
               <li v-for="(it, i) in incomeData" :key="it.name">
                 <span class="wb-dot" :style="{ backgroundColor: wbDonutColor(i) }"></span>
                 <span class="income-name">{{ it.name }}</span>
-                <span class="income-pct wb-num">{{ it.value }}%</span>
+                <span class="income-pct wb-num">{{ it.value }}{{ incomeUnit }}</span>
               </li>
             </ul>
           </template>
@@ -116,8 +116,10 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getOverview } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { RangeKey, ToneType } from '../../api/types'
 
+const systemDate = useSystemDate()
 const range = ref('本年')
 // WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
 const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
@@ -132,6 +134,7 @@ watch(range, reload)
 const stats = computed(() => data.value?.stats ?? [])
 const trend = computed(() => data.value?.scale_revenue_trend ?? null)
 const incomeData = computed(() => data.value?.income_structure.list ?? [])
+const incomeUnit = computed(() => data.value?.income_structure.unit ?? '%')
 const shareMetric = computed(() => data.value?.dept_share_top8.metric ?? '')
 const deptShare = computed(() => data.value?.dept_share_top8.list ?? [])
 const liveItems = computed(() => data.value?.live_inpatient ?? [])

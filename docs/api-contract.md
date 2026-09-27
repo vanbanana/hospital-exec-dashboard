@@ -1215,6 +1215,7 @@
     ],
     "drg_quadrant": {
       "period": "d30",
+      "period_label": "近30日",
       "axis": { "x": "DRG盈亏(万元)", "y": "CMI" },
       "split": { "x": 0, "y": 1.0 },
       "points": [
@@ -1226,10 +1227,10 @@
       ]
     },
     "buildings": [
-      { "code": "mz", "name": "门诊楼", "status": "normal", "badge": "4,200 人", "badge_level": "info", "anchor": { "x": 32, "y": 58 }, "metrics": { "today_visit": 4200, "queue_avg_min": 18 } },
-      { "code": "wk", "name": "外科楼", "status": "busy", "badge": "96% 负荷", "badge_level": "warn", "anchor": { "x": 50, "y": 30 }, "metrics": { "bed_use_rate": 96.0, "bed_used": 192, "bed_open": 200 } },
-      { "code": "jz", "name": "急诊楼", "status": "alert", "badge": "留观超时", "badge_level": "alert", "anchor": { "x": 66, "y": 42 }, "metrics": { "obs_over6h": 3, "obs_cnt": 11, "obs_max_min": 560 } },
-      { "code": "yj", "name": "医技楼", "status": "normal", "badge": "设备正常", "badge_level": "ok", "anchor": { "x": 60, "y": 66 }, "metrics": { "device_run": 12, "device_alert": 0 } }
+      { "code": "mz", "name": "门诊楼", "status": "normal", "badge": "4,200 人", "badge_level": "info", "anchor": { "x": 24.0, "y": 36.2 }, "metrics": { "today_visit": 4200, "queue_avg_min": 18 }, "primary_metric": { "key": "queue_avg_min", "label": "候诊均时", "unit": "分", "max": 60 } },
+      { "code": "wk", "name": "外科楼", "status": "busy", "badge": "96% 负荷", "badge_level": "warn", "anchor": { "x": 51.0, "y": 23.7 }, "metrics": { "bed_use_rate": 96.0, "bed_used": 192, "bed_open": 200 }, "primary_metric": { "key": "bed_use_rate", "label": "床位使用率", "unit": "%", "max": 100 } },
+      { "code": "jz", "name": "急诊楼", "status": "alert", "badge": "留观超时", "badge_level": "alert", "anchor": { "x": 71.8, "y": 42.4 }, "metrics": { "obs_over6h": 3, "obs_cnt": 11, "obs_max_min": 560 }, "primary_metric": { "key": "obs_over6h", "label": "留观超时", "unit": "起", "max": 10 } },
+      { "code": "yj", "name": "医技楼", "status": "normal", "badge": "设备正常", "badge_level": "ok", "anchor": { "x": 57.1, "y": 39.1 }, "metrics": { "device_run": 12, "device_alert": 0 }, "primary_metric": { "key": "device_run", "label": "设备运行", "unit": "台", "max": 12 } }
     ],
     "dept_ranking": [
       { "rank": 1, "dept_id": 1, "name": "骨科", "category": "surg", "cmi": 1.36, "surg_cnt": 280, "alos": 8.6, "profit": 124.6, "eff_score": 94.2 },
@@ -1261,6 +1262,10 @@
   > 4. 告警时间字段使用 `occurred_at` ISO 格式。
   > 5. `dept_ranking.eff_score` 为展示示意值（归一公式见 §10 注），API 出参以服务端按当前分布实算为准；`rank` 序与 `cmi/profit` 事实列一致即可。
   > 6. **屏值事实化原则**：`kpis[].value/prev_value/spark`、`buildings[].badge/metrics`、趋势 `dates/series` 等屏显数值一律由当前事实层（dwd/dws）按基准日实算得出，契约 JSON 中的字面量为**形态示例**，服务端出参允许 ±10% 采样容差；判定依据为"同一时刻 KPI 值 = spark 末点 = 楼宇徽标 = 事实层当日值"的内部一致性，而非与示例字面逐一相等。
+  > 7. `buildings[].anchor` 为**渲染后图像矩形**内的百分比坐标（x/y ∈ 0–100，相对院区底图可见区域，非容器盒）；示例值为当前底图校准值，换底图需随图重校。
+  > 8. `buildings[].primary_metric` 为楼宇主指标的**展示元数据**（`key` 指向 `metrics` 内键、`label` 中文名、`unit` 展示单位、`max` 归一量程上限）；契约缺该字段时前端不得自造展示口径（演示期 mock 必发）。
+  > 9. `drg_quadrant.period_label` 为 `period` 的可读展示文案（如 `d30`→`近30日`）；`status.level` 枚举 `normal|busy|alert`。
+  > 10. `dept_ranking`/`drg_quadrant.points` 中科室的 `cmi/profit` 事实列必须与 §13.1 冻结表一致（如 神经内科 cmi=0.94/profit=+38.2、普通外科 cmi=1.18/profit=+98.2），扩排行亦不得偏离冻结值。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ---

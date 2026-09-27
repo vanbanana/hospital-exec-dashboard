@@ -134,6 +134,7 @@ export interface HomeIndicator {
   value: string
   unit?: string
   delta?: string
+  delta_label?: string
   dir?: DirType
   icon?: string
   tone?: ToneType
@@ -428,9 +429,9 @@ export interface SettingsResp {
 
 /* ===== §14 辅助形态：科技大屏快照 /screen/snapshot ===== */
 
-/** 整屏运行态势（§14.1 status）；level 契约未穷举（示例 normal） */
+/** 整屏运行态势（§14.1 status）；level 枚举见 §14.1 注9 */
 export interface ScreenStatus {
-  level: string
+  level: 'normal' | 'busy' | 'alert'
   text: string
   desc: string
   alert_open: { urgent: number; major: number; minor: number }
@@ -466,6 +467,8 @@ export interface DrgPoint {
 
 export interface DrgQuadrant {
   period: string
+  /** period 的可读展示文案（如 d30→近30日），§14.1 注9；缺省由视图推导 */
+  period_label?: string
   axis: { x: string; y: string }
   /** 象限分割线：x=盈亏零点，y=CMI 基准 1.0 */
   split: { x: number; y: number }
@@ -481,10 +484,12 @@ export interface ScreenBuilding {
   status: BuildingStatus
   badge: string
   badge_level: BuildingBadgeLevel
-  /** 院区图锚点，百分比坐标（left/top %） */
+  /** 院区图锚点：渲染后图像矩形内百分比坐标（§14.1 注7，非容器盒；换底图需重校） */
   anchor: { x: number; y: number }
   /** 楼宇级指标包，键集随楼种（frontend-api §15 末表） */
   metrics: Record<string, number>
+  /** 主指标展示元数据（§14.1 注8）：key 指向 metrics 内键；缺席时楼宇行降级为名称+badge */
+  primary_metric?: { key: string; label: string; unit: string; max: number }
 }
 
 export interface DeptRankItem {

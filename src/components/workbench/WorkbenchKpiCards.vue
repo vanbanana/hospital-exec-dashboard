@@ -12,6 +12,8 @@
     </template>
     <WbEmpty v-else-if="!items.length" class="state-span" text="暂无 KPI 数据" />
     <WbStaleTag v-if="stale" class="state-span" :loading="loading" @retry="reload" />
+    <!-- §3.1 period 角标:统计口径消费契约字段 -->
+    <div v-if="data?.period" class="kpi-period-tag state-span">统计口径：{{ data.period }}</div>
     <div
       v-for="card in items"
       :key="card.key"
@@ -98,6 +100,13 @@ const TONE_BG: Record<ToneType, string> = {
 
 .state-span {
   grid-column: 1 / -1;
+}
+
+.kpi-period-tag {
+  justify-self: end;
+  font-size: var(--wb-fs-xs);
+  color: var(--wb-text-3);
+  letter-spacing: var(--wb-ls-sm);
 }
 
 .kpi-card {

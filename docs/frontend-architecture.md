@@ -49,12 +49,15 @@ src/
 │   ├── client.ts                   # api<T>(key, params) 统一取数入口：查 mockResolvers 注册表，
 │   │                               #   120ms 模拟延迟 + 深拷贝隔离；预留 VITE_USE_MOCK 开关位与包络拆解 TODO
 │   ├── types.ts                    # API 契约类型镜像（api-contract v2.0 全量 snake_case，522 行含 §14 屏型）
-│   ├── auth.ts                     # /auth/profile + /hospital/profile 端点函数
+│   ├── auth.ts                     # /auth/profile(?role=) + /hospital/profile 端点函数；getAuthProfile(role?) 透传 ?role=
 │   ├── workbench.ts                # 工作台 18 个端点函数（§3 首页 ×7 + §4~§13 业务页 ×11）
 │   ├── screen.ts                   # /screen/snapshot 端点函数
-│   └── useAsyncData.ts             # 取数五态 composable：{ data, loading, error, stale, reload } + ApiError（§10）
+│   ├── useAsyncData.ts             # 取数五态 composable：{ data, loading, error, stale, reload } + ApiError（§10）
+│   └── useSystemDate.ts            # 页头"数据截至"共享 system_date（auth/profile 单请求，chrome 级兜底基准日）
 ├── mock/                           # 契约形状 Mock 数据源（15 文件）
 │   ├── index.ts                    # mockResolvers 端点注册表：key = 契约端点路径，21 条全量注册
+│   │                               #   index.ts 内联 ENUM_DOMAIN+assertParams：枚举外值抛 Error{code:10001}（§1.4-1，错误态演练）
+│   ├── labels.ts                   # delta_label 随 range 联动文案表（§1.3-3）
 │   ├── auth.ts                     # 认证与医院上下文（auth/profile + hospital/profile）
 │   ├── screen.ts                   # 大屏快照（§14.1：server_time/status/kpis/drg_quadrant/buildings/dept_ranking/alerts/trends）
 │   ├── home.ts                     # 首页 7 端点数据包（kpis/trends/top10/indicators/progress/alerts/notices）
@@ -186,7 +189,7 @@ src/
 | 区域 / 页面 | 交互元素 | 数据效果 |
 | :--- | :--- | :--- |
 | 侧栏 `WorkbenchSidebar` | 12 项 `router-link` 菜单 | 路由切换，`isActive`/`isExactActive` 驱动高亮 |
-| 顶栏 `WorkbenchHeader` | 搜索框 / 铃铛 / 院长头像区 / 日期 | 日期与角色消费 `auth/profile`（system_date+weekday+title）；铃铛角标消费 `home/alerts` 计数；搜索/头像仍为静态展示 |
+| 顶栏 `WorkbenchHeader` | 搜索框 / 铃铛 / 院长头像区 / 日期 | 日期与角色消费 `auth/profile`（system_date+weekday+title）；铃铛角标消费 `home/alerts` 计数；头像区点击展开角色下拉（`available_roles`，选中经 `?role=` 重取切上下文）；搜索仍为禁用静态展示 |
 | 侧栏 `WorkbenchSidebar` | 品牌区 / 院训底纹 | 院名与英文名、座右铭消费 `hospital/profile` |
 | 首页 `WorkbenchHero` | 标语阶梯 | `hospital/profile.slogans/pillars` 驱动 |
 | 首页 `TrendChartCard` | 4 个趋势 Tab（门急诊人次 / 住院人次 / 手术台次 / 医疗收入） | 本地切换 `currentTab`，复用已取回的 `home/trends` 数据换序列 |
@@ -305,12 +308,16 @@ src/
   - `sub?: string`（选填，数据范围与统计口径说明）
 - **Slots**：
   - `default`：右侧操作插槽，通常放置时间范围分段器 `WbSeg`、条件过滤下拉或刷新按钮。
-- **用法示例**：
+- **用法示例**（页头"数据截至"不写死日期，经 `useSystemDate` 消费 `auth/profile.system_date`）：
 ```html
-<WbPageHead title="医疗业务" sub="门急诊 · 住院 · 手术明细分析 · 数据截至 2026-10-28">
+<WbPageHead title="医疗业务" :sub="`门急诊 · 住院 · 手术明细分析 · 数据截至 ${systemDate}`">
   <WbSeg v-model="bizTab" :options="['门急诊', '住院', '手术']" />
   <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
 </WbPageHead>
+```
+```ts
+const systemDate = useSystemDate()
+// 渲染为 "门急诊 · 住院 · 手术明细分析 · 数据截至 {system_date}"；取数失败回退演示基准日
 ```
 
 ### 6.2 `WbSeg.vue` — 医疗风分段控制器
@@ -328,41 +335,8 @@ src/
 ### 6.3 `WbStatStrip.vue` — 紧凑指标条
 - **定位**：单层面板横排 4~6 个关键指标，通过 `::before` 细微竖向发丝线（Hairline）分隔，**杜绝卡片并排与嵌套**。
 - **Props**：
-  - `items: WbStatItem[]`（必填）
-- **接口类型（⚠ 双声明已知缺陷，待统一为契约字段）**：
-
-`WbStatItem` 当前存在**两个同名、字段不一致**的接口：
-
-```ts
-// ① 契约层（src/api/types.ts §1.3-3，全量 snake_case，视图与 mock 均按此类型取数）
-export interface WbStatItem {
-  label: string
-  value: string | number
-  unit?: string
-  delta?: string
-  delta_label?: string   // 契约字段：变动文案说明，如 "较上月"、"同比"
-  dir?: DirType
-  icon?: string
-  tone?: ToneType
-  note?: string
-}
-```
-
-```ts
-// ② 组件层（WbStatStrip.vue 本地声明，camelCase 差异 + 字段子集）
-export interface WbStatItem {
-  label: string
-  value: string | number
-  unit?: string
-  delta?: string
-  dir?: 'up' | 'down' | 'flat'
-  deltaLabel?: string    // 驼峰字段，与契约 delta_label 不匹配
-  note?: string          // 未声明契约的 icon/tone 字段
-}
-```
-
-- **缺陷表现**：mock 按契约下发 `delta_label`，组件渲染 `item.deltaLabel`，二者静默失配——契约下发的变动文案**永远渲染不出**，恒回落缺省值「较上月」；`icon`/`tone` 在指标条内同样不可达。
-- **统一方向**：删除组件本地接口，改为从 `src/api/types` 导入契约 `WbStatItem`，模板渲染 `delta_label`（待办，见 §13）。
+  - `items: WbStatItem[]`（必填，契约 §1.3-3 类型——组件已收敛为从 `src/api/types` 导入，单一事实源）
+- **渲染约定**：`delta`/`note` 二选一展示；`delta_label`（契约可选字段，mock 已按口径下发）缺失时兜底「较上月」；`dir` 三态驱动箭头与涨跌色。
 
 ### 6.4 `WbTable.vue` — 业务数据表格
 - **定位**：高信息密度、浅底色表头、支持单元格自定义插槽的高性能表格。
@@ -454,9 +428,10 @@ export interface WbStatItem {
 - 每次调用固定 `120ms` 模拟延迟；返回值为深拷贝（隔离 mock 模块单例，防消费方原地修改污染后续请求）。
 - `api()` 直返 `data` 负载，**无响应包络拆解**；`ApiEnvelope<T>` 类型已在 `types.ts` 备好，接 http 层时启用（预留 `VITE_USE_MOCK` 开关位 TODO）。
 
-**已登记例外**（两条，不走 useAsyncData）：
+**已登记例外**（三条，不走 useAsyncData）：
 - `ScreenView` 整屏自管理 loading/error/data 三态（frontend-api §15 豁免登记；顶部红条手动重连）。
 - `WorkbenchHeader`/`WorkbenchSidebar`/`WorkbenchHero` 的 `auth/profile`、`hospital/profile`、`home/alerts` 计数取数：`onMounted` 内 `await` + `.catch(() => null/0)` 兜底展示——chrome 级数据失败静默降级，不进面板五态。
+- 各业务视图页头"数据截至"：`useSystemDate()` 消费 `auth/profile.system_date`（模块级共享单次请求，顶栏与 9 个页头复用），失败静默回退演示基准日 `2026-10-28`；同属 chrome 级降级。
 
 ### 8.2 现有 12 页面数据区块清单
 
@@ -465,12 +440,12 @@ export interface WbStatItem {
 | **首页** | `/workbench` | `workbench/home/*`（×7） | 5 张顶层 KPI 指标卡（门急诊/住院/手术/医疗总收入/在岗职工） | 业务趋势双折线图（门急诊人次/住院人次/手术台次/医疗收入 4 Tab 切换） | 科室业务量 TOP10 水平条形进度卡 | 底部运营关键指标 / 重点工作进度 / 风险预警 / 通知与待办四联卡片 |
 | **综合概览** | `/workbench/overview` | `workbench/overview` | 6 项全院核心指标条（门急诊/出院/手术/收入/床位/住院日） | 业务规模与收入双轴趋势图（门急诊柱 × 医疗收入折线） | 收入结构环形占比图（医疗/药品/耗材/检查化验 + 图例列表） | 科室服务量构成 TOP8 进度列表 + 实时在院动态列表 |
 | **医疗业务** | `/workbench/medical` | `workbench/medical` | 门急诊/住院/手术 3 Tab 动态联动指标条（各 6 项核心指标） | 近 12 个月规模趋势平滑面积折线图（随 Tab 切换人次/台数） | 业务特征分布图（门急诊分时高峰柱 / 住院重点病种柱 / 手术分级环形） | 科室医疗业务明细表（WbTable，按当前 Tab 口径排序展示） |
-| **运营管理** | `/workbench/operations` | `workbench/operations` | 6 项收支与费用指标条（医疗总收入/门诊/住院/结余率/次均费用） | 月度收支趋势双轴图（12 个月医疗收入柱 × 收支结余率折线） | 费用控制监测（药耗比、次均费用等 4 项指标对标红线值进度条列表） | 科室运营指标表格（WbTable，收入/结余率/药占比/耗材占比/达标状态） |
-| **人力资源** | `/workbench/hr` | `workbench/hr` | 6 项人力资源指标条（在岗职工/执业医师/护士/医护比/高职占比/人员经费） | 人员构成环形占比图（按岗位类别 + 结构明细列表） | 职称结构堆叠柱状图（医师/护理/医技分段梯队） | 重点科室人员配置表（WbTable，编制 vs 在岗、床人比、缺口预警） |
-| **科研教学** | `/workbench/research` | `workbench/research` | 6 项科教指标条（在研课题/新立项/科研经费/SCI论文/住培/继教率） | 近 5 年立项课题与科研经费双轴图（课题数柱 × 经费折线） | 近 5 年论文发表分级堆叠柱状图（SCI / 中文核心 / 统计源期刊） | 重点学科建设进展表（WbTable，学科级别/带头人/课题/经费/进展） |
+| **运营管理** | `/workbench/operations` | `workbench/operations` | 6 项收支与费用指标条（医疗总收入/门诊/住院/结余率/次均费用） | 月度收支趋势双轴图（12 个月医疗收入/医疗成本双柱 × 收支结余率折线） | 费用控制监测（药耗比、次均费用等 4 项指标对标红线值进度条列表） | 科室运营指标表格（WbTable，收入/结余率/药占比/耗材占比/达标状态） |
+| **人力资源** | `/workbench/hr` | `workbench/hr` | 6 项人力资源指标条（在岗职工/执业医师/护士/医护比/高职占比/人员经费） | 人员构成环形占比图（按岗位类别 + 结构明细列表） | 职称结构堆叠柱状图（categories 岗位轴分段梯队） | 重点科室人员配置表（WbTable，编制 vs 在岗、床人比、缺口预警） |
+| **科研教学** | `/workbench/research` | `workbench/research` | 6 项科教指标条（在研课题/新立项/科研经费/SCI论文/住培/继教率） | 近 5 年立项课题与科研经费双轴图（国家级/省部级堆叠柱 × 经费折线） | 论文分区构成柱状图（一区 Top~四区 / 中文核心） | 重点学科建设进展表（WbTable，学科级别/带头人/课题/经费/进展） |
 | **患者服务** | `/workbench/patient` | `workbench/patient` | 6 项患者服务指标条（门诊/住院满意度、投诉/表扬件数、候诊时长、网约率） | 满意度趋势近 6 个月双折线走势图（门诊 vs 住院） | 挂号渠道分布环形占比图（微信小程序/自助机/人工窗口等） | 投诉与表扬记录台账表（WbTable，日期/科室/类型/诉求/状态） |
 | **质量与安全** | `/workbench/quality` | `workbench/quality` | 6 项质量安全指标条（甲级病案率/院感率/危急值及时率/不良事件/切口感染/抗生素强度） | 院感发生率趋势平滑双折线图（院感发生率 + I类切口感染率） | 不良事件类型分布水平条形图（跌倒/用药/管路等按频次排序） | 医疗核心制度执行监测表（WbTable，8 项核心制度抽查合格率与环比） |
-| **资产与后勤** | `/workbench/assets` | `workbench/assets` | 6 项资产后勤指标条（固定资产总额/大型设备/开机率/库存周转/能耗/工单） | 月度能耗费用平滑折线面积图（近 6 个月趋势） | 物资库存预警列表（周转天数偏长品类与警戒级别标注） | 大型设备使用效益表（WbTable，CT/MRI/DSA 等机时/人次/收入/评级） |
+| **资产与后勤** | `/workbench/assets` | `workbench/assets` | 6 项资产后勤指标条（固定资产总额/大型设备/开机率/库存周转/能耗/工单） | 月度能耗分项堆叠柱 + 合计折线（电/水/气，近 6 个月） | 物资库存预警列表（周转天数偏长品类与警戒级别标注） | 大型设备使用效益表（WbTable，CT/MRI/DSA 等机时/人次/收入/评级） |
 | **对比分析** | `/workbench/compare` | `workbench/compare` | 科室横向对比表（WbTable，业务量/收入/效率/质量 4 维度分段器切换，内嵌水平条形） | 与区域同级医院对标雷达图（6 维度综合评分：本院 vs 区域均值） | 核心指标对标明细表（WbTable，本院值/区域均值/差距差额） | —（本页无顶部 WbStatStrip 指标条，亦无柱状图） |
 | **专题分析** | `/workbench/topics` | `workbench/topics` | 4 类专题动态切换专属 5 项指标条（DRG / 医保 / 国考 / 门诊统筹） | 专题趋势与分布分析图（DRG入组率线图 / 医保支出线图 / 国考完成度柱图 / 门诊统筹人次线图） | 专题明细数据监测表（WbTable，重点病组DRG / 险种基金 / 国考核心指标 / 常见慢病统筹） | 4 类专题卡片导航选择器（DRG付费 / 医保基金 / 三级国考 / 门诊统筹） |
 | **系统设置** | `/workbench/settings` | `workbench/settings/config` | 数据源管理表格（WbTable，HIS/LIS/PACS/EMR/HRP 对接状态、延迟与同步时间） | 指标预警阈值配置表（WbTable，5 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |

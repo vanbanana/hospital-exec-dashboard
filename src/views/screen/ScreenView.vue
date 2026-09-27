@@ -9,7 +9,8 @@
       <div v-else-if="error" class="screen-state">
         <div class="error-bar"></div>
         <span class="state-text error">数据链路中断</span>
-        <span class="state-sub">{{ error }}</span>
+        <span class="state-sub">{{ error.message }}</span>
+        <span class="state-sub">code {{ error.code }} · trace {{ error.trace_id }}</span>
         <button class="retry-btn" type="button" @click="load">重新连接</button>
       </div>
       <template v-else>
@@ -47,19 +48,21 @@ import ScrAlertFeed from '../../components/screen/ScrAlertFeed.vue'
 import ScrTrendTabs from '../../components/screen/ScrTrendTabs.vue'
 import ScrBuildingBars from '../../components/screen/ScrBuildingBars.vue'
 import { getScreenSnapshot } from '../../api/screen'
+import { toApiError, type ApiError } from '../../api/useAsyncData'
 import type { ScreenSnapshotResp } from '../../api/types'
 
 const snap = ref<ScreenSnapshotResp>()
 const loading = ref(true)
-const error = ref('')
+// 错误态保留 code/trace_id（error-codes §1 包络形状），不再只存 message 字符串
+const error = ref<ApiError | null>(null)
 
 async function load() {
   loading.value = true
-  error.value = ''
+  error.value = null
   try {
     snap.value = await getScreenSnapshot()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '未知错误'
+    error.value = toApiError(e)
   } finally {
     loading.value = false
   }

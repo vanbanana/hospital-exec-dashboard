@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="对比分析" sub="科室横向对比 · 区域对标 · 数据截至 2026-10-28">
+    <WbPageHead title="对比分析" :sub="`科室横向对比 · 区域对标 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="dim" :options="['业务量', '收入', '效率', '质量']" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
@@ -19,7 +19,7 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">科室横向对比</h3>
-        <span class="wb-panel-sub">当前维度：{{ dim }} · 按月排序</span>
+        <span class="wb-panel-sub">当前维度：{{ dim }} · 按{{ range }}排序</span>
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="table.columns" :rows="table.rows" row-key="dept">
@@ -84,8 +84,10 @@ import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import { wbAlpha, wbChart, wbChartFs, wbPalette, wbTooltip } from '../../components/workbench/chartPresets'
 import { getCompare } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { CompareDim, RangeKey, WbTableColumn, WbTableData } from '../../api/types'
 
+const systemDate = useSystemDate()
 const dim = ref('业务量')
 const range = ref('本月')
 // WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)

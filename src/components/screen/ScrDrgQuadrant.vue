@@ -23,9 +23,12 @@ import type { DrgPoint, DrgQuadrant } from '../../api/types'
 
 const props = defineProps<{ data?: DrgQuadrant }>()
 
-const subText = computed(() =>
-  props.data ? `近${props.data.period.slice(1)}日 · 气泡=病例数` : ''
-)
+/* period_label 为契约可读文案（§14.1 注9）；缺省回退 dNN→近N日 推导 */
+const subText = computed(() => {
+  const d = props.data
+  if (!d) return ''
+  return `${d.period_label ?? `近${d.period.slice(1)}日`} · 气泡=病例数`
+})
 
 const option = ref<echarts.EChartsOption>()
 

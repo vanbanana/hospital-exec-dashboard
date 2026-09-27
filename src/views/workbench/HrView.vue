@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="人力资源" sub="人员结构 · 职称梯队 · 科室配置 · 数据截至 2026-10-28">
+    <WbPageHead title="人力资源" :sub="`人员结构 · 职称梯队 · 科室配置 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
@@ -31,7 +31,7 @@
                 <span class="wb-dot" :style="{ backgroundColor: wbDonutColor(i) }"></span>
                 <span class="structure-name">{{ it.name }}</span>
                 <span class="structure-cnt wb-num">{{ it.count }}</span>
-                <span class="structure-pct wb-num">{{ it.value }}%</span>
+                <span class="structure-pct wb-num">{{ it.value }}{{ structureUnit }}</span>
               </li>
             </ul>
           </template>
@@ -56,8 +56,9 @@
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="staffing.columns" :rows="staffing.rows" row-key="dept">
-          <template #cell-gap="{ value }">
-            <span :class="{ 'gap-warn': Number(value) > 5 }" class="wb-num">{{ value }}</span>
+          <template #cell-gap="{ value, row }">
+            <!-- 缺口标色由契约 status 枚举驱动(充足/紧张/紧缺),不自造阈值 -->
+            <span :class="{ 'gap-warn': row.status !== '充足' }" class="wb-num">{{ value }}</span>
           </template>
           <template #cell-status="{ value }">
             <span class="wb-tag" :class="value === '充足' ? 'is-green' : value === '紧张' ? 'is-amber' : 'is-red'">
@@ -95,8 +96,10 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getHr } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { RangeKey, WbTableData } from '../../api/types'
 
+const systemDate = useSystemDate()
 const range = ref('本年')
 // WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
 const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
@@ -110,6 +113,7 @@ watch(range, reload)
 
 const stats = computed(() => data.value?.stats ?? [])
 const structureData = computed(() => data.value?.structure.list ?? [])
+const structureUnit = computed(() => data.value?.structure.unit ?? '%')
 const titles = computed(() => data.value?.titles ?? null)
 const staffing = computed((): WbTableData => data.value?.dept_staffing ?? { columns: [], rows: [] })
 

@@ -4,11 +4,11 @@ import type { AssetsResp } from '../api/types'
 /** §11.1 GET /workbench/assets */
 export const assetsData: AssetsResp = {
   stats: [
-    { label: '固定资产总额', value: '12.6', unit: '亿元', delta: '+3.2%', dir: 'up' },
+    { label: '固定资产总额', value: '12.6', unit: '亿元', delta: '+3.2%', dir: 'up', delta_label: '较上月' },
     { label: '大型设备', value: '68', unit: '台', note: '单价 ≥100 万' },
-    { label: '设备开机率', value: '94.2', unit: '%', delta: '+1.2%', dir: 'up' },
-    { label: '库存周转天数', value: '28', unit: '天', delta: '+3天', dir: 'up' },
-    { label: '本月能耗费用', value: '186', unit: '万元', delta: '-2.4%', dir: 'down' },
+    { label: '设备开机率', value: '94.2', unit: '%', delta: '+1.2%', dir: 'up', delta_label: '较上月' },
+    { label: '库存周转天数', value: '28', unit: '天', delta: '+3天', dir: 'up', delta_label: '较上月' },
+    { label: '本月能耗费用', value: '186', unit: '万元', delta: '-2.4%', dir: 'down', delta_label: '较上月' },
     { label: '后勤工单', value: '156', unit: '单', note: '完结率 92%' },
   ],
   energy_trend: {

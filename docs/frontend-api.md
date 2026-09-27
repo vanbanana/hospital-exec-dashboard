@@ -34,6 +34,7 @@
 - 统一取数入口：`api<T>(key, params)`（`src/api/client.ts`），`key` = 契约端点路径去掉前导 `/`（如 `'workbench/overview'`）。
 - 工作台端点均有薄封装函数（`src/api/workbench.ts`），视图**不直接调 `api()`**，经封装函数取数。
 - Mock 解析层：`src/mock/index.ts` 的 `mockResolvers` 注册表（key → resolver），模拟延迟 120 ms，返回前深拷贝隔离。
+- **Mock 参数校验**：带参 resolver 对枚举外取值抛 `Error{ code: 10001 }`（`src/mock/index.ts` 内 `ENUM_DOMAIN`/`assertParams`，对齐契约 INVALID_PARAM），`useAsyncData.toApiError` 透传 `code` 到错误面板——五态的 error/retry 路径在 mock 期即可演练；缺省值与合法值照常返回。
 - `api()` 当前已**拆包直返 `data`**；接 http 层后由拦截器统一拆 `ApiEnvelope` 并映射错误码（`error-codes.md` §4），视图层不改字段。
 
 ---
@@ -149,16 +150,18 @@
 
 **前端消费位置**
 
-- `src/components/workbench/WorkbenchHeader.vue`——头像、角色名、日期行、铃铛告警角标（复用 `workbench/home/alerts` 计数）。
-- 角色切换下拉（待建）：消费 `available_roles`，切换后驱动全局视角（科主任视角见各业务页 `dept_id` 联动，契约 §16-2）。
+- `src/api/auth.ts`——`getAuthProfile(role?)` 透传 `?role=`。
+- `src/components/workbench/WorkbenchHeader.vue`——头像、`user.title`、日期行（`system_date`+`weekday`）、铃铛告警角标（复用 `workbench/home/alerts` 计数）；头像区点击展开角色下拉（消费 `available_roles` 的 `name`/`scope`），选中即经 `?role=` 重取切换上下文。
+- 各业务视图 `WbPageHead`——`system_date` 经 `useSystemDate()`（`src/api/useSystemDate.ts`，模块级共享单次请求）渲"数据截至"后缀；chrome 级取数，失败静默回退演示基准日 `2026-10-28`，不进页面五态。
+- 取回未渲：`user.id`、`user.username`、`user.real_name`、`user.dept_name`（演示期 UI 无落位，登记备查）。
 
 **空态与错误态**
 
 - `data=null` / `code=20001`：头部降级为只读默认身份展示（演示期不跳登录页）。
-- `role` 非法 → `code=10001`：忽略参数，保持当前身份。
+- `role` 非法 → `code=10001`：resolver 抛错走五态错误路径（演示期可演练非法参数分支）。
 - 可返回错误码：`10001`、`20001`。
 
-**mock key**：`auth/profile`
+**mock key**：`auth/profile`（resolver 按 `role` 返回对应角色档案）
 
 ### 2.2 `GET /hospital/profile`
 
@@ -421,6 +424,8 @@
 
 > `range=本年` 时 `stats` 累计值与 `scale_revenue_trend` 前 10 个月求和严格相等（契约 §4.1 注1）。
 
+> **实现注记**：`scale_revenue_trend` 副标轴名消费 `units.revenue`；`income_structure` 环图 tooltip 与图例后缀均消费 `unit`；收入结构面板"…累计"口径文案随视图 `range` 状态派生（mock 期该块为恒等快照，不随 range 分档）。
+
 **前端消费位置**：`src/views/workbench/OverviewView.vue` ← `getOverview(range)`；`watch(range)` 重取。
 
 **空态与错误态**
@@ -519,6 +524,8 @@
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `dept/income/cost/balance/margin/drug_ratio/mat_ratio` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | 行对象；金额列为万元字符串 |
 
+> **实现注记**：`revenue_trend` 渲为 `income` 柱 + `cost` 虚线（万元，同轴）+ `balance/income` 推导结余率折线（%，右轴）；科室表副标"{range} · 按医疗收入排序"随 `range` 派生。
+
 **前端消费位置**：`src/views/workbench/OperationsView.vue` ← `getOperations(range)`
 
 **空态与错误态**
@@ -556,6 +563,8 @@
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `dept/quota/actual/doctor/nurse/ratio/gap/status` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `status` ∈ `充足`/`紧张`/`紧缺`；`ratio` 可现 `"—"`（麻醉科），直渲 |
 
+> **实现注记**：`gap` 列警示色按同行 `status` 枚举判定（非 `充足` 即告警），不另设数值阈值；`structure` 环图 tooltip/图例后缀消费 `unit`；`titles` 面板副标直渲 `categories`。
+
 **前端消费位置**：`src/views/workbench/HrView.vue` ← `getHr(range)`
 
 **空态与错误态**
@@ -592,6 +601,8 @@
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `name/level/leader/projects/funds/papers/transfer` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `funds`/`transfer` 为万元字符串 |
 
+> **实现注记**：`project_trend` 渲为 `national`/`provincial` 堆叠双柱（项，左轴）+ `funds` 经费折线（右轴，副标单位消费 `unit`）；`paper_distribution.categories` 直渲面板副标；`disciplines` 副标为固定分层文案（`level` 枚举按行渲染于表格）。柱侧计数单位`项`无契约字段（视图内展示字面量），待契约补 `count_unit`。
+
 **前端消费位置**：`src/views/workbench/ResearchView.vue` ← `getResearch()`
 
 **空态与错误态**
@@ -625,6 +636,8 @@
 | `complaints_praises` | object | — | 否 | 投诉表扬流水表 |
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `date/type/dept/channel/content/status/score` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `status` 五态枚举 `待核实`/`处理中`/`已整改`/`已办结`/`已归档`（契约 §9.1 注2）；`date` 为 `YYYY-MM-DD` |
+
+> **实现注记**：`satisfaction_trend` 面板副标单位、`channel_distribution` 环图 tooltip 与图例后缀均消费各自 `unit` 字段；渠道面板"{range}各渠道占比"文案随页内分段器状态派生（该分段器不触发取数，契约无 `range` 参数）；流水表副标仅渲行数，不再声明时间窗（`近 30 日` 为契约外口径，已删）。
 
 **前端消费位置**：`src/views/workbench/PatientView.vue` ← `getPatient()`
 
@@ -662,6 +675,8 @@
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `name/sample/pass/rate/issues` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `rate = pass/sample*100%` 严格自洽（契约 §10.1 注3），`rate` 带 `%` 后缀直渲 |
 
+> **实现注记**：院感面板副标与 markLine 文案均消费 `infection_trend.target`+`unit`；不良事件面板"{range}累计上报 N {unit}"中单位消费 `adverse_events.unit`、口径词随页内分段器状态派生（该分段器不触发取数，契约无 `range` 参数）。
+
 **前端消费位置**：`src/views/workbench/QualityView.vue` ← `getQuality()`
 
 **空态与错误态**
@@ -694,10 +709,12 @@
 | `stock_alerts` | object[] | — | 否 | 库存预警 6 项 |
 | &nbsp;&nbsp;`name` | string | — | 否 | 物资名 |
 | &nbsp;&nbsp;`days` | number | 天 | 否 | 库存可用天数（契约 §11.1 注2） |
-| &nbsp;&nbsp;`level` | string | — | 否 | `urgent`/`major`/`minor` → 高/中/低 |
+| &nbsp;&nbsp;`level` | string | — | 否 | `urgent` → `紧急补货`（红），`major`/`minor` → `关注`（琥珀） |
 | `large_equipments` | object | — | 否 | 大型设备效益表（7 台） |
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `name/dept/count/open_rate/monthly/income/roi` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `open_rate` 纯浮点 %（`96.8`），`income` 万元字符串，`roi` ∈ `良好`/`一般`/`偏低` |
+
+> **实现注记**：`energy_trend` 渲为 `total` 面积主线 + `electricity`/`water`/`gas` 细线分量（同轴，副标单位消费 `unit`）；`large_equipments` 副标"单价 ≥100 万元设备"对齐 §11.1 口径；`open_rate` 警示色按同行 `roi=偏低` 判定，不另设数值阈值。
 
 **前端消费位置**：`src/views/workbench/AssetsView.vue` ← `getAssets()`
 
@@ -748,6 +765,8 @@
 | `table` | object | — | 否 | 科室对比榜 |
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `rank/dept/metric/yoy/outp/inpt/days/sat`；`metric` 列标题随 `dim` 变 |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | 行内另含 `bar_pct`（不在 columns 中），条形宽用；`metric` = `outp + inpt×10` 服务端实算（契约 §12.1 注4） |
+
+> **实现注记**：表副标"当前维度：{dim} · 按{range}排序"随视图 `dim`/`range` 状态派生。
 
 **前端消费位置**：`src/views/workbench/CompareView.vue` ← `getCompare(dim, range)`
 
@@ -865,7 +884,8 @@
 - **实现注记**：
   - 时钟：`ScrHeader` 以 `server_time` 为锚 + `setInterval` 本地走秒（卸载清理）；`new Date()`/`Date.now()` 仅用于走秒与 ISO 解析，为本节**白名单用法**（机械扫描豁免登记）。
   - 断线重试：顶部 error-bar 红条 + **手动**「重新连接」按钮（`ScreenView` 自管理三态，未复用 `useAsyncData`——大屏按本节豁免登记；`error-codes.md §4` 的自动重连倒计时为远期规格，当前实现以手动重试为准）。
-  - 院名：`ScrHeader` 消费 `hospital/profile.name`（经 `getHospitalProfile()`，失败回退 `XX市人民医院`）。
+  - 院名：`ScrHeader` 消费 `hospital/profile.name` + `english_name`（经 `getHospitalProfile()`，失败分别回退 `XX市人民医院` / `HOSPITAL EXECUTIVE COMMAND CENTER` 品牌兜底文案）。
+  - 错误态：`ScreenView` 自管理三态（`useAsyncData` 豁免），错误经 `toApiError` 归一为 `ApiError{code,message,trace_id}` 并在错误条展示 code/trace_id。
 
 **请求参数**：无
 
@@ -875,7 +895,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | `server_time` | string | ISO 8601 | 否 | 屏显时钟源，恒 `2026-10-28T08:30:00+08:00` |
 | `status` | object | — | 否 | 整屏运行态势 |
-| &nbsp;&nbsp;`level` | string | — | 否 | `normal` 等态势级 |
+| &nbsp;&nbsp;`level` | string | — | 否 | 态势级枚举 `normal`/`busy`/`alert`（契约 §14.1 注9） |
 | &nbsp;&nbsp;`text` | string | — | 否 | 态势文案（`运行平稳`） |
 | &nbsp;&nbsp;`desc` | string | — | 否 | 态势描述 |
 | &nbsp;&nbsp;`alert_open` | object | — | 否 | 未闭环告警计数 `{ urgent, major, minor }` |
@@ -891,6 +911,7 @@
 | &nbsp;&nbsp;`status` | string | — | 否 | `normal`/`warn` 卡片态 |
 | `drg_quadrant` | object | — | 否 | DRG 盈亏 × CMI 四象限散点 |
 | &nbsp;&nbsp;`period` | string | — | 否 | 统计窗（`d30`） |
+| &nbsp;&nbsp;`period_label` | string | — | 可 | `period` 可读文案（如 `近30日`，§14.1 注9）；`ScrDrgQuadrant` 副标消费，缺省回退 `dNN`→`近N日` 推导 |
 | &nbsp;&nbsp;`axis` | object | — | 否 | `{ x, y }` 轴名（`DRG盈亏(万元)`/`CMI`） |
 | &nbsp;&nbsp;`split` | object | — | 否 | `{ x, y }` 象限分割线（`x=0, y=1.0`） |
 | &nbsp;&nbsp;`points` | object[] | — | 否 | `{ dept_id, name, category, cmi, profit(万元), case_cnt, quadrant }` |
@@ -900,8 +921,9 @@
 | &nbsp;&nbsp;`status` | string | — | 否 | `normal`/`busy`/`alert` |
 | &nbsp;&nbsp;`badge` | string | — | 否 | 徽标文案 |
 | &nbsp;&nbsp;`badge_level` | string | — | 否 | `info`/`warn`/`alert`/`ok` |
-| &nbsp;&nbsp;`anchor` | object | — | 否 | `{ x, y }` 地图锚点 % 坐标 |
+| &nbsp;&nbsp;`anchor` | object | — | 否 | `{ x, y }` 锚点坐标——**渲染后图像矩形内 %**（x/y ∈ 0–100，相对底图可见区域，非容器盒；§14.1 注7），`ScrCampusMap` pin 直用 |
 | &nbsp;&nbsp;`metrics` | object | — | 否 | 楼宇级指标包，键随楼种（键集见本节末表） |
+| &nbsp;&nbsp;`primary_metric` | object | — | 可 | `{ key, label, unit, max }` 主指标展示元数据（§14.1 注8），`ScrBuildingBars` 消费；缺席时该行降级为名称+badge，前端不自造量程 |
 | `dept_ranking` | object[] | — | 否 | 科室效能榜 |
 | &nbsp;&nbsp;`rank` | int | — | 否 | 名次 |
 | &nbsp;&nbsp;`dept_id` | int | — | 否 | 科室 ID |
@@ -913,7 +935,7 @@
 | &nbsp;&nbsp;`profit` | number | 万元 | 否 | DRG 结余 |
 | &nbsp;&nbsp;`eff_score` | number | 分 | 否 | 效能分（服务端按分布实算，契约 §14.1 注5） |
 | `alerts` | object | — | 否 | 告警跑马灯 |
-| &nbsp;&nbsp;`total_open` | int | — | 否 | 未闭环总数（与 `alert_open` 合计一致） |
+| &nbsp;&nbsp;`total_open` | int | — | 否 | 未闭环总数（与 `alert_open` 合计一致）；`ScrAlertFeed` 面板头 `head-extra` 徽标 `未闭环 N` 消费 |
 | &nbsp;&nbsp;`list` | object[] | — | 否 | `{ id, level, title, dept, occurred_at(ISO) }` |
 | `trends` | object | — | 否 | 屏底 7 日趋势 |
 | &nbsp;&nbsp;`days` | int | — | 否 | 窗口天数 `7` |
@@ -931,7 +953,7 @@
 
 > **屏值事实化原则**（契约 §14.1 注6）：契约 JSON 字面量为形态示例，服务端出参允许 ±10% 采样容差；前端**不得**与示例字面值做等值断言，只保证"同一时刻 KPI 值 = spark 末点 = 楼宇徽标"的内部一致性渲染。
 
-**前端消费位置**：`/screen` 大屏——`ScreenLayout`（画布/缩放）→ `ScreenView`（取数与三态）→ `ScrHeader`（院名/时钟/态势）、`ScrKpiStrip`（kpis）、`ScrDrgQuadrant`（drg_quadrant）、`ScrCampusMap`（buildings）、`ScrDeptRank`（dept_ranking）、`ScrAlertFeed`（alerts）、`ScrTrendGrid`（trends）、`ScrPanel/ScrChart/scrTokens`（原语与取色）。
+**前端消费位置**：`/screen` 大屏——`ScreenLayout`（画布/缩放）→ `ScreenView`（取数与三态）→ `ScrHeader`（院名 `hospital/profile.name`+`english_name`/时钟/态势）、`ScrKpiStrip`（kpis）、`ScrDrgQuadrant`（drg_quadrant，副标用 `period_label`）、`ScrCampusMap`（buildings，`anchor` 直渲 pin）、`ScrBuildingBars`（buildings，`primary_metric` 驱动指标名/单位/量程）、`ScrDeptRank`（dept_ranking）、`ScrAlertFeed`（alerts，`total_open` 渲面板头徽标）、`ScrTrendTabs`（trends）、`ScrPanel/ScrChart/scrTokens`（原语与取色）。
 
 **空态与错误态**
 
@@ -948,7 +970,7 @@
 
 | 端点 | mock key | 消费视图/组件 | 状态 |
 | :--- | :--- | :--- | :--- |
-| `GET /auth/profile` | `auth/profile` | `WorkbenchHeader.vue`（角色切换下拉待建） | ✅ 已接入 |
+| `GET /auth/profile` | `auth/profile` | `WorkbenchHeader.vue`（含角色切换下拉）+ 各业务页页头 `useSystemDate` | ✅ 已接入 |
 | `GET /hospital/profile` | `hospital/profile` | `WorkbenchSidebar.vue` · `WorkbenchHero.vue` | ✅ 已接入 |
 | `GET /workbench/home/kpis` | `workbench/home/kpis` | `WorkbenchKpiCards.vue` | ✅ 已接入 |
 | `GET /workbench/home/trends` | `workbench/home/trends` | `TrendChartCard.vue` | ✅ 已接入 |

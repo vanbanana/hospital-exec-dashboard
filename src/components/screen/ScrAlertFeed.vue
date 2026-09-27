@@ -1,5 +1,9 @@
 <template>
   <ScrPanel title="实时告警">
+    <!-- 契约 alerts.total_open（§14.1）：未传则不渲徽标 -->
+    <template #head-extra>
+      <span v-if="total != null" class="scr-badge feed-total">未闭环 {{ total }}</span>
+    </template>
     <div v-if="items.length" ref="boxRef" class="alert-feed">
       <div class="feed-track" :class="{ 'is-scroll': scrolling }" :style="trackStyle">
         <!-- 首份为测量探针（RO 测 offsetHeight），滚动时追加副本保证轨道=单份×2 -->
@@ -100,6 +104,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 面板头未闭环徽标：.scr-badge 族紧凑灰底（无向、中性） */
+.feed-total {
+  margin-left: auto;
+  background: rgb(from var(--p-white) r g b / 0.08);
+  color: var(--scr-text-3);
+}
+
 .alert-feed {
   flex: 1;
   min-height: 0;

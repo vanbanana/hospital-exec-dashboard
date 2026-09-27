@@ -29,8 +29,8 @@
 
         <div class="action-divider"></div>
 
-        <!-- Director Profile -->
-        <div class="user-profile">
+        <!-- Director Profile：点击展开角色切换菜单(契约 §2.1 ?role= 演示上下文) -->
+        <div class="user-profile" @click="roleOpen = !roleOpen">
           <img
             :src="profile?.user.avatar || fallbackAvatar"
             alt="头像"
@@ -38,6 +38,18 @@
           />
           <span class="user-role">{{ profile?.user.title ?? '院长' }}</span>
           <ChevronDown class="dropdown-icon" :size="14" />
+          <div v-if="roleOpen" class="role-menu" @click.stop>
+            <div
+              v-for="r in profile?.available_roles ?? []"
+              :key="r.role"
+              class="role-item"
+              :class="{ 'is-active': r.role === profile?.user.role }"
+              @click="switchRole(r.role)"
+            >
+              <span class="role-name">{{ r.name }}</span>
+              <span class="role-scope">{{ r.scope }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -58,6 +70,13 @@ import type { AuthProfileResp } from '../../api/types'
 
 const profile = ref<AuthProfileResp | null>(null)
 const alertCount = ref(0)
+const roleOpen = ref(false)
+
+// §2.1 ?role= 切换演示上下文;失败保持当前角色,菜单收起
+const switchRole = async (role: string) => {
+  roleOpen.value = false
+  profile.value = await getAuthProfile(role).catch(() => profile.value)
+}
 
 // 头像降级：data=null/接口失败时回退默认身份展示（frontend-api §2.1 空态）
 const fallbackAvatar = new URL('../../assets/workbench/director_avatar.png', import.meta.url).href
@@ -205,6 +224,46 @@ const dateText = computed(() => {
   align-items: center;
   gap: var(--wb-space-2);
   cursor: pointer;
+  position: relative;
+}
+
+.role-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--wb-surface);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-card);
+  box-shadow: var(--wb-shadow-hover);
+  z-index: var(--wb-z-raised);
+  padding: var(--wb-space-1);
+}
+
+.role-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--wb-space-3);
+  padding: var(--wb-space-2) var(--wb-space-3);
+  border-radius: var(--wb-radius-sm);
+  font-size: var(--wb-fs-sm);
+  color: var(--wb-text-1);
+  cursor: pointer;
+}
+
+.role-item:hover {
+  background: var(--wb-hover-bg);
+}
+
+.role-item.is-active {
+  color: var(--wb-primary);
+  font-weight: var(--wb-fw-semibold);
+}
+
+.role-scope {
+  font-size: var(--wb-fs-xs);
+  color: var(--wb-text-3);
 }
 
 .avatar-img {

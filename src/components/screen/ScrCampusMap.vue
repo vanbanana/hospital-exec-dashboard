@@ -3,14 +3,14 @@
     <img src="../../assets/screen/hospital_campus.jpg" alt="院区楼宇态势" class="campus-img" />
     <div class="stage-vignette"></div>
 
-    <!-- pin 坐标系：.pin-layer 与 cover 渲染后图像矩形同盒（契约 anchor 语义=图像 %，gap B4） -->
+    <!-- pin 坐标系：.pin-layer 与 cover 渲染后图像矩形同盒（契约 anchor = 图像矩形内 %，§14.1 注7） -->
     <div class="pin-layer">
       <div
         v-for="b in buildings ?? []"
         :key="b.code"
         class="campus-pin"
         :class="{ 'pop-below': needsPopBelow(b) }"
-        :style="{ left: `${anchorOf(b).x}%`, top: `${anchorOf(b).y}%` }"
+        :style="{ left: `${b.anchor.x}%`, top: `${b.anchor.y}%` }"
       >
         <div class="pin-card" :class="{ 'is-alert': b.status === 'alert' }">
           <component :is="iconOf(b.code)" :size="15" :stroke-width="2" class="pin-icon" />
@@ -41,20 +41,9 @@ import type { ScreenBuilding } from '../../api/types'
 
 defineProps<{ buildings?: ScreenBuilding[] }>()
 
-/* 楼宇 pin 锚点校准层：契约 anchor 为"院区图锚点%"（相对渲染后图像矩形）；
-   mock 值为旧栅格期手调，此处按 ref-center 位图目测精调到底图(1376×768)楼宇实体上。
-   换图或换 mock 需重新校准。未知 code 回落契约原值。 */
-const ANCHOR_FIX: Record<string, { x: number; y: number }> = {
-  mz: { x: 24.0, y: 36.2 }, /* 门诊楼 → 左翼横楼屋面（REF 门诊部位） */
-  wk: { x: 51.0, y: 23.7 }, /* 外科楼 → 中央高塔立面（REF 住院部位） */
-  jz: { x: 71.8, y: 42.4 }, /* 急诊楼 → 右翼楼屋面停机坪（REF 急诊部位） */
-  yj: { x: 57.1, y: 39.1 }, /* 医技楼 → 高塔与右翼间玻璃连廊 */
-}
-const anchorOf = (b: ScreenBuilding) => ANCHOR_FIX[b.code] ?? b.anchor
-
 /* B12：anchor.y（图像%）小于阈值时弹层翻到 pin 下方，防顶裁 */
 const POP_FLIP_Y = 21
-const needsPopBelow = (b: ScreenBuilding) => anchorOf(b).y < POP_FLIP_Y
+const needsPopBelow = (b: ScreenBuilding) => b.anchor.y < POP_FLIP_Y
 
 /* 楼宇图标位（A8 对齐 REF pin 形态；未知 code 落 Building2） */
 const iconOf = (code: string): Component => {

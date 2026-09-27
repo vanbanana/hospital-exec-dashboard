@@ -4,12 +4,12 @@ import type { PatientResp } from '../api/types'
 /** §9.1 GET /workbench/patient */
 export const patientData: PatientResp = {
   stats: [
-    { label: '门诊满意度', value: '96.4', unit: '%', delta: '+0.8%', dir: 'up' },
-    { label: '住院满意度', value: '97.2', unit: '%', delta: '+0.4%', dir: 'up' },
-    { label: '本月投诉', value: '24', unit: '件', delta: '-6件', dir: 'down' },
-    { label: '本月表扬', value: '86', unit: '件', delta: '+12件', dir: 'up' },
-    { label: '平均候诊', value: '18', unit: '分钟', delta: '-3分钟', dir: 'down' },
-    { label: '网约挂号率', value: '82.0', unit: '%', delta: '+4.2%', dir: 'up' },
+    { label: '门诊满意度', value: '96.4', unit: '%', delta: '+0.8%', dir: 'up', delta_label: '较上月' },
+    { label: '住院满意度', value: '97.2', unit: '%', delta: '+0.4%', dir: 'up', delta_label: '较上月' },
+    { label: '本月投诉', value: '24', unit: '件', delta: '-6件', dir: 'down', delta_label: '较上月' },
+    { label: '本月表扬', value: '86', unit: '件', delta: '+12件', dir: 'up', delta_label: '较上月' },
+    { label: '平均候诊', value: '18', unit: '分钟', delta: '-3分钟', dir: 'down', delta_label: '较上月' },
+    { label: '网约挂号率', value: '82.0', unit: '%', delta: '+4.2%', dir: 'up', delta_label: '较上月' },
   ],
   satisfaction_trend: {
     unit: '%',

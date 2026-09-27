@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="资产与后勤" sub="设备效益 · 物资库存 · 能耗工单 · 数据截至 2026-10-28">
+    <WbPageHead title="资产与后勤" :sub="`设备效益 · 物资库存 · 能耗工单 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
@@ -51,12 +51,13 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">大型设备使用效益</h3>
-        <span class="wb-panel-sub">单价 ≥500 万元设备</span>
+        <span class="wb-panel-sub">单价 ≥100 万元设备</span>
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="equip.columns" :rows="equip.rows" row-key="name">
-          <template #cell-open_rate="{ value }">
-            <span class="wb-num" :class="{ 'rate-low': Number(value) < 85 }">{{ value }}%</span>
+          <template #cell-open_rate="{ value, row }">
+            <!-- 低开机率标色由契约 roi 枚举驱动,不自造阈值(§11.1) -->
+            <span class="wb-num" :class="{ 'rate-low': row.roi === '偏低' }">{{ value }}%</span>
           </template>
           <template #cell-roi="{ value }">
             <span
@@ -95,9 +96,11 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getAssets } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { AssetsResp } from '../../api/types'
 
 // 契约 §11.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
+const systemDate = useSystemDate()
 const range = ref('本年')
 
 // 五态取数经 useAsyncData（frontend-architecture §10.1）
@@ -138,6 +141,37 @@ const energyOption = computed<EChartsOption>(() => ({
       itemStyle: { color: wbPalette.teal },
       lineStyle: { color: wbPalette.teal, width: 2.5 },
       areaStyle: { color: wbAreaGradient(wbPalette.teal) },
+    },
+    // §11.1 契约下发电/水/气三分量,总量线下的构成明细同图呈现
+    {
+      name: '电',
+      type: 'line',
+      smooth: 0.35,
+      data: energy.value?.electricity ?? [],
+      symbol: 'circle',
+      symbolSize: 3,
+      itemStyle: { color: wbPalette.primary },
+      lineStyle: { color: wbPalette.primary, width: 1.5, opacity: 0.7 },
+    },
+    {
+      name: '水',
+      type: 'line',
+      smooth: 0.35,
+      data: energy.value?.water ?? [],
+      symbol: 'circle',
+      symbolSize: 3,
+      itemStyle: { color: wbPalette.amber },
+      lineStyle: { color: wbPalette.amber, width: 1.5, opacity: 0.7 },
+    },
+    {
+      name: '气',
+      type: 'line',
+      smooth: 0.35,
+      data: energy.value?.gas ?? [],
+      symbol: 'circle',
+      symbolSize: 3,
+      itemStyle: { color: wbPalette.green },
+      lineStyle: { color: wbPalette.green, width: 1.5, opacity: 0.7 },
     },
   ],
 }))

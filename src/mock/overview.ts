@@ -1,5 +1,6 @@
 // 综合概览数据包 — api-contract §4.1 示例锚定
 import type { OverviewResp, RangeKey } from '../api/types'
+import { DELTA_LABEL } from './labels'
 
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 const OUTPATIENT = [54000, 46000, 68000, 70000, 85000, 90000, 108000, 97000, 105000, 123000, 122000, 120000]
@@ -22,12 +23,12 @@ export function getOverviewMock(range?: string): OverviewResp {
   return {
     range: r,
     stats: [
-      { label: '门急诊人次', value: fmt(sumRange(OUTPATIENT, r)), delta: '+3.6%', dir: 'up' },
-      { label: '出院人数', value: fmt(sumRange(DISCHARGED, r)), delta: '+5.1%', dir: 'up' },
-      { label: '手术台次', value: fmt(sumRange(SURGERY, r)), delta: '+4.8%', dir: 'up' },
-      { label: '医疗收入', value: fmt(sumRange(REVENUE, r)), unit: '万元', delta: '+2.9%', dir: 'up' },
-      { label: '床位使用率', value: '92.1', unit: '%', delta: '+1.2%', dir: 'up' },
-      { label: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down' },
+      { label: '门急诊人次', value: fmt(sumRange(OUTPATIENT, r)), delta: '+3.6%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '出院人数', value: fmt(sumRange(DISCHARGED, r)), delta: '+5.1%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '手术台次', value: fmt(sumRange(SURGERY, r)), delta: '+4.8%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '医疗收入', value: fmt(sumRange(REVENUE, r)), unit: '万元', delta: '+2.9%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '床位使用率', value: '92.1', unit: '%', delta: '+1.2%', dir: 'up', delta_label: DELTA_LABEL[r] },
+      { label: '平均住院日', value: '6.8', unit: '天', delta: '-0.3', dir: 'down', delta_label: DELTA_LABEL[r] },
     ],
     scale_revenue_trend: {
       months: MONTHS,

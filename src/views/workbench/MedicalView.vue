@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="医疗业务" sub="门急诊 · 住院 · 手术明细分析 · 数据截至 2026-10-28">
+    <WbPageHead title="医疗业务" :sub="`门急诊 · 住院 · 手术明细分析 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="bizTab" :options="['门急诊', '住院', '手术']" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
@@ -77,8 +77,10 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getMedical } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { MedicalTab, RangeKey, WbTableData } from '../../api/types'
 
+const systemDate = useSystemDate()
 const bizTab = ref('门急诊')
 const range = ref('本年')
 // WbSeg 出参为中文标签,映射为契约 tab/range 枚举(§1.4-1,非法值后端回 10001)

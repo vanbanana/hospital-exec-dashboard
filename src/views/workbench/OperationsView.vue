@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="运营管理" sub="收支结构 · 费用控制 · 运营效率 · 数据截至 2026-10-28">
+    <WbPageHead title="运营管理" :sub="`收支结构 · 费用控制 · 运营效率 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
@@ -60,7 +60,7 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">科室运营指标</h3>
-        <span class="wb-panel-sub">本月 · 按医疗收入排序</span>
+        <span class="wb-panel-sub">{{ range }} · 按医疗收入排序</span>
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="deptTable.columns" :rows="deptTable.rows" row-key="dept" />
@@ -93,8 +93,10 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getOperations } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { RangeKey, WbTableData } from '../../api/types'
 
+const systemDate = useSystemDate()
 const range = ref('本年')
 // WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
 const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
@@ -146,6 +148,17 @@ const revOption = computed<EChartsOption>(() => {
         data: t?.income ?? [],
         barWidth: 14,
         itemStyle: { color: wbPalette.primary, borderRadius: [3, 3, 0, 0] },
+      },
+      // §6.1 revenue_trend.cost 契约序列:与 income 同轴呈现收支剪刀差
+      {
+        name: '医疗成本',
+        type: 'line',
+        data: t?.cost ?? [],
+        smooth: 0.35,
+        symbol: 'circle',
+        symbolSize: 4,
+        itemStyle: { color: wbPalette.teal },
+        lineStyle: { color: wbPalette.teal, width: 2, type: 'dashed' },
       },
       {
         name: '结余率',

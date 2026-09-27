@@ -1,6 +1,6 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="患者服务" sub="满意度 · 投诉表扬 · 就诊体验 · 数据截至 2026-10-28">
+    <WbPageHead title="患者服务" :sub="`满意度 · 投诉表扬 · 就诊体验 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
       <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
@@ -20,7 +20,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">满意度趋势</h3>
-          <span class="wb-panel-sub">门诊 vs 住院（分）</span>
+          <span class="wb-panel-sub">门诊 vs 住院（{{ satTrend?.unit ?? '%' }}）</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="satOption" />
@@ -30,7 +30,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">挂号渠道分布</h3>
-          <span class="wb-panel-sub">本月各渠道占比</span>
+          <span class="wb-panel-sub">{{ range }}各渠道占比</span>
         </div>
         <div class="wb-panel-body channel-body">
           <WbEmpty v-if="!channelData.length" text="暂无渠道数据" />
@@ -40,7 +40,7 @@
               <li v-for="(it, i) in channelData" :key="it.name">
                 <span class="wb-dot" :style="{ backgroundColor: wbDonutColor(i) }"></span>
                 <span class="channel-name">{{ it.name }}</span>
-                <span class="channel-pct wb-num">{{ it.value }}%</span>
+                <span class="channel-pct wb-num">{{ it.value }}{{ channelUnit }}</span>
               </li>
             </ul>
           </template>
@@ -51,7 +51,7 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">投诉与表扬记录</h3>
-        <span class="wb-panel-sub">近 30 日 · 共 {{ complaints.rows.length }} 件</span>
+        <span class="wb-panel-sub">共 {{ complaints.rows.length }} 件</span>
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="complaints.columns" :rows="complaints.rows" empty-text="本月无投诉表扬流水">
@@ -97,9 +97,11 @@ import {
 } from '../../components/workbench/chartPresets'
 import { getPatient } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
+import { useSystemDate } from '../../api/useSystemDate'
 import type { WbTableData } from '../../api/types'
 
 // 契约 §9.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
+const systemDate = useSystemDate()
 const range = ref('本月')
 
 // 五态取数经 useAsyncData（frontend-architecture §10.1）
@@ -109,6 +111,7 @@ onMounted(reload)
 const stats = computed(() => data.value?.stats ?? [])
 const satTrend = computed(() => data.value?.satisfaction_trend ?? null)
 const channelData = computed(() => data.value?.channel_distribution.list ?? [])
+const channelUnit = computed(() => data.value?.channel_distribution.unit ?? '%')
 const complaints = computed((): WbTableData => data.value?.complaints_praises ?? { columns: [], rows: [] })
 
 const satOption = computed<EChartsOption>(() => ({
