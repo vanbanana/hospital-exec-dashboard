@@ -289,15 +289,16 @@
   ```json
   {
     "list": [
-      { "id": 201, "level": "urgent", "title": "住院费用增幅高于行业均值", "occurred_at": "2026-10-28", "rule_code": "INPT_FEE_SURGE" },
-      { "id": 202, "level": "urgent", "title": "部分科室床位使用率持续 > 95%", "occurred_at": "2026-10-27", "rule_code": "BED_OVER_95" },
-      { "id": 203, "level": "major", "title": "医疗耗材库存周转天数上升", "occurred_at": "2026-10-26", "rule_code": "STOCK_TURN_SLOW" },
-      { "id": 204, "level": "major", "title": "药品费用占比接近警戒阈值", "occurred_at": "2026-10-25", "rule_code": "DRUG_RATIO_WARN" },
-      { "id": 205, "level": "minor", "title": "个别设备维保到期", "occurred_at": "2026-10-24", "rule_code": "DEVICE_MAINTAIN" }
+      { "id": 201, "level": "urgent", "title": "住院费用增幅高于行业均值", "occurred_at": "2026-10-28", "rule_code": "INPT_FEE_SURGE", "alert_status": "pending" },
+      { "id": 202, "level": "urgent", "title": "部分科室床位使用率持续 > 95%", "occurred_at": "2026-10-27", "rule_code": "BED_OVER_95", "alert_status": "pending" },
+      { "id": 203, "level": "major", "title": "医疗耗材库存周转天数上升", "occurred_at": "2026-10-26", "rule_code": "STOCK_TURN_SLOW", "alert_status": "pending" },
+      { "id": 204, "level": "major", "title": "药品费用占比接近警戒阈值", "occurred_at": "2026-10-25", "rule_code": "DRUG_RATIO_WARN", "alert_status": "pending" },
+      { "id": 205, "level": "minor", "title": "个别设备维保到期", "occurred_at": "2026-10-24", "rule_code": "DEVICE_MAINTAIN", "alert_status": "pending" }
     ]
   }
   ```
   > **字段注**：告警级别统一为英文枚举 `urgent | major | minor`；`occurred_at` 采用完整日期；`BED_OVER_95` 与 `DEVICE_MAINTAIN` 对齐 schema 预置种子，其余三条规则待 schema 种子补登。
+  > **`alert_status`（P3 新增，必填下发）**：`ads.alert_event.alert_status` 原值 `pending | processing | done | closed`——本端点打开集语义为 `IN ('pending','processing')`（§15.5 写后读注）；前端按该字段渲染行内操作集（`processing` 已认领行不再挂「认领」）。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ### 3.7 GET /workbench/home/notices

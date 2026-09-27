@@ -40,6 +40,7 @@ type homeAlertItem struct {
 	Title      string `json:"title"`
 	OccurredAt string `json:"occurred_at"`
 	RuleCode   string `json:"rule_code"`
+	Status     string `json:"alert_status"`
 }
 
 type homeAlertsResp struct {
@@ -119,6 +120,7 @@ func (h *Home) Alerts(c *gin.Context) {
 			Title:      r.Title,
 			OccurredAt: r.OccurredAt.Format("2006-01-02"),
 			RuleCode:   r.RuleCode,
+			Status:     r.Status,
 		})
 	}
 	envelope.OK(c, homeAlertsResp{List: list})

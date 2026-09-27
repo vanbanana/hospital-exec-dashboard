@@ -56,13 +56,14 @@ type HomeAlertRow struct {
 	Title      string    `gorm:"column:title"`
 	OccurredAt time.Time `gorm:"column:occurred_at"`
 	RuleCode   string    `gorm:"column:rule_code"`
+	Status     string    `gorm:"column:alert_status"`
 }
 
 // HomeAlerts 打开态(pending/processing)告警近 5 条(契约 §3.6)
 func HomeAlerts(ctx context.Context, db *gorm.DB) ([]HomeAlertRow, error) {
 	rows := make([]HomeAlertRow, 0, 5)
 	err := db.WithContext(ctx).Raw(`
-		SELECT id, alert_level, title, occurred_at, rule_code
+		SELECT id, alert_level, title, occurred_at, rule_code, alert_status
 		FROM ads.alert_event
 		WHERE alert_status IN ('pending','processing')
 		ORDER BY occurred_at DESC, id DESC
