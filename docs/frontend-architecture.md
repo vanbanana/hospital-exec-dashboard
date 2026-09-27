@@ -473,8 +473,8 @@ const systemDate = useSystemDate()
 1. **api() 写形**：`api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body? })`——GET 签名不变（21 端点零回归）；写路径同包络拆解。`fetch` 显式 `credentials:'same-origin'` 携带 `edss_sid` Cookie。mock 轨以 `method:key` 复合键注册写 resolver。
 2. **401 拦截**：`env.code ∈ {20001,20002,20003}` → `clearSession()` + `location.assign('/login?redirect=…')` 硬跳转（`client.ts` 不 import router，防依赖环）。
 3. **写后读**：调用方 `useAsyncData.reload()` 局部重取受影响区块；不做跨组件失效广播（Pinia 落地再议）。
-4. **有状态 mock 域（首个状态源）**：写流引入 `src/mock/alertflow.ts`——模块态 Map 存告警状态机 + todos 数组；`workbench/home/alerts` resolver 改由该源派生打开集，实现 mock 轨写后读一致（ack/dispatch 不政变开数，close/todo done 后减一）。页面刷新即重置 = 演示可接受行为（restart→seed 语义对齐真后端）。`auth` 域 mock 同步引入会话旗标（`auth/login` 置位、`auth/logout` 清除、无旗标 `auth/profile` 抛 `code=20001`）。
-5. **操作人传输**：演示期写端点函数自动拼 `?role=<当前演示角色>`（`api/auth.ts` 模块级 ref 存当前角色，Header 角色下拉切换写回；契约 §15 头部约定）。
+4. **有状态 mock 域（首个状态源）**：写流引入 `src/mock/alertflow.ts`——模块态 Map 存告警状态机 + todos 数组；`workbench/home/alerts` resolver 改由该源派生打开集，实现 mock 轨写后读一致（ack/dispatch 不政变开数，close/todo done 后减一）。**模块态经 `localStorage`（`mock_alertflow_v1`）持久化**——刷新后工单/状态仍在，演示连续性优先于 reset 语义（P3-EW-T2 任务书口径；真后端本就持久）。`auth` 域 mock 同步引入会话旗标（`auth/login` 置位、`auth/logout` 清除、无旗标 `auth/profile` 抛 `code=20001`）。
+5. **操作人传输**：演示期写端点函数自动拼 `?role=<当前演示角色>`（`api/client.ts` 模块级 `getOperatorRole`/`setOperatorRole` 存当前角色，Header 角色下拉切换写回；契约 §15 头部约定。文档初稿写挂 `api/auth.ts`，该文件已划 EA 域，落 client.ts）。
 6. **写操作反馈**：`33002`/`33104` 冲突类 → 警告提示 + 相关区块局部刷新；`10002` → 表单内联错（`data.fields` 逐字段红标，不弹全局消息）；`20004`/`20005` → 警告提示 + 停留。全局提示走 token 化轻量 toast 等价物（error-codes §4 矩阵的 ElMessage 语义，登记后落码）。
 
 ---

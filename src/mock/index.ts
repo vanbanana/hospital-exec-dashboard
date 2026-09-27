@@ -3,7 +3,18 @@
  * api/client.ts 经此表取数；接 mock server / 真实后端时整层被 http 替换（见 §16）。
  */
 import { getAuthProfileMock, hospitalProfile } from './auth'
-import { homeAlerts, homeIndicators, homeKpis, homeNotices, homeProgress, homeTop10, homeTrends } from './home'
+import { homeIndicators, homeKpis, homeNotices, homeProgress, homeTop10, homeTrends } from './home'
+import {
+  alertStateList,
+  getTodosList,
+  postAlertAck,
+  postAlertClose,
+  postAlertDispatch,
+  postRuleToggle,
+  postTodoStatus,
+  putPreferences,
+  staffList,
+} from './alertflow'
 import { getOverviewMock } from './overview'
 import { getMedicalMock } from './medical'
 import { getOperationsMock } from './operations'
@@ -17,7 +28,7 @@ import { assetsData } from './assets'
 import { settingsData } from './settings'
 import { screenSnapshot } from './screen'
 
-export type MockParams = Record<string, string>
+export type MockParams = Record<string, string | undefined>
 
 // 契约枚举域(api-contract §1.4-1/§2.1/§5.1/§9.1/§13.1);非法值按 error-codes 抛 10001,mock 期即可演练错误态
 const ENUM_DOMAIN: Record<string, Record<string, readonly string[]>> = {
@@ -28,6 +39,8 @@ const ENUM_DOMAIN: Record<string, Record<string, readonly string[]>> = {
   'workbench/hr': { range: ['本月', '本季', '本年'] },
   'workbench/compare': { dim: ['scale', 'benefit', 'efficiency', 'quality'], range: ['本月', '本季', '本年'] },
   'workbench/topics': { topic: ['drg', 'insurance', 'exam', 'outp_fund'], range: ['本月', '本季', '本年'] },
+  // §15.4 R07;写端点复合键(METHOD:key)不命中本表,断言天然跳过
+  'todos': { status: ['open', 'doing', 'done', 'expired'] },
 }
 
 // 契约必填参数(无默认值):缺席即 10001;其余参数缺席走默认、出现则必须落在枚举域(空串同样非法)
@@ -51,7 +64,8 @@ function assertParams(key: string, params: MockParams) {
   }
 }
 
-export const mockResolvers: Record<string, (params: MockParams) => unknown> = {
+// resolver 签名:(params 查询/路径回填参数, body 写请求体) — body 仅写端点使用
+export const mockResolvers: Record<string, (params: MockParams, body?: unknown) => unknown> = {
   'auth/profile': (p) => getAuthProfileMock(p.role),
   'hospital/profile': () => hospitalProfile,
   'workbench/home/kpis': () => homeKpis,
@@ -59,7 +73,7 @@ export const mockResolvers: Record<string, (params: MockParams) => unknown> = {
   'workbench/home/top10': () => homeTop10,
   'workbench/home/indicators': () => homeIndicators,
   'workbench/home/progress': () => homeProgress,
-  'workbench/home/alerts': () => homeAlerts,
+  'workbench/home/alerts': () => alertStateList(), // 状态源派生(§8.4.4),替换原 homeAlerts 常量
   'workbench/home/notices': () => homeNotices,
   'workbench/overview': (p) => getOverviewMock(p.range),
   'workbench/medical': (p) => getMedicalMock(p.tab, p.range),
@@ -73,15 +87,25 @@ export const mockResolvers: Record<string, (params: MockParams) => unknown> = {
   'workbench/topics': (p) => getTopicsMock(p.topic, p.range),
   'workbench/settings/config': () => settingsData,
   'screen/snapshot': () => screenSnapshot,
+  /* ===== §15 写侧端点 — 读(GET 精确键) ===== */
+  'todos': (p) => getTodosList(p),
+  'staff': (p) => staffList(p),
+  /* ===== §15 写侧端点 — 写(METHOD:key 复合键,{id}/{code} 由 client 模式匹配回填 params) ===== */
+  'POST:alerts/{id}/ack': (p) => postAlertAck(p),
+  'POST:alerts/{id}/dispatch': (p, body) => postAlertDispatch(p, body),
+  'POST:alerts/{id}/close': (p, body) => postAlertClose(p, body),
+  'POST:todos/{id}/status': (p, body) => postTodoStatus(p, body),
+  'POST:workbench/settings/rules/{code}': (p, body) => postRuleToggle(p, body),
+  'PUT:workbench/settings/preferences': (p, body) => putPreferences(p, body),
 }
 
 // 包一层统一校验:resolver 出口前过枚举域,契约外的参数形状进不了数据层
 const wrapped = Object.fromEntries(
   Object.entries(mockResolvers).map(([key, fn]) => [
     key,
-    (params: MockParams) => {
+    (params: MockParams, body?: unknown) => {
       assertParams(key, params)
-      return fn(params)
+      return fn(params, body)
     },
   ]),
 )

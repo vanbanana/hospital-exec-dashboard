@@ -91,11 +91,11 @@ export const homeProgress: HomeProgressResp = {
 /** §3.6 GET /workbench/home/alerts */
 export const homeAlerts: HomeAlertsResp = {
   list: [
-    { id: 201, level: 'urgent', title: '住院费用增幅高于行业均值', occurred_at: '2026-10-28', rule_code: 'INPT_FEE_SURGE' },
-    { id: 202, level: 'urgent', title: '部分科室床位使用率持续 > 95%', occurred_at: '2026-10-27', rule_code: 'BED_OVER_95' },
-    { id: 203, level: 'major', title: '医疗耗材库存周转天数上升', occurred_at: '2026-10-26', rule_code: 'STOCK_TURN_SLOW' },
-    { id: 204, level: 'major', title: '药品费用占比接近警戒阈值', occurred_at: '2026-10-25', rule_code: 'DRUG_RATIO_WARN' },
-    { id: 205, level: 'minor', title: '个别设备维保到期', occurred_at: '2026-10-24', rule_code: 'DEVICE_MAINTAIN' },
+    { id: 201, level: 'urgent', title: '住院费用增幅高于行业均值', occurred_at: '2026-10-28', rule_code: 'INPT_FEE_SURGE', alert_status: 'pending' },
+    { id: 202, level: 'urgent', title: '部分科室床位使用率持续 > 95%', occurred_at: '2026-10-27', rule_code: 'BED_OVER_95', alert_status: 'processing' },
+    { id: 203, level: 'major', title: '医疗耗材库存周转天数上升', occurred_at: '2026-10-26', rule_code: 'STOCK_TURN_SLOW', alert_status: 'pending' },
+    { id: 204, level: 'major', title: '药品费用占比接近警戒阈值', occurred_at: '2026-10-25', rule_code: 'DRUG_RATIO_WARN', alert_status: 'pending' },
+    { id: 205, level: 'minor', title: '个别设备维保到期', occurred_at: '2026-10-24', rule_code: 'DEVICE_MAINTAIN', alert_status: 'pending' },
   ],
 }
 

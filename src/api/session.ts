@@ -1,6 +1,6 @@
 // 会话态唯一事实源 — frontend-architecture §3.1/§8.4：模块级单 Promise 缓存，
 // useSystemDate 同形模式（不依赖 Pinia）。契约 §2.3 登录响应即全量上下文，免二次拉取
-import { api } from './client'
+import { api, registerUnauthorizedHandler, setOperatorRole } from './client'
 import type { AuthProfileResp } from './types'
 
 let cached: Promise<AuthProfileResp> | null = null
@@ -11,15 +11,21 @@ let cached: Promise<AuthProfileResp> | null = null
  * 去向由调用方裁决（router 守卫跳 /login、Header 降级展示）
  */
 export function currentProfile(): Promise<AuthProfileResp> {
-  cached ??= api<AuthProfileResp>('auth/profile').catch((err) => {
-    cached = null
-    throw err
-  })
+  cached ??= api<AuthProfileResp>('auth/profile')
+    .then((resp) => {
+      setOperatorRole(resp.user.username) // 写端点 ?role= 缺省操作人对齐会话身份
+      return resp
+    })
+    .catch((err) => {
+      cached = null
+      throw err
+    })
   return cached
 }
 
 /** §2.3 登录成功响应即全量上下文（同 §2.1 data 形状），直接入缓存免二次拉取 */
 export function onLoginSuccess(resp: AuthProfileResp) {
+  setOperatorRole(resp.user.username)
   cached = Promise.resolve(resp)
 }
 
@@ -27,3 +33,6 @@ export function onLoginSuccess(resp: AuthProfileResp) {
 export function clearSession() {
   cached = null
 }
+
+// client.ts 401 拦截点注册(写链路 EW 预留,注册于模块加载期——防依赖环故不反向 import)
+registerUnauthorizedHandler(clearSession)

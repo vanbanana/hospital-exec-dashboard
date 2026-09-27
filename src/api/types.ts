@@ -27,6 +27,9 @@ export type DirType = 'up' | 'down' | 'flat'
 export type ToneType = 'primary' | 'teal' | 'green' | 'amber' | 'red' | 'navy'
 export type AlertLevel = 'urgent' | 'major' | 'minor'
 
+/** §3.6/§15 告警生命周期状态机（ads.alert_event.alert_status） */
+export type AlertStatus = 'pending' | 'processing' | 'done' | 'closed'
+
 /** 指标条统一数据接口（§1.3-3 WbStatItem） */
 export interface WbStatItem {
   label: string
@@ -161,6 +164,7 @@ export interface HomeAlertItem {
   title: string
   occurred_at: string
   rule_code: string
+  alert_status: AlertStatus
 }
 
 export interface HomeAlertsResp {
@@ -400,6 +404,8 @@ export type DataSourceItem = {
 }
 
 export type ThresholdItem = {
+  /** 规则寻址键（ads.alert_rule.code），R15 写回端点路径参数（§13.2 注4） */
+  code: string
   name: string
   rule: string
   level: AlertLevel
@@ -525,3 +531,34 @@ export interface ScreenSnapshotResp {
   /** series 键 = KPI code，与 kpis[].spark 同源 */
   trends: { days: number; dates: string[]; series: Record<string, number[]> }
 }
+
+/* ===== §15 写侧端点（告警督办闭环 + 设置写回） ===== */
+
+/** §15.1 R04 POST /alerts/{id}/ack */
+export type AlertAckResp = { id: number; alert_status: string; ack_at: string; ack_by: number }
+
+/** §15.2 R05 POST /alerts/{id}/dispatch */
+export type AlertDispatchReq = { assignee_id: number; deadline: string; title?: string; note?: string }
+export type AlertDispatchResp = { todo_id: number; alert_id: number; alert_status: string; assignee_id: number; deadline: string }
+
+/** §15.3 R06 POST /alerts/{id}/close */
+export type AlertCloseResp = { id: number; alert_status: string; closed_at: string }
+
+/** §15.4 R07 GET /todos */
+export type TodoStatus = 'open' | 'doing' | 'done' | 'expired'
+export type TodoItem = { id: number; alert_id: number; title: string; assignee_id: number; assignee_name: string; dept_name: string; deadline: string; todo_status: TodoStatus; status_label: string; baseline_value: number | null; current_value: number | null; target_value: number | null; metric_code: string | null; note: string | null; result_note: string | null; created_at: string }
+export type TodoListResp = { list: TodoItem[]; page: number; size: number; total: number }
+
+/** §15.5 R08 POST /todos/{id}/status */
+export type TodoStatusReq = { action: 'accept' | 'report'; result_note?: string }
+export type TodoStatusResp = { id: number; todo_status: TodoStatus; alert_id: number; alert_status: string }
+
+/** §15.6 R10 GET /staff */
+export type StaffItem = { id: number; code: string; name: string; title: string; dept_id: number; dept_name: string; is_leader: boolean }
+export type StaffListResp = { list: StaffItem[] }
+
+/** §15.7 R15 POST /workbench/settings/rules/{code} */
+export type RuleToggleResp = { code: string; enabled: boolean }
+
+/** §15.8 R16 PUT /workbench/settings/preferences 入参=Preferences 子集（出参即 SettingsResp['preferences']） */
+export type PreferencesPatch = Partial<SettingsResp['preferences']>

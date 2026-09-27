@@ -74,6 +74,7 @@ import { computed, onMounted, ref } from 'vue'
 import { Search, Bell, ChevronDown, LogOut } from 'lucide-vue-next'
 import { getAuthProfile, logout } from '../../api/auth'
 import { currentProfile } from '../../api/session'
+import { setOperatorRole } from '../../api/client'
 import { getHomeAlerts } from '../../api/workbench'
 import type { AuthProfileResp } from '../../api/types'
 
@@ -90,6 +91,7 @@ const canSwitchRole = computed(() => ROLE_SWITCH_ALLOW.includes(session.value?.u
 const switchRole = async (role: string) => {
   roleOpen.value = false
   profile.value = await getAuthProfile(role).catch(() => profile.value)
+  setOperatorRole(role) // 写端点 ?role= 操作人同步切换(契约 §15 头部)
 }
 
 const onLogout = () => {
