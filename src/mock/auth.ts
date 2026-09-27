@@ -46,16 +46,28 @@ function profileOf(username: string): AuthProfileResp {
   }
 }
 
-/**
- * §2.1 GET /auth/profile（dept_id: null = 院级视角，库存储哨兵 0 见契约注）
- * ?role= 出席=演示切换(不校验会话);缺席=取会话旗标,无旗标抛 20001 演练未登录
- */
-export function getAuthProfileMock(role?: string): AuthProfileResp {
-  if (role) return profileOf(role)
+/** 会话旗标闸——端点在会话中间件后(契约 §2.1 演进注):无旗标一律 20001,?role= 演示切换不豁免 */
+export function assertSession() {
   const u = sessionUsername()
   if (!u || !ROLE_USER[u]) {
     throw Object.assign(new Error('未登录或凭证缺失'), { code: 20001 })
   }
+  return u
+}
+
+/** 会话用户角色——mock RBAC 门消费(settings/config 20004 等) */
+export function sessionRole(): string | undefined {
+  const u = sessionUsername()
+  return u ? ROLE_USER[u]?.role : undefined
+}
+
+/**
+ * §2.1 GET /auth/profile（dept_id: null = 院级视角，库存储哨兵 0 见契约注）
+ * 会话闸先于 ?role= 解析(真轨序:Session 中间件→handler);?role= 出席=演示切换,缺席=会话用户
+ */
+export function getAuthProfileMock(role?: string): AuthProfileResp {
+  const u = assertSession()
+  if (role) return profileOf(role)
   return profileOf(u)
 }
 

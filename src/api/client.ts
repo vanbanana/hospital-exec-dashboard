@@ -21,7 +21,8 @@ export function registerUnauthorizedHandler(fn: () => void) {
 // 演示期操作人角色 — 写端点函数经 ?role= 显式传输(契约 §15 头部约定;缺席=会话用户)
 // §8.4-5 文档原写挂 api/auth.ts,auth.ts 已划 EA epic 域,故落 client.ts(lead 已报备)
 // 集外账号(如 vp_medical 会话登录)返回 undefined→参数省略,后端 FindOperator 回落会话身份,防 ?role= 撞 10001
-const DEMO_OPERATOR_ROLES = new Set(['president', 'ops_director', 'dept_leader', 'admin'])
+// 域=§2.1 演示账号三角色;admin 不入——admin 会话走省略 ?role= 路径,后端按会话身份定位
+const DEMO_OPERATOR_ROLES = new Set(['president', 'ops_director', 'dept_leader'])
 let operatorRole = 'president'
 export function getOperatorRole() {
   return DEMO_OPERATOR_ROLES.has(operatorRole) ? operatorRole : undefined

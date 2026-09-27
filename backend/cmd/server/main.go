@@ -61,9 +61,10 @@ func main() {
 	srv := &http.Server{
 		Addr: ":" + cfg.Port,
 		Handler: router.Build(&router.Deps{
-			DB:         db,
-			Clock:      clock.New(db),
-			SimEnabled: cfg.SimEnabled,
+			DB:             db,
+			Clock:          clock.New(db),
+			SimEnabled:     cfg.SimEnabled,
+			TrustedProxies: cfg.TrustedProxies,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

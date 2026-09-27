@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -414,31 +415,35 @@ func (r *WriteRepo) TodoList(ctx context.Context, f TodoFilter) ([]TodoRow, int6
 	return rows, total, err
 }
 
-// TodoCurrentValue 三点锚点 current——metric_code 命中 today_kpi(院级)取实时值,
-// 否则 dws.metric_value 最新期值;metric_code NULL 或两源皆 miss→nil(契约 §15.4 冻结口径)
-func (r *WriteRepo) TodoCurrentValue(ctx context.Context, metricCode *string) (*float64, error) {
-	if metricCode == nil {
-		return nil, nil
+// TodoCurrentValues 三点锚点 current 批量版——单条 SQL 对本页全部 metric_code 一次取齐
+// (AGENTS §4 列表一次取齐,消 N+1):today_kpi(院级实时)优先,缺位回落
+// dws.metric_value 最新期值;两源皆 miss 的 code 不入 map→调用方置 nil(契约 §15.4 冻结口径)
+func (r *WriteRepo) TodoCurrentValues(ctx context.Context, codes []string) (map[string]float64, error) {
+	out := make(map[string]float64, len(codes))
+	if len(codes) == 0 {
+		return out, nil
 	}
-	var v float64
-	q := r.db.WithContext(ctx).
-		Raw(`SELECT value FROM ads.today_kpi WHERE metric_code=$1 AND dept_id=0`, *metricCode).Scan(&v)
-	if q.Error != nil {
-		return nil, q.Error
+	var rows []struct {
+		MetricCode string
+		Value      float64
 	}
-	if q.RowsAffected > 0 {
-		return &v, nil
+	err := r.db.WithContext(ctx).Raw(
+		`SELECT k.metric_code,COALESCE(t.value, mv.value) AS value
+		 FROM unnest($1::text[]) k(metric_code)
+		 LEFT JOIN ads.today_kpi t ON t.metric_code=k.metric_code AND t.dept_id=0
+		 LEFT JOIN LATERAL (
+		   SELECT value FROM dws.metric_value m
+		   WHERE m.metric_code=k.metric_code AND m.dept_id=0 AND m.group_id=0
+		   ORDER BY date DESC LIMIT 1
+		 ) mv ON t.metric_code IS NULL`,
+		"{"+strings.Join(codes, ",")+"}").Scan(&rows).Error
+	if err != nil {
+		return nil, err
 	}
-	q = r.db.WithContext(ctx).
-		Raw(`SELECT value FROM dws.metric_value WHERE metric_code=$1 AND dept_id=0 AND group_id=0
-			ORDER BY date DESC LIMIT 1`, *metricCode).Scan(&v)
-	if q.Error != nil {
-		return nil, q.Error
+	for _, r2 := range rows {
+		out[r2.MetricCode] = r2.Value
 	}
-	if q.RowsAffected == 0 {
-		return nil, nil
-	}
-	return &v, nil
+	return out, nil
 }
 
 // ---- R08 todo status ---------------------------------------------------------

@@ -25,7 +25,7 @@ import { getHrMock } from './hr'
 import { researchData } from './research'
 import { patientData } from './patient'
 import { assetsData } from './assets'
-import { settingsData } from './settings'
+import { getSettingsConfigMock } from './settings'
 import { screenSnapshot } from './screen'
 
 export type MockParams = Record<string, string | undefined>
@@ -85,7 +85,7 @@ export const mockResolvers: Record<string, (params: MockParams, body?: unknown) 
   'workbench/assets': () => assetsData,
   'workbench/compare': (p) => getCompareMock(p.dim, p.range),
   'workbench/topics': (p) => getTopicsMock(p.topic, p.range),
-  'workbench/settings/config': () => settingsData,
+  'workbench/settings/config': () => getSettingsConfigMock(),
   'screen/snapshot': () => screenSnapshot,
   /* ===== §15 写侧端点 — 读(GET 精确键) ===== */
   'todos': (p) => getTodosList(p),

@@ -39,3 +39,12 @@ func Recovery() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// BodyLimit 请求体上限——JSON 解码前包 MaxBytesReader,超限使 Decode/Bind 返回
+// *http.MaxBytesError(落 10006 包络),防巨型 body 拖垮解析
+func BodyLimit(n int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, n)
+		c.Next()
+	}
+}

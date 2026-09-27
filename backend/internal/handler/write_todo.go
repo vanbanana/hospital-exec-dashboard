@@ -63,12 +63,27 @@ func (h *WriteHandler) TodoList(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	// current_value 批量预取——单条 SQL 对本页 metric_code 集一次取齐(消 N+1)
+	var codes []string
+	seen := map[string]bool{}
+	for _, t := range rows {
+		if t.MetricCode != nil && !seen[*t.MetricCode] {
+			seen[*t.MetricCode] = true
+			codes = append(codes, *t.MetricCode)
+		}
+	}
+	curs, err := h.r.TodoCurrentValues(ctx, codes)
+	if err != nil {
+		fail(c, err)
+		return
+	}
 	list := make([]gin.H, 0, len(rows))
 	for _, t := range rows {
-		cur, err := h.r.TodoCurrentValue(ctx, t.MetricCode)
-		if err != nil {
-			fail(c, err)
-			return
+		var cur *float64
+		if t.MetricCode != nil {
+			if v, ok := curs[*t.MetricCode]; ok {
+				cur = &v
+			}
 		}
 		list = append(list, gin.H{
 			"id": t.ID, "alert_id": t.AlertID, "title": t.Title,

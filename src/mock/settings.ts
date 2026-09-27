@@ -1,4 +1,5 @@
 // 系统设置数据包 — api-contract §13.2 示例锚定
+import { assertSession, sessionRole } from './auth'
 import type { SettingsResp } from '../api/types'
 
 /** §13.2 GET /workbench/settings/config */
@@ -35,4 +36,14 @@ export const settingsData: SettingsResp = {
     unit_abbreviation: true,
     privacy_mask: true,
   },
+}
+
+/** §13.2 GET 端点 RBAC(契约 §13.2 角色矩阵):限 admin|president——会话闸先于取数,其余角色 20004 */
+export function getSettingsConfigMock(): SettingsResp {
+  assertSession()
+  const r = sessionRole()
+  if (r !== 'president' && r !== 'admin') {
+    throw Object.assign(new Error('无权访问该资源'), { code: 20004 })
+  }
+  return settingsData
 }

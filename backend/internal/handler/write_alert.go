@@ -30,8 +30,9 @@ func NewWriteHandler(r *repo.WriteRepo) *WriteHandler {
 func (h *WriteHandler) operator(c *gin.Context) (*repo.Operator, bool) {
 	username := "president"
 	if v, present := c.GetQuery("role"); present {
+		// 域=§2.1 演示账号全集(3 角色);admin 不入——admin 会话经下方会话分支直查
 		switch v {
-		case "president", "ops_director", "dept_leader", "admin":
+		case "president", "ops_director", "dept_leader":
 			username = v
 		default:
 			envelope.InvalidArg(c, "role", "非法角色")

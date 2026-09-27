@@ -252,35 +252,58 @@ export function getTodosList(params: MockParams): TodoListResp {
   return { list: list.slice(start, start + size).map(stripTodo), page, size, total: list.length }
 }
 
-// 操作人 id 回填:?role= 出席按演示账号定,缺席回落 mock 会话旗标(与后端 operator() 同语义);
+// 操作人 id 回填:?role= 出席按演示账号定(域=§2.1 三角色,集外/空串→10001),
+// 缺席回落 mock 会话旗标(与后端 operator() 同语义);
 // 与 mock/auth.ts ROLE_USER 的 id 同源——演示账号 username↔id 是契约 §15 头部事实
-const OPERATOR_ID: Record<string, number> = { president: 1, ops_director: 2, dept_leader: 3, admin: 4 }
+const OPERATOR_ID: Record<string, number> = { president: 1, ops_director: 2, dept_leader: 3 }
 
 function operatorId(params: MockParams): number {
-  return OPERATOR_ID[params.role ?? sessionUsername() ?? ''] ?? 1
+  if (params.role !== undefined) {
+    const id = OPERATOR_ID[params.role]
+    if (id === undefined) fail(10001, '请求参数错误', { fields: { role: '非法角色' } })
+    return id
+  }
+  return OPERATOR_ID[sessionUsername() ?? ''] ?? 1
+}
+
+// 写面角色门(契约 §15.7/R15 20005):有效操作人角色须在管理域——dept_leader 越域写回绝
+function assertWriteScope(params: MockParams) {
+  const uname = params.role ?? sessionUsername() ?? 'president'
+  if (uname === 'dept_leader') fail(20005, '无权执行该操作(角色不足)')
+}
+
+// 工单科室域闸(契约 §15.5 20005):dept_leader 仅办本科室单;演示账号 dept_leader=骨科 dept_id=1
+// (与 mock/auth.ts ROLE_USER.dept_leader.dept_id 同源)
+function assertTodoDept(params: MockParams, t: StoredTodo) {
+  const uname = params.role ?? sessionUsername() ?? 'president'
+  if (uname !== 'dept_leader') return
+  const assignee = STAFF.find((s) => s.id === t.assignee_id)
+  if (!assignee || assignee.dept_id !== 1) fail(20005, '无权执行该操作(角色不足)')
 }
 
 /** §15.1 R04 POST /alerts/{id}/ack */
 export function postAlertAck(params: MockParams): AlertAckResp {
   const id = Number(params.id)
   if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
+  const opId = operatorId(params) // ?role= 校验先于业务(后端序:pathID→operator→repo)
   const a = alerts.get(id)
   if (!a) fail(33001, '告警不存在')
   if (a.alert_status !== 'pending') fail(33002, '告警已被处理', { current_status: a.alert_status })
   a.alert_status = 'processing'
   save()
-  return { id: a.id, alert_status: 'processing', ack_at: mockNow(), ack_by: operatorId(params) }
+  return { id: a.id, alert_status: 'processing', ack_at: mockNow(), ack_by: opId }
 }
 
 /** §15.2 R05 POST /alerts/{id}/dispatch */
 export function postAlertDispatch(params: MockParams, body?: unknown): AlertDispatchResp {
+  const id = Number(params.id)
+  if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
+  operatorId(params) // ?role= 校验先于 body(后端序:pathID→operator→body)
   const b = bodyObj(body)
   const fields: Record<string, string> = {}
   if (typeof b.assignee_id !== 'number' || !Number.isInteger(b.assignee_id)) fields.assignee_id = '必填,整数'
   if (typeof b.deadline !== 'string' || !b.deadline) fields.deadline = '必填,ISO 8601'
   if (Object.keys(fields).length) fail(10002, '参数校验失败', { fields })
-  const id = Number(params.id)
-  if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
   const a = alerts.get(id)
   if (!a) fail(33001, '告警不存在')
   // 校验序对齐后端 write.go AlertDispatch:状态冲突 → 打开工单判重 → 承办人 → deadline
@@ -291,8 +314,10 @@ export function postAlertDispatch(params: MockParams, body?: unknown): AlertDisp
   if (opened) fail(33002, '该告警已有打开的督办工单', { current_status: 'todo_open', todo_id: opened.id })
   const staff = STAFF.find((s) => s.id === b.assignee_id)
   if (!staff) fail(33102, '承办人非在职或不存在')
+  // deadline 二分对齐后端:格式非法→10002 fields(handler 层),合法但非未来→33103(repo 层)
   const dl = new Date(String(b.deadline).replace(' ', 'T'))
-  if (Number.isNaN(dl.getTime()) || dl.getTime() <= Date.now()) fail(33103, '截止时间须晚于当前时间')
+  if (Number.isNaN(dl.getTime())) fail(10002, '参数校验失败', { fields: { deadline: 'ISO 8601 格式非法' } })
+  if (dl.getTime() <= Date.now()) fail(33103, '截止时间须晚于当前时间')
   const todo: StoredTodo = {
     id: nextTodoId++,
     alert_id: a.id,
@@ -327,19 +352,20 @@ export function postAlertDispatch(params: MockParams, body?: unknown): AlertDisp
 
 /** §15.3 R06 POST /alerts/{id}/close */
 export function postAlertClose(params: MockParams, body?: unknown): AlertCloseResp {
+  const id = Number(params.id)
+  if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
+  operatorId(params)
   const b = bodyObj(body)
   if (typeof b.close_note !== 'string' || !b.close_note.trim()) {
     fail(10002, '参数校验失败', { fields: { close_note: '必填,办结理由不能为空' } })
   }
-  const id = Number(params.id)
-  if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
   const a = alerts.get(id)
   if (!a) fail(33001, '告警不存在')
-  if (a.alert_status === 'closed' || a.alert_status === 'done') {
-    fail(33002, '告警已办结', { current_status: a.alert_status })
-  }
+  // 校验序对齐后端 write.go AlertClose:closed → 打开工单 → done
+  if (a.alert_status === 'closed') fail(33002, '告警已办结', { current_status: 'closed' })
   const opened = openTodoFor(a)
   if (opened) fail(33002, '存在打开的督办工单,须先办结', { current_status: 'todo_open', todo_id: opened.id })
+  if (a.alert_status === 'done') fail(33002, '告警已办结', { current_status: 'done' })
   a.alert_status = 'closed'
   save()
   return { id: a.id, alert_status: 'closed', closed_at: mockNow() }
@@ -347,16 +373,22 @@ export function postAlertClose(params: MockParams, body?: unknown): AlertCloseRe
 
 /** §15.5 R08 POST /todos/{id}/status */
 export function postTodoStatus(params: MockParams, body?: unknown): TodoStatusResp {
+  // 校验序对齐后端:pathID → operator(?role=) → body 字段 → 工单存在/域闸/状态机
   const id = Number(params.id)
   if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
-  const t = todos.get(id)
-  if (!t) fail(33101, '督办工单不存在')
-  if (t.todo_status === 'done' || t.todo_status === 'expired') {
-    fail(33104, '工单已关闭,禁止变更', { current_status: t.todo_status })
-  }
+  operatorId(params)
   const b = bodyObj(body)
   if (b.action !== 'accept' && b.action !== 'report') {
     fail(10002, '参数校验失败', { fields: { action: '须为 accept|report' } })
+  }
+  if (b.action === 'report' && (typeof b.result_note !== 'string' || !b.result_note.trim())) {
+    fail(10002, '参数校验失败', { fields: { result_note: 'report 必填办结说明' } })
+  }
+  const t = todos.get(id)
+  if (!t) fail(33101, '督办工单不存在')
+  assertTodoDept(params, t)
+  if (t.todo_status === 'done' || t.todo_status === 'expired') {
+    fail(33104, '工单已关闭,禁止变更', { current_status: t.todo_status })
   }
   if (b.action === 'accept') {
     if (t.todo_status !== 'open') fail(33104, '工单已接单,禁止重复变更', { current_status: t.todo_status })
@@ -365,10 +397,7 @@ export function postTodoStatus(params: MockParams, body?: unknown): TodoStatusRe
     if (t.todo_status !== 'doing') {
       fail(10002, '参数校验失败', { fields: { action: 'open 工单须先 accept 接单' } })
     }
-    if (typeof b.result_note !== 'string' || !b.result_note.trim()) {
-      fail(10002, '参数校验失败', { fields: { result_note: 'report 必填办结说明' } })
-    }
-    t.result_note = b.result_note
+    t.result_note = b.result_note as string
     t.todo_status = 'done'
     // 同事务回填源告警 done(契约 §15.5 语义注;alert_status IN pending|processing 才入打开集,done 自动退出)
     const a = alerts.get(t.alert_id)
@@ -384,18 +413,53 @@ export function postTodoStatus(params: MockParams, body?: unknown): TodoStatusRe
   }
 }
 
-/** §15.7 R15 POST /workbench/settings/rules/{code} — 原地改 settingsData.thresholds 行(无需持久化) */
+/** §15.7 R15 POST /workbench/settings/rules/{code} — 角色门先于 body(后端序:operator→20005→body→code) */
 export function postRuleToggle(params: MockParams, body?: unknown): RuleToggleResp {
-  const row = settingsData.thresholds.find((r) => r.code === params.code)
-  if (!row) fail(10003, '规则不存在')
+  operatorId(params)
+  assertWriteScope(params)
   const b = bodyObj(body)
   if (typeof b.enabled !== 'boolean') fail(10002, '参数校验失败', { fields: { enabled: '须为布尔' } })
+  const row = settingsData.thresholds.find((r) => r.code === params.code)
+  if (!row) fail(10003, '规则不存在')
   row.enabled = b.enabled
+  saveSettings()
   return { code: row.code, enabled: row.enabled }
 }
 
+// settings 写侧持久化——与 alertflow 同口径 localStorage(键 mock_settings_v1);
+// 刷新后阈值启停/偏好不回弹(真后端本就持久)
+const SETTINGS_KEY = 'mock_settings_v1'
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY)
+    if (!raw) return
+    const saved = JSON.parse(raw) as { thresholds?: { code: string; enabled: boolean }[]; preferences?: Record<string, unknown> }
+    for (const s of saved.thresholds ?? []) {
+      const row = settingsData.thresholds.find((r) => r.code === s.code)
+      if (row) row.enabled = s.enabled
+    }
+    Object.assign(settingsData.preferences, saved.preferences ?? {})
+  } catch {
+    /* 损坏快照按种子态 */
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      thresholds: settingsData.thresholds.map((r) => ({ code: r.code, enabled: r.enabled })),
+      preferences: settingsData.preferences,
+    }))
+  } catch {
+    /* 隐私模式降级内存态 */
+  }
+}
+loadSettings()
+
 /** §15.8 R16 PUT /workbench/settings/preferences — 逐键部分更新,回完整偏好集 */
-export function putPreferences(_params: MockParams, body?: unknown): SettingsResp['preferences'] {
+export function putPreferences(params: MockParams, body?: unknown): SettingsResp['preferences'] {
+  operatorId(params)
   if (typeof body !== 'object' || body === null || Array.isArray(body)) fail(10001, '请求参数错误')
   const b = body as Record<string, unknown>
   const keys = Object.keys(b)
@@ -413,5 +477,6 @@ export function putPreferences(_params: MockParams, body?: unknown): SettingsRes
   }
   if (Object.keys(fields).length) fail(10002, '参数校验失败', { fields })
   Object.assign(settingsData.preferences, b)
+  saveSettings()
   return settingsData.preferences
 }

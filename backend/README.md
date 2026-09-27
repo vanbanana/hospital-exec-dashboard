@@ -42,6 +42,7 @@ env（`internal/config` 启动期 fail-fast，全有默认值，演示环境零�
 | `LOG_LEVEL` | `info` | slog 级别：`debug\|info\|warn\|error` |
 | `SIM_ENABLED` | `1` | `0`=/sim/* 路由不注册（命中 NoRoute → 10003） |
 | `AUTH_COOKIE_SECURE` | （空） | `1`=`edss_sid` Cookie 追加 `Secure`（HTTPS 部署置位） |
+| `TRUSTED_PROXY_CIDRS` | `127.0.0.1,::1` | XFF 可信代理 CIDR（逗号分隔）；反代异机/异容器部署须放开代理网段，否则 `audit_log`/`user_session` 的 ip 记成代理地址；置空字符串 = 不信任何代理 |
 
 - 契约端点：`/api/v1/` + 契约路径（`auth/profile`、`workbench/**`、`screen/snapshot`）
 - 前端切换：`vite.config` 已代理 `/api`→`:8080`；`VITE_USE_MOCK=0 npm run dev` 即真链路
