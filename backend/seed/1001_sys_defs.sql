@@ -532,17 +532,17 @@ ON CONFLICT (code) DO NOTHING;
 -- ============================================================================
 -- [S3] sys 域账号/通知/数据源/偏好
 -- 执行序要求：本段相位Ⅰ可独立执行——dept_id 一律 NULL 入库，回填见 seed_2_deferred.sql。
--- 演示口令仅本地用（bcrypt cost=10）：admin/Admin@123、president/President@123、
--- ops_director/Ops@123、dept_leader/Leader@123、vp_medical/Vp@123、
--- med_director/Med@123、fin_director/Fin@123
+-- 演示口令仅本地用（bcrypt cost=10）：president/ops_director/dept_leader=Edss@2026
+-- （统一演示口令，与 README/mock 同源——0910 的 UPDATE 只修既有库，本文件即事实源）、
+-- admin/Admin@123、vp_medical/Vp@123、med_director/Med@123、fin_director/Fin@123
 -- ============================================================================
 INSERT INTO sys.user
  (id, username, password_hash, real_name, emp_no, job_title, avatar, role,
   dept_id, scope_type, scope_val, user_status, last_login_at, created_at, updated_at)
 OVERRIDING SYSTEM VALUE VALUES
- (1,'president','$2y$10$a6YzD8tz4q7uWXGv7HC3VOD9yOQqZcrsaG2sa/oEpulP1Q7B9mCmy','王建国','president','院长','/assets/workbench/director_avatar.png','president',NULL,'all',NULL,1,'2026-10-28 08:46:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
- (2,'ops_director','$2y$10$cmRnQbYN13ty5.V3IbA6f.fl3WV7D6KaEJcaziu8hu8Fs5iNMybD6','李明','ops_director','运营办主任','','ops_director',NULL,'domain','ops_quality',1,'2026-10-28 09:30:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
- (3,'dept_leader','$2y$10$665dCbnVJy6rJHyg2b/mfeaEGOdmUnYXrA/Ut7gOWvda0IS25o1K6','刘志远','dept_leader','骨科主任','','dept_leader',NULL,'dept','GK',1,'2026-10-28 08:30:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
+ (1,'president','$2y$10$hwzDRwlqEjsh35Of7SN5bOuzxQIb844PNnSokFl8665FK3Ge4vEPi','王建国','president','院长','/assets/workbench/director_avatar.png','president',NULL,'all',NULL,1,'2026-10-28 08:46:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
+ (2,'ops_director','$2y$10$hwzDRwlqEjsh35Of7SN5bOuzxQIb844PNnSokFl8665FK3Ge4vEPi','李明','ops_director','运营办主任','','ops_director',NULL,'domain','ops_quality',1,'2026-10-28 09:30:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
+ (3,'dept_leader','$2y$10$hwzDRwlqEjsh35Of7SN5bOuzxQIb844PNnSokFl8665FK3Ge4vEPi','刘志远','dept_leader','骨科主任','','dept_leader',NULL,'dept','GK',1,'2026-10-28 08:30:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
  (4,'admin','$2y$10$LW1.NRFdYjaZDjyVv3VyC.HYGLCcbdud2XZZLaC./2UuLfWksnCEu','系统管理员','admin','系统管理员','','admin',NULL,'all',NULL,1,'2026-10-28 09:12:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
  (5,'vp_medical','$2y$10$e0Zs1hKdNT4NG7YDD..rHumOL/mdALXwDXNZDBwBAm6SgQNC6O3he','陈国平','vp_medical','分管副院长','','president',NULL,'all',NULL,1,'2026-10-27 17:32:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),
  (6,'med_director','$2y$10$39utQMwZzYDy27faHFaEIe.Z7oMWnlnSjsRvlLb9Hja5SDTN8PZrK','赵明诚','med_director','医务部主任','','ops_director',NULL,'domain','medical',1,'2026-10-28 08:58:00+08','2026-01-02 09:00:00+08','2026-01-02 09:00:00+08'),

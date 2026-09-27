@@ -7,8 +7,8 @@ const directorAvatar = new URL('../assets/workbench/director_avatar.png', import
 // §2.1 ?role= 切换演示上下文:三角色上下文按 available_roles 名单实配,dept_id 骨科=1(§14.1 科室表)
 const ROLE_USER: Record<string, AuthProfileResp['user']> = {
   president: { id: 1, username: 'president', real_name: '王建国', title: '院长', dept_id: null, dept_name: '全院', avatar: directorAvatar, role: 'president' },
-  ops_director: { id: 2, username: 'ops_director', real_name: '李明', title: '运营办主任', dept_id: null, dept_name: '运营办', avatar: directorAvatar, role: 'ops_director' },
-  dept_leader: { id: 3, username: 'dept_leader', real_name: '刘主任', title: '骨科主任', dept_id: 1, dept_name: '骨科', avatar: directorAvatar, role: 'dept_leader' },
+  ops_director: { id: 2, username: 'ops_director', real_name: '李明', title: '运营办主任', dept_id: null, dept_name: '全院', avatar: directorAvatar, role: 'ops_director' },
+  dept_leader: { id: 3, username: 'dept_leader', real_name: '刘志远', title: '骨科主任', dept_id: 1, dept_name: '骨科', avatar: directorAvatar, role: 'dept_leader' },
 }
 
 /** §2.3 演示账号口令表 — 与 backend/README 演示凭据同源;admin 不入(user.role 契约域=3 演示角色)

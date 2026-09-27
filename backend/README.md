@@ -68,6 +68,11 @@ go run ./cmd/migrate -seed      # apply 完成后按名序跑 seed/ 全部文件
 - **每文件单事务**：失败回滚即未应用，重跑=首跑——与非幂等迁移文件兼容。
 - **收养守卫**：`schema_migrations` 空 ∧ `sys.dict` 已存在 → 拒跑并提示先 `-baseline`（防把既有库当新库重放）；`-baseline` 时追踪表非空则提示无需收养。
 - 全新库流程：`createdb hospital_edss && go run ./cmd/migrate -seed`（一条命令建结构+灌种子）；既有 dev 库先 `-baseline` 收养一次。
+- **全新库自检**（改动种子/迁移后必跑——迁移先于种子执行，跨文件依赖只能在此序下验证）：
+  ```bash
+  createdb hospital_edss_fresh && DATABASE_URL=postgres://localhost/hospital_edss_fresh ./edss-migrate -seed
+  # 冒烟:三演示账号 Edss@2026 + admin Admin@123 登录应全 code=0;验毕 dropdb hospital_edss_fresh
+  ```
 
 ## infra 端点（根挂，不入 /api/v1 契约面——同 /health 先例）
 

@@ -70,14 +70,14 @@
 | P0 | 工作台 12 页 v0 参考实现（agy 复刻+审查产出）+ 设计体系（`--wb-*` token + Wb 原语） | ✅ 已落地 |
 | P0.5 | **前端规范化重写**：按 frontend-architecture v2.0 整改 v0 代码；抽 `src/mock/` 集中 mock（字段对齐契约） | ✅ 已落地 |
 | P0.6 | **规范验收与令牌统一**：设计令牌（tokens.css）+ 文档先行机制 + /screen 按 cockpit 基准重建 | ✅ 已落地（e6aeb52） |
-| P1 | store 层落地（组件→store→api）；督办/预警写操作闭环 | ⬜ |
-| P2 | 最小后端跑通契约端点；督办/预警写操作闭环 | ◐ 读侧完成（21 端点 + 57 表库）；写侧督办闭环未做 |
-| P3 | 五级下钻/病案脱敏/角色权限/仿真时钟（原 v1.1 全量范围，按需裁剪） | ⬜ |
+| P1 | store 层落地（组件→store→api）；督办/预警写操作闭环 | ◐ 组件直连 api 过渡态；写闭环已随 P3-EW 落地 |
+| P2 | 最小后端跑通契约端点；督办/预警写操作闭环 | ✅ 已完成（读侧 21 端点 + 写侧 8 端点真 SQL） |
+| P3 | 认证会话/RBAC/写侧生命周期/仿真控制面/运维部署件（原 v1.1 裁剪后 P3 范围；五级下钻·病案脱敏归 P3.1 远期） | ✅ 已落地（EA 会话+RBAC、EW 写侧、ES sim、EO 运维） |
 
 ## 5. 安全与合规（演示级）
 
-- **认证（P3 契约已定义，落码随 auth epic）**：`POST /auth/login`/`logout`（契约 §2.3–2.4）= PG 会话表 `sys.user_session` + `edss_sid` HttpOnly Cookie（生产追加 `Secure`）；口令 bcrypt（x/crypto，§1 已批）；登录防爆破 5 次/15min → `20104`（`sys.audit_log` 计数）。当前实状仍无鉴权——`?role=` 为演示角色切换参数（契约 §2.1 演进注/§15 头部约定）。
-- **RBAC（端点级）**：`/workbench/settings/config` 写面限管理域角色（`20004`/`20005`）；数据域 RBAC（`dept_leader` 本科室过滤）与实名脱敏属 P3.1 远期。
+- **认证（P3-EA 已落地）**：`POST /auth/login`/`logout`（契约 §2.3–2.4）= PG 会话表 `sys.user_session` + `edss_sid` HttpOnly Cookie（生产追加 `Secure`）；口令 bcrypt（x/crypto，§1 已批）；登录防爆破 5 次/15min → `20104`（`sys.audit_log` 计数）。`?role=` 双轨语义：读侧保留演示切换（契约 §2.1 注），写侧异名切换限 `admin`/`president` 会话（契约 §15 闸注）。
+- **RBAC（端点级，已生效）**：`/workbench/settings/config` 读限 `admin`/`president`（`20004`），§15 写面按角色矩阵放行管理域三角色（`20005`），`/sim/*` 全限 `admin`；数据域 RBAC（`dept_leader` 本科室过滤已实现于工单域闸）与实名脱敏属 P3.1 远期。
 - **CORS/TLS**：dev（vite proxy 同源 `/api`→:8080）与 prod（静态托管 + 反代同源）均不实现 CORS 中间件；TLS 在生产反代（Nginx）终结，Go 后端保 HTTP，本地不强制。
 - 密钥一律 `.env`；演示截图/录屏场景注意不展示真实敏感信息
 
