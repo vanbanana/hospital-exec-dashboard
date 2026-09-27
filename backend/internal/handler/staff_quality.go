@@ -28,29 +28,29 @@ func (h *StaffHandler) Quality(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.r.Today(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	monthStart := repo.PeriodStart(today, "month")
 
 	stats, err := h.qualityStats(ctx, today)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	trend, err := h.qualityInfectionTrend(ctx, today)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	adverse, err := h.qualityAdverseEvents(ctx, monthStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	rules, err := h.qualityRules(ctx, monthStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 

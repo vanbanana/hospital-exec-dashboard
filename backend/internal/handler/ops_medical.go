@@ -72,7 +72,7 @@ func (h *OpsHandler) Medical(c *gin.Context) {
 		err = h.fillOutpatient(ctx, today, win, sw, &resp)
 	}
 	if err != nil {
-		h.internalErr(c)
+		h.internalErr(c, err)
 		return
 	}
 	envelope.OK(c, resp)

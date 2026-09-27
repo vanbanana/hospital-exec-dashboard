@@ -22,7 +22,7 @@ func (h *StaffHandler) Assets(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.r.Today(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	mStart := repo.PeriodStart(today, "month")
@@ -40,24 +40,24 @@ func (h *StaffHandler) Assets(c *gin.Context) {
 	} {
 		it, err := h.patientStat(ctx, today, s.label, s.code, s.unit, s.conv)
 		if err != nil {
-			fail(c)
+			fail(c, err)
 			return
 		}
 		stats = append(stats, it)
 	}
 	devCnt, _, _, _, err := h.statMetric(ctx, "LARGE_DEVICE_CNT", today)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	woCnt, _, _, _, err := h.statMetric(ctx, "WORK_ORDER_CNT", today)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	doneRate, _, err := h.r.MetricAt(ctx, "WORK_ORDER_DONE_RATE", 0, mStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	// 两台数项契约无 delta,仅 note(§11.1 示例)
@@ -72,7 +72,7 @@ func (h *StaffHandler) Assets(c *gin.Context) {
 	starts, months := repo.MonthAxis(today, 6)
 	eRows, err := h.r.EnergyMonths(ctx, starts)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	amt := make(map[string]map[string]float64, len(starts))
@@ -98,7 +98,7 @@ func (h *StaffHandler) Assets(c *gin.Context) {
 	// ---- stock_alerts:最近快照,days>warn_days 入选,days DESC ----
 	sRows, err := h.r.StockAlerts(ctx, today)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	alerts := make([]gin.H, 0, len(sRows))
@@ -120,7 +120,7 @@ func (h *StaffHandler) Assets(c *gin.Context) {
 	// ---- large_equipments:白名单 7 台,契约列;roi 阈值见 metric_def DEVICE_ROI ----
 	agg, err := h.r.LargeEquipMonth(ctx, mStart, largeEquipWhitelist)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	byName := make(map[string]repo.EquipAggRow, len(agg))
@@ -129,7 +129,7 @@ func (h *StaffHandler) Assets(c *gin.Context) {
 	}
 	roiDict, err := h.r.DictList(ctx, "roi_level")
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	roiLabel := make(map[string]string, len(roiDict))

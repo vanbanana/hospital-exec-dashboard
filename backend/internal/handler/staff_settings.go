@@ -20,14 +20,14 @@ func (h *StaffHandler) SettingsConfig(c *gin.Context) {
 	ctx := c.Request.Context()
 	dict, err := h.settingsDicts(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 
 	// ---- data_sources:6 行契约序,type/status=dict 标签,sync=YYYY-MM-DD HH:mm ----
 	srcs, err := h.r.SettingDataSources(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	srcRows := make([]gin.H, 0, len(srcs))
@@ -43,7 +43,7 @@ func (h *StaffHandler) SettingsConfig(c *gin.Context) {
 	// ---- thresholds:白名单 7 行,name 取契约名映射,rule 文案=eval_json+op+threshold 拼装 ----
 	rules, err := h.r.SettingRules(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	thRows := make([]gin.H, 0, len(rules))
@@ -59,7 +59,7 @@ func (h *StaffHandler) SettingsConfig(c *gin.Context) {
 	// ---- users:sys.user 全行,name=real_name,status=user_status dict ----
 	us, err := h.r.SettingUsers(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	userRows := make([]gin.H, 0, len(us))
@@ -81,7 +81,7 @@ func (h *StaffHandler) SettingsConfig(c *gin.Context) {
 	}
 	pref, err := h.r.SettingPrefs(ctx, su.ID)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	defaultRange := "本月"

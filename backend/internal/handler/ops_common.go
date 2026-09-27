@@ -30,13 +30,16 @@ func NewOpsHandler(db *gorm.DB, ck *clock.Source) *OpsHandler {
 func (h *OpsHandler) today(c *gin.Context) (time.Time, bool) {
 	t, err := h.ck.Today(c.Request.Context())
 	if err != nil {
-		envelope.Fail(c, 500, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
+		h.internalErr(c, err)
 		return t, false
 	}
 	return t, true
 }
 
-func (h *OpsHandler) internalErr(c *gin.Context) {
+func (h *OpsHandler) internalErr(c *gin.Context, err error) {
+	if err != nil {
+		_ = c.Error(err)
+	}
 	envelope.Fail(c, 500, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 }
 

@@ -1,0 +1,26 @@
+# build context = 仓库根(deploy/Dockerfile);deploy/ 与 backend/ src/ 等构建输入不可挡
+
+# VCS 与 worktree
+.git
+.worktrees
+.vscode
+.idea
+.DS_Store
+
+# 依赖与构建产物(镜像内重新安装/构建)
+node_modules
+dist
+coverage.out
+tsconfig.tsbuildinfo
+backend/edss
+
+# 设计参考资产与文档(构建不需要,archive 体量大必须挡)
+archive
+docs
+*.md
+process_assets.py
+
+# 本地环境与日志
+.env
+.env.*
+*.log

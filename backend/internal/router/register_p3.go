@@ -13,6 +13,5 @@ func registerAuth(v1 *gin.RouterGroup, d *Deps) {
 	v1.POST("/auth/login", a.Login)   // §2.3
 	v1.POST("/auth/logout", a.Logout) // §2.4
 }
-func registerWrite(v1 *gin.RouterGroup, d *Deps)  {}
-func registerSim(v1 *gin.RouterGroup, d *Deps)    {}
-func registerSystem(v1 *gin.RouterGroup, d *Deps) {}
+func registerWrite(v1 *gin.RouterGroup, d *Deps) {}
+func registerSim(v1 *gin.RouterGroup, d *Deps)   {}

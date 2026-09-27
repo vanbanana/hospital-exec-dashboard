@@ -11,13 +11,13 @@ import (
 
 // 错误码注册表子集——仅服务端实际会发出的码(error-codes.md §3)
 const (
-	CodeOK          = 0
-	CodeInternal    = 10000 // 系统繁忙
-	CodeInvalidArg  = 10001 // 请求参数错误(枚举外/必填缺席)
-	CodeFieldErr    = 10002 // 表单字段校验失败(data.fields 定位)
-	CodeNotFound    = 10003 // 资源不存在
-	CodeBadJSON     = 10006 // 请求体 JSON 解析失败
-	CodeConflict    = 10007 // 资源状态冲突
+	CodeOK         = 0
+	CodeInternal   = 10000 // 系统繁忙
+	CodeInvalidArg = 10001 // 请求参数错误(枚举外/必填缺席)
+	CodeFieldErr   = 10002 // 表单字段校验失败(data.fields 定位)
+	CodeNotFound   = 10003 // 资源不存在
+	CodeBadJSON    = 10006 // 请求体 JSON 解析失败
+	CodeConflict   = 10007 // 资源状态冲突
 	// 20xxx 认证授权
 	CodeUnauth     = 20001 // 未认证/凭证缺失
 	CodeSessExpire = 20002 // 会话过期

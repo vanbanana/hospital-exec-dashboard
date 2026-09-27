@@ -55,6 +55,7 @@ func (h *TopicsHandler) Topics(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.ck.Today(ctx)
 	if err != nil {
+		_ = c.Error(err)
 		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 		return
 	}
@@ -71,6 +72,7 @@ func (h *TopicsHandler) Topics(c *gin.Context) {
 		data, err = h.opfTopic(ctx, rng, today)
 	}
 	if err != nil {
+		_ = c.Error(err)
 		envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 		return
 	}

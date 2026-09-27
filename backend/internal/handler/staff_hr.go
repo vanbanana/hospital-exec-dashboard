@@ -28,28 +28,28 @@ func (h *StaffHandler) Hr(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.r.Today(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 
 	stats, err := h.hrStats(ctx, today)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	structure, err := h.hrStructure(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	titles, err := h.hrTitles(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	staffing, err := h.hrDeptStaffing(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 

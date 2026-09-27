@@ -57,7 +57,7 @@ func (h *Auth) Login(c *gin.Context) {
 
 	u, err := repo.FindAuthUser(ctx, h.db, req.Username)
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	ip := clientIPPtr(c)
@@ -73,7 +73,7 @@ func (h *Auth) Login(c *gin.Context) {
 	// 锁定计数在 bcrypt 前判:防计时 oracle 且省 CPU(r-auth C2);计数源=audit_log 跨重启存活
 	n, err := repo.CountRecentLoginFail(ctx, h.db, req.Username)
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	if n >= 5 {
@@ -88,7 +88,7 @@ func (h *Auth) Login(c *gin.Context) {
 
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	token := hex.EncodeToString(raw)
@@ -97,7 +97,7 @@ func (h *Auth) Login(c *gin.Context) {
 
 	ts, err := h.clk.Now(ctx)
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	ua := c.Request.UserAgent()
@@ -114,7 +114,7 @@ func (h *Auth) Login(c *gin.Context) {
 		return repo.InsertAudit(ctx, tx, repo.AuditRow{UserID: &u.ID, Username: u.Username, Action: "login", IP: ip})
 	})
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *Auth) Login(c *gin.Context) {
 
 	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u.ToContextUser())
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	envelope.OK(c, resp)
