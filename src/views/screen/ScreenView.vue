@@ -2,28 +2,36 @@
   <div class="screen-root">
     <ScrHeader :status="snap?.status" :server-time="snap?.server_time" />
 
-    <div v-if="loading" class="screen-state">
-      <span class="state-text">正在加载大屏快照…</span>
-    </div>
-    <div v-else-if="error" class="screen-state">
-      <div class="error-bar"></div>
-      <span class="state-text error">数据链路中断</span>
-      <span class="state-sub">{{ error }}</span>
-      <button class="retry-btn" type="button" @click="load">重新连接</button>
-    </div>
-    <div v-else class="screen-body">
-      <div class="col col-l">
-        <ScrDrgQuadrant class="p-drg" :data="snap?.drg_quadrant" />
-        <ScrDeptRank class="p-grow" :list="snap?.dept_ranking" />
+    <div class="screen-body">
+      <div v-if="loading" class="screen-state">
+        <span class="state-text">正在加载大屏快照…</span>
       </div>
-      <div class="col col-c">
-        <ScrKpiStrip class="p-kpi" :kpis="snap?.kpis" />
+      <div v-else-if="error" class="screen-state">
+        <div class="error-bar"></div>
+        <span class="state-text error">数据链路中断</span>
+        <span class="state-sub">{{ error }}</span>
+        <button class="retry-btn" type="button" @click="load">重新连接</button>
+      </div>
+      <template v-else>
+        <!-- 院区图垫底（z1）：img cover + 偏心 vignette + 楼宇 pin（ScrCampusMap 内部解剖） -->
         <ScrCampusMap :buildings="snap?.buildings" />
-      </div>
-      <div class="col col-r">
-        <ScrTrendGrid class="p-trend" :trends="snap?.trends" :kpis="snap?.kpis" />
-        <ScrAlertFeed class="p-grow" :list="snap?.alerts?.list" :total="snap?.alerts?.total_open" />
-      </div>
+
+        <!-- 顶部 KPI 浮条（z25，浮于 overlay 之上） -->
+        <ScrKpiStrip :kpis="snap?.kpis" />
+
+        <!-- 浮层 UI（z20，容器穿透、面板恢复交互） -->
+        <div class="ui-overlay">
+          <aside class="left-column">
+            <ScrTrendTabs class="lc-trend" :trends="snap?.trends" :kpis="snap?.kpis" />
+            <ScrBuildingBars class="lc-bars" :buildings="snap?.buildings" />
+          </aside>
+          <div class="bottom-row">
+            <ScrDrgQuadrant :data="snap?.drg_quadrant" />
+            <ScrDeptRank :list="snap?.dept_ranking" />
+            <ScrAlertFeed :list="snap?.alerts?.list" :total="snap?.alerts?.total_open" />
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -36,7 +44,8 @@ import ScrDrgQuadrant from '../../components/screen/ScrDrgQuadrant.vue'
 import ScrCampusMap from '../../components/screen/ScrCampusMap.vue'
 import ScrDeptRank from '../../components/screen/ScrDeptRank.vue'
 import ScrAlertFeed from '../../components/screen/ScrAlertFeed.vue'
-import ScrTrendGrid from '../../components/screen/ScrTrendGrid.vue'
+import ScrTrendTabs from '../../components/screen/ScrTrendTabs.vue'
+import ScrBuildingBars from '../../components/screen/ScrBuildingBars.vue'
 import { getScreenSnapshot } from '../../api/screen'
 import type { ScreenSnapshotResp } from '../../api/types'
 
@@ -71,66 +80,8 @@ onMounted(load)
     var(--scr-bg);
 }
 
-.screen-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  gap: var(--scr-space-7); /* 美术稿 */
-  padding: var(--scr-space-7);
-}
-
-.col {
-  display: flex;
-  flex-direction: column;
-  gap: var(--scr-space-7);
-  min-height: 0;
-  min-width: 0;
-}
-
-.col-l {
-  width: 436px; /* 美术稿 */
-  flex-shrink: 0;
-}
-
-.col-c {
-  flex: 1;
-}
-
-.col-r {
-  width: 400px; /* 美术稿 */
-  flex-shrink: 0;
-}
-
-.p-drg {
-  height: 396px; /* 美术稿 */
-  flex-shrink: 0;
-}
-
-.p-grow {
-  flex: 1;
-  min-height: 0;
-}
-
-.p-kpi {
-  height: 82px; /* 美术稿 */
-  flex-shrink: 0;
-}
-
-.p-trend {
-  height: 396px; /* 美术稿 */
-  flex-shrink: 0;
-}
-
-/* 整屏状态态（loading / error-retry，frontend-api §15 空错态） */
-.screen-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--scr-space-5);
-  position: relative;
-}
+/* .screen-body/.campus-stage/.ui-overlay/.left-column/.bottom-row/.hero-ribbon/.screen-state
+   布局骨架统一在 screen.css 浮层布局区块 */
 
 .error-bar {
   position: absolute;

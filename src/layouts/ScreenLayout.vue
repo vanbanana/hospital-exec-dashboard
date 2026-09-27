@@ -44,8 +44,8 @@ const toggleAdaptMode = () => {
   updateScale()
 }
 
-// 顶栏适配胶囊消费（ScrHeader）
-provide('screen-adapt', { adaptMode, scaleX, toggleAdaptMode })
+// 顶栏适配胶囊消费（ScrHeader）；scaleY 供 fill 模式双轴百分比显示
+provide('screen-adapt', { adaptMode, scaleX, scaleY, toggleAdaptMode })
 
 let resizeTimer: number | null = null
 const onResize = () => {

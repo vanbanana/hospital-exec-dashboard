@@ -8,6 +8,7 @@
         <h1>{{ hospitalName }}</h1>
         <span class="hdr-sub">HOSPITAL EXECUTIVE COMMAND CENTER</span>
       </div>
+      <div class="hdr-tail"></div>
     </div>
 
     <div class="hdr-center">
@@ -27,6 +28,7 @@
       <button class="adapt-pill" type="button" :title="adaptTitle" @click="adapt?.toggleAdaptMode()">
         <span class="adapt-dot" :class="{ fill: adapt?.adaptMode.value === 'fill' }"></span>
         <span class="scr-num adapt-text">{{ adaptLabel }}</span>
+        <span class="adapt-hint">{{ adapt?.adaptMode.value === 'fill' ? 'FILL' : 'FIT' }}</span>
       </button>
 
       <div class="hdr-clock">
@@ -43,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
+import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 import { Maximize } from 'lucide-vue-next'
 import type { ScreenStatus } from '../../api/types'
@@ -60,20 +62,27 @@ const props = defineProps<{
 interface ScreenAdapt {
   adaptMode: Ref<'contain' | 'fill'>
   scaleX: Ref<number>
+  scaleY: Ref<number>
   toggleAdaptMode: () => void
 }
 const adapt = inject<ScreenAdapt>('screen-adapt')
 
+/* B8：status 缺失落 is-unknown 中性灰，不显示"正常"绿态 */
 const statusClass = computed(() => ({
-  'is-normal': !props.status || props.status.level === 'normal',
+  'is-unknown': !props.status,
+  'is-normal': props.status?.level === 'normal',
   'is-busy': props.status?.level === 'busy',
   'is-alert': props.status?.level === 'alert',
 }))
 
+/* B9：fill 模式 X/Y 双轴分别显示（如 110%×95%） */
 const adaptLabel = computed(() => {
   if (!adapt) return ''
-  const mode = adapt.adaptMode.value === 'fill' ? '智能铺满' : '等比自适应'
-  return `${mode} ${Math.round(adapt.scaleX.value * 100)}%`
+  const sx = Math.round(adapt.scaleX.value * 100)
+  if (adapt.adaptMode.value === 'fill') {
+    return `智能铺满 ${sx}%×${Math.round(adapt.scaleY.value * 100)}%`
+  }
+  return `等比自适应 ${sx}%`
 })
 const adaptTitle = computed(() =>
   adapt?.adaptMode.value === 'fill' ? '全屏智能铺满（无黑边），点击切换' : '等比居中（16:9 标准），点击切换'
@@ -87,24 +96,40 @@ onMounted(() => {
     .catch(() => { /* 失败保留默认院名，大屏无 error 态 */ })
 })
 
-/* 屏显时钟：以契约 server_time 为源起跳，本地秒针推进 */
+/* 屏显时钟：server_time(+08:00) 按字面墙钟渲染——解析字段后以 UTC 构造/读出，
+   全程不经本地时区换算（gap B7）；prop 到达时重锚 baseMs（gap B2） */
 const clock = ref({ time: '--:--:--', date: '', weekday: '' })
+let baseMs = 0
+let mountMs = 0
 let timer: number | null = null
 
-onMounted(() => {
-  const base = new Date(props.serverTime || BASE_FALLBACK)
-  const baseMs = isNaN(base.getTime()) ? new Date(BASE_FALLBACK).getTime() : base.getTime()
-  const mountMs = Date.now()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const tick = () => {
-    const now = new Date(baseMs + Date.now() - mountMs)
-    clock.value = {
-      time: `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
-      date: `${now.getFullYear()}.${now.getMonth() + 1}.${now.getDate()}`,
-      weekday: `星期${'日一二三四五六'[now.getDay()]}`,
-    }
+const parseWallClock = (s: string): number | null => {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
+  if (!m) return null
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+const tick = () => {
+  const now = new Date(baseMs + Date.now() - mountMs)
+  clock.value = {
+    time: `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`,
+    date: `${now.getUTCFullYear()}.${now.getUTCMonth() + 1}.${now.getUTCDate()}`,
+    weekday: `星期${'日一二三四五六'[now.getUTCDay()]}`,
   }
-  tick()
+}
+
+watch(
+  () => props.serverTime,
+  (v) => {
+    baseMs = parseWallClock(v || BASE_FALLBACK) ?? Date.UTC(2026, 9, 28, 0, 30, 0)
+    mountMs = Date.now()
+    tick()
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
   timer = window.setInterval(tick, 1000)
 })
 
@@ -125,13 +150,14 @@ const toggleFullscreen = () => {
 <style scoped>
 .scr-header {
   position: relative;
-  height: 64px; /* 美术稿 */
+  z-index: var(--scr-z-header);
+  height: var(--scr-header-h);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-inline: var(--scr-space-10);
-  background: linear-gradient(180deg, var(--p-ink-900), rgb(from var(--p-ink-800) r g b / 0.85));
+  background: var(--scr-header-bg);
   border-bottom: 1px solid var(--scr-border);
   box-shadow: 0 4px 16px rgb(from var(--p-ink-950) r g b / 0.5);
 }
@@ -145,9 +171,9 @@ const toggleFullscreen = () => {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--p-blue-600) 35%,
+    var(--scr-royal) 35%,
     var(--scr-accent) 50%,
-    var(--p-blue-600) 65%,
+    var(--scr-royal) 65%,
     transparent 100%
   );
   opacity: var(--scr-opacity-sub);
@@ -163,7 +189,7 @@ const toggleFullscreen = () => {
   width: 38px; /* 美术稿 */
   height: 38px;
   border-radius: 50%;
-  filter: drop-shadow(0 2px 6px rgb(from var(--p-blue-600) r g b / 0.4));
+  filter: drop-shadow(0 2px 6px rgb(from var(--scr-royal) r g b / 0.4));
 }
 
 .hdr-title {
@@ -172,18 +198,28 @@ const toggleFullscreen = () => {
 }
 
 .hdr-title h1 {
-  font-size: var(--scr-fs-title);
+  font-size: var(--scr-fs-21);
   font-weight: var(--scr-fw-bold);
   letter-spacing: var(--scr-ls-xl);
   color: var(--scr-text-1);
 }
 
 .hdr-sub {
-  font-size: var(--scr-fs-axis);
+  font-size: var(--scr-fs-8p5);
   font-family: var(--p-font-number);
   font-weight: var(--scr-fw-semibold);
   letter-spacing: var(--scr-ls-lg);
   color: var(--scr-text-3);
+  opacity: 0.9;
+}
+
+/* REF title-tail-decoration：标题尾饰渐变线 */
+.hdr-tail {
+  width: 50px; /* 美术稿 */
+  height: 2px;
+  margin-left: var(--scr-space-3);
+  align-self: center;
+  background: linear-gradient(90deg, var(--scr-royal), transparent);
 }
 
 .hdr-center {
@@ -210,6 +246,14 @@ const toggleFullscreen = () => {
   box-shadow: 0 0 6px var(--scr-down);
 }
 
+/* B8：未知态中性灰点，不发"正常"绿光 */
+.status-pill.is-unknown {
+  border-color: var(--scr-border);
+}
+.status-pill.is-unknown .status-dot {
+  background: var(--scr-text-3);
+  box-shadow: none;
+}
 .status-pill.is-busy .status-dot {
   background: var(--scr-warn);
   box-shadow: 0 0 6px var(--scr-warn);
@@ -249,17 +293,22 @@ const toggleFullscreen = () => {
   gap: var(--scr-space-4);
   padding: var(--scr-space-2) var(--scr-space-5);
   background: rgb(from var(--p-ink-800) r g b / 0.85);
-  border: 1px solid var(--scr-border);
-  border-radius: var(--scr-radius-pill);
+  border: 1px solid var(--scr-inset-border);
+  border-radius: var(--scr-radius-chip);
   color: var(--scr-text-3);
-  font-size: var(--scr-fs-sm);
+  font-size: var(--scr-fs-11p5);
+  letter-spacing: var(--scr-ls-sm);
   cursor: pointer;
-  transition: border-color var(--scr-dur-normal), color var(--scr-dur-normal);
+  transition: all var(--scr-dur-normal) cubic-bezier(0.2, 0, 0, 1);
 }
 
 .adapt-pill:hover {
-  border-color: var(--scr-border-glow);
+  border-color: var(--p-blue-600); /* 原色直取：REF hover 亮蓝边 */
   color: var(--scr-text-1);
+  box-shadow: 0 0 10px rgb(from var(--scr-royal) r g b / 0.3);
+}
+.adapt-pill:active {
+  transform: scale(0.97);
 }
 
 .adapt-dot {
@@ -268,6 +317,7 @@ const toggleFullscreen = () => {
   border-radius: 50%;
   background: var(--scr-down);
   box-shadow: 0 0 5px var(--scr-down);
+  transition: all var(--scr-dur-normal) ease;
 }
 .adapt-dot.fill {
   background: var(--scr-accent-bright);
@@ -275,8 +325,21 @@ const toggleFullscreen = () => {
 }
 
 .adapt-text {
+  font-family: var(--p-font-number);
   font-weight: var(--scr-fw-semibold);
   color: var(--scr-text-2);
+}
+
+/* REF scale-mode-hint：FIT/FILL 模式芯片 */
+.adapt-hint {
+  font-family: var(--p-font-number);
+  font-size: var(--scr-fs-9p5);
+  font-weight: var(--scr-fw-bold);
+  padding: var(--scr-space-1) var(--scr-space-2);
+  border-radius: var(--scr-radius-tag);
+  background: rgb(from var(--scr-royal) r g b / 0.25);
+  color: var(--scr-accent-bright);
+  border: 1px solid rgb(from var(--p-cyan-400) r g b / 0.3);
 }
 
 .hdr-clock {
@@ -303,16 +366,18 @@ const toggleFullscreen = () => {
   align-items: center;
   justify-content: center;
   padding: var(--scr-space-3);
-  background: var(--p-ink-800); /* 原色直取 */
-  border: 1px solid var(--scr-border);
+  background: var(--scr-inset-bg);
+  border: 1px solid var(--scr-inset-border);
   border-radius: var(--scr-radius-card);
   color: var(--scr-text-3);
   cursor: pointer;
-  transition: color var(--scr-dur-normal), border-color var(--scr-dur-normal);
+  transition: all var(--scr-dur-normal);
 }
 
 .fs-btn:hover {
+  background: var(--scr-royal);
+  border-color: var(--p-blue-600); /* 原色直取：REF hover 亮一档蓝边 */
   color: var(--scr-text-1);
-  border-color: var(--scr-border-glow);
+  box-shadow: 0 2px 8px rgb(from var(--scr-royal) r g b / 0.35);
 }
 </style>

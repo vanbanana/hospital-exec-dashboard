@@ -1,5 +1,13 @@
 <template>
-  <ScrPanel title="DRG盈亏 × CMI 四象限" :sub="subText">
+  <ScrPanel title="DRG盈亏 × CMI 四象限">
+    <!-- REF 惯例：图例 HTML 自制挪副栏（spec §3.3 patient-sub-bar / chart-legends），不用 ECharts legend -->
+    <div v-if="option" class="scr-sub-bar">
+      <span class="scr-sub">{{ subText }}</span>
+      <div class="scr-legend">
+        <span class="scr-legend-item"><i class="scr-dot dot-accent"></i>外科系</span>
+        <span class="scr-legend-item"><i class="scr-dot dot-royal"></i>内科系</span>
+      </div>
+    </div>
     <ScrChart v-if="option" :option="option" class="drg-chart" />
     <div v-else class="scr-empty">暂无散点数据</div>
   </ScrPanel>
@@ -42,14 +50,7 @@ function build(): echarts.EChartsOption | undefined {
   })
 
   return {
-    grid: { left: 46, right: 20, top: 30, bottom: 34 },
-    legend: {
-      top: 4,
-      right: 8,
-      itemWidth: 10,
-      itemHeight: 6,
-      textStyle: { color: p.text3, fontSize: p.fsXs },
-    },
+    grid: { left: 46, right: 20, top: 14, bottom: 34 },
     tooltip: {
       trigger: 'item',
       backgroundColor: p.tooltipBg,

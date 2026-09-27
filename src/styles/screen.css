@@ -16,6 +16,7 @@
   border: 1px solid var(--scr-border);
   border-radius: var(--scr-radius-card);
   box-shadow: var(--scr-shadow-panel);
+  backdrop-filter: blur(var(--scr-blur-panel)); /* REF tech-panel 微玻璃：浮层布局下透底图 */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -26,10 +27,11 @@
   display: flex;
   align-items: center;
   gap: var(--scr-space-4);
-  padding: var(--scr-space-5) var(--scr-space-7);
-  border-bottom: 1px solid rgb(from var(--p-ink-800) r g b / 0.9);
-  background: linear-gradient(90deg, rgb(from var(--p-blue-600) r g b / 0.14), transparent 75%);
-  font-size: var(--scr-fs-md);
+  height: var(--scr-panel-head-h);
+  padding: 0 var(--scr-space-7);
+  border-bottom: 1px solid var(--scr-head-line);
+  background: linear-gradient(90deg, rgb(from var(--scr-royal) r g b / 0.12), transparent 80%);
+  font-size: var(--scr-fs-14);
   font-weight: var(--scr-fw-semibold);
   letter-spacing: var(--scr-ls-mid);
   color: var(--scr-text-1);
@@ -46,7 +48,7 @@
   background:
     linear-gradient(var(--scr-accent), var(--scr-accent)) 0% 50% / 2.5px 8px no-repeat,
     linear-gradient(var(--scr-accent-bright), var(--scr-accent-bright)) 50% 50% / 2.5px 14px no-repeat,
-    linear-gradient(var(--p-blue-600), var(--p-blue-600)) 100% 50% / 2.5px 10px no-repeat;
+    linear-gradient(var(--scr-royal), var(--scr-royal)) 100% 50% / 2.5px 10px no-repeat;
 }
 
 .scr-panel-head .scr-head-sub {
@@ -60,9 +62,75 @@
 .scr-panel-body {
   flex: 1;
   min-height: 0;
-  padding: var(--scr-space-5) var(--scr-space-7) var(--scr-space-6);
+  padding: var(--scr-space-6) var(--scr-space-7);
   display: flex;
   flex-direction: column;
+}
+
+/* ===== 面板副栏与 HTML 图例（REF patient-sub-bar / chart-legends 解剖） ===== */
+
+.scr-sub-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--scr-space-4);
+  margin-bottom: var(--scr-space-3);
+  flex-shrink: 0;
+}
+
+.scr-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--scr-space-6);
+  font-size: var(--scr-fs-sm);
+  color: var(--scr-text-2);
+}
+
+.scr-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--scr-space-2);
+  white-space: nowrap;
+}
+
+.scr-dot {
+  width: 7px; /* 美术稿（REF .dot） */
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.scr-dot.dot-accent { background: var(--scr-accent-bright); }
+.scr-dot.dot-cyan { background: var(--scr-accent); }
+.scr-dot.dot-royal { background: var(--scr-royal); }
+
+/* 数值徽章（REF hero-metric-badge：1px/5px pad、radius2、10px/600、色系浅底） */
+.scr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--scr-space-1) 5px; /* 美术稿 */
+  border-radius: var(--scr-radius-badge);
+  font-size: var(--scr-fs-xs);
+  font-weight: var(--scr-fw-semibold);
+  font-family: var(--p-font-number);
+  white-space: nowrap;
+}
+
+.scr-badge.is-up {
+  background: rgb(from var(--p-green-500) r g b / 0.15);
+  color: var(--p-green-500); /* REF badge-up 用绿，与 --scr-up(红) 语义冲突——直取原色，见 spec §5.3-1 */
+}
+.scr-badge.is-down {
+  background: rgb(from var(--p-red-500) r g b / 0.15);
+  color: var(--p-red-500);
+}
+.scr-badge.is-flat {
+  background: rgb(from var(--p-cyan-400) r g b / 0.15);
+  color: var(--scr-accent-bright);
+}
+.scr-badge.is-warn {
+  background: rgb(from var(--p-amber-500) r g b / 0.15);
+  color: var(--p-amber-500);
 }
 
 /* ===== 数字与文本 ===== */
@@ -116,22 +184,24 @@
 .scr-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--scr-fs-sm);
+  font-size: var(--scr-fs-12);
 }
 
 .scr-table th {
-  background: linear-gradient(180deg, var(--p-blue-600), var(--p-blue-700));
+  background: var(--scr-th-bg);
   color: var(--scr-text-1);
   font-weight: var(--scr-fw-semibold);
-  font-size: var(--scr-fs-sm);
-  padding: var(--scr-space-3) var(--scr-space-4);
+  font-size: var(--scr-fs-12);
+  padding: var(--scr-space-4) var(--scr-space-5);
   text-align: left;
   letter-spacing: var(--scr-ls-sm);
   white-space: nowrap;
+  position: sticky; /* 滚动容器内表头吸附（REF tech-table） */
+  top: 0;
 }
 
 .scr-table td {
-  padding: var(--scr-space-3) var(--scr-space-4);
+  padding: var(--scr-space-3) var(--scr-space-5);
   color: var(--scr-text-2);
   border-bottom: 1px solid rgb(from var(--p-white) r g b / 0.05);
   white-space: nowrap;
@@ -139,6 +209,12 @@
 
 .scr-table tr:nth-child(even) td {
   background: rgb(from var(--p-white) r g b / 0.015);
+}
+
+/* REF tech-table 行 hover：royal 浅底 + 文字提亮 */
+.scr-table tbody tr:hover td {
+  background: rgb(from var(--scr-royal) r g b / 0.16);
+  color: var(--scr-text-1);
 }
 
 /* ===== 空态 ===== */
@@ -169,4 +245,123 @@
   0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgb(from var(--p-red-500) r g b / 0.55); }
   70% { transform: scale(1); box-shadow: 0 0 0 9px rgb(from var(--p-red-500) r g b / 0); }
   100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgb(from var(--p-red-500) r g b / 0); }
+}
+
+/* ============================================================
+   cockpit 浮层布局（P07 复刻：院区图垫底 + 浮层面板，frontend-architecture §12.2）
+   几何与层级按参考稿 spec §1.3/§1.4；pin 内部解剖在 ScrCampusMap.vue 作用域内
+   ============================================================ */
+
+/* 主视口：顶栏之下 1920×1016 的相对定位容器 */
+.screen-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 院区底图舞台层（z1，压在最底） */
+.campus-stage {
+  position: absolute;
+  inset: 0;
+  z-index: var(--scr-z-stage);
+  overflow: hidden;
+  background: var(--scr-bg);
+}
+
+.campus-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: var(--scr-map-filter);
+  display: block;
+}
+
+/* 偏心径向压边：视觉重心在中上楼宇群（spec §3.6） */
+.stage-vignette {
+  position: absolute;
+  inset: 0;
+  background: var(--scr-vignette);
+  pointer-events: none;
+}
+
+/* 与 object-fit:cover 渲染矩形同盒的 pin 定位层：
+   宽取 max(stage宽, stage高×图比) 即 cover 后图像宽，aspect-ratio 推出高，居中出血 */
+.pin-layer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: max(100%, calc(var(--scr-stage-h) * 1376 / 768));
+  aspect-ratio: 1376 / 768; /* 美术稿：底图固有宽高比 */
+}
+
+/* 浮层容器：默认穿透（地图可 hover），列/行容器恢复交互 */
+.ui-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--scr-z-ui);
+  padding: var(--scr-overlay-pad);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.left-column {
+  width: var(--scr-col-left);
+  display: flex;
+  flex-direction: column;
+  gap: var(--scr-col-gap);
+  pointer-events: auto;
+}
+
+.lc-trend {
+  height: 310px; /* 美术稿：参考稿 panel-patient 高 */
+  flex-shrink: 0;
+}
+
+.lc-bars {
+  height: 375px; /* 美术稿：参考稿 panel-resource 高 */
+  flex-shrink: 0;
+}
+
+/* 底行三面板：724/566/566 = 参考稿实测列宽 */
+.bottom-row {
+  width: 100%;
+  height: var(--scr-bottom-h);
+  display: grid;
+  grid-template-columns: 724px 566px 566px; /* 美术稿：参考稿 2.3/1.8/1.8 实测像素 */
+  gap: var(--scr-space-8);
+  pointer-events: auto;
+}
+
+/* 顶部 KPI 浮条：半透明渐变底 + 玻璃模糊（spec §3.2） */
+.hero-ribbon {
+  position: absolute;
+  top: var(--scr-overlay-pad);
+  left: calc(var(--scr-col-left) + var(--scr-overlay-pad) * 2); /* 左列右缘 446 + 16 = 462 */
+  right: var(--scr-overlay-pad);
+  height: var(--scr-ribbon-h);
+  z-index: var(--scr-z-ribbon);
+  display: flex;
+  align-items: center;
+  padding-inline: var(--scr-ribbon-px);
+  background: var(--scr-ribbon-bg);
+  border: 1px solid var(--scr-ribbon-border);
+  border-radius: var(--scr-radius-card);
+  box-shadow: var(--scr-ribbon-shadow);
+  backdrop-filter: blur(var(--scr-blur-ribbon));
+}
+
+/* 整屏加载/错误态（frontend-api §15 空错态），覆盖整个主视口 */
+.screen-state {
+  position: absolute;
+  inset: 0;
+  z-index: var(--scr-z-ui);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--scr-space-5);
 }

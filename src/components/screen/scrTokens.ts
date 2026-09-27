@@ -50,7 +50,7 @@ export function readScrPalette(): ScrPalette {
     up: v('--scr-up'),
     down: v('--scr-down'),
     warn: v('--scr-warn'),
-    blue: v('--p-blue-500'),
+    blue: v('--scr-royal'), // REF 系列2 主蓝 #1e65eb（spec §5.2 拟档 --p-blue-650，勿归并 blue-500）
     red: v('--p-red-500'),
     amber: v('--p-amber-500'),
     green: v('--p-green-500'),

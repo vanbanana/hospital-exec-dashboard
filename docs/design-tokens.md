@@ -126,7 +126,8 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
 ```css
 .screen-layout {
   --scr-bg:var(--p-ink-950);
-  --scr-panel:rgba(14,23,42,.92);          /* ink-900 玻璃底(复合值) */
+  --scr-panel:linear-gradient(135deg, rgba(16,26,48,.95), rgba(11,18,34,.96));
+             /* REF tech-panel 玻璃底(复合渐变,色基 ink-800/900 间中插,无原色档) */
   --scr-border:rgba(30,64,115,.45);        /* 基础描边(复合值) */
   --scr-border-glow:rgba(56,189,248,.25);  /* cyan 辉光描边 */
   --scr-accent:var(--p-cyan-500); --scr-accent-bright:var(--p-cyan-400);
@@ -136,7 +137,10 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   --scr-radius-card:4px; --scr-radius-tag:3px; --scr-radius-badge:2px;
   --scr-radius-pill:999px;
   --scr-shadow-panel:0 8px 24px rgba(0,4,15,.55), inset 0 1px 0 rgba(255,255,255,.05);
-  --scr-fs-axis:9px; --scr-fs-xxs:8px; --scr-fs-xs:10px; --scr-fs-sm:11px;
+  --scr-fs-axis:10px; --scr-fs-xxs:8px; --scr-fs-xs:10px; --scr-fs-sm:11px;
+  /* fs-axis 升 10px 与 fs-xs 同值不同槽(轴标语义);REF 折线轴标=10px */
+  --scr-fs-12:12px; --scr-fs-14:14px; --scr-fs-19:19px;
+  /* 新档:表格/res-label=12、面板标题=14、面板大数字=19(spec §2.3 半档命名) */
   --scr-fs-md:13px; --scr-fs-title:20px; --scr-fs-num:26px;
   --scr-fw-normal:400; --scr-fw-medium:500; --scr-fw-semibold:600; --scr-fw-bold:700;
   --scr-lh-tight:1.15; --scr-lh-normal:1.4;
@@ -150,18 +154,77 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   --scr-space-5:10px; --scr-space-6:12px; --scr-space-7:14px; --scr-space-8:16px;
   --scr-space-9:20px; --scr-space-10:22px;
   /* 图表语义(scrTokens.ts 唯一引用源;alpha 变体色基注明原色档) */
-  --scr-chart-axis:rgba(148,163,184,.30);      /* p-slate-400 @ .30 轴线 */
-  --scr-chart-grid:rgba(148,163,184,.08);      /* p-slate-400 @ .08 分隔线 */
+  --scr-chart-axis:rgba(255,255,255,.12);      /* p-white @ .12 轴线(REF 白基弱化) */
+  --scr-chart-grid:rgba(255,255,255,.06);      /* p-white @ .06 分隔线 dashed */
   --scr-chart-mark:rgba(56,189,248,.035);      /* p-cyan-400 @ .035 象限高亮底 */
-  --scr-chart-area-top:rgba(56,189,248,.22);   /* p-cyan-400 @ .22 面积渐变顶 */
-  --scr-chart-area-bottom:rgba(56,189,248,0);  /* p-cyan-400 @ 0 面积渐变底(保色相防黑化) */
+  --scr-chart-area-top:rgba(0,180,216,.18);    /* p-cyan-500 @ .18 面积渐变顶(REF) */
+  --scr-chart-area-bottom:rgba(0,180,216,0);   /* p-cyan-500 @ 0 面积渐变底(保色相防黑化) */
   --scr-tooltip-bg:rgba(6,11,23,.94);          /* p-ink-950 @ .94 图表浮层底 */
+  /* 面板解剖件(REF tech-panel/tech-header/res-row/tech-table,spec §2.2/§3) */
+  --scr-panel-head-h:38px;                     /* 面板头高(8+8 内边距+14px 标题+底线) */
+  --scr-blur-panel:12px;                       /* tech-panel backdrop-filter */
+  --scr-head-line:rgba(28,43,70,.8);           /* 面板头底线;无原色档(#1c2b46) */
+  --scr-royal:#1e65eb;                         /* REF 第一主蓝:系列2/表头顶/tab选中/进度条;
+                                                  无原色档(spec §5.2 拟 --p-blue-650,与 blue-600/700 不可归并) */
+  --scr-royal-deep:#1546af;                    /* REF 表头/tab 渐变底;无原色档(§5.2 拟 --p-blue-800) */
+  --scr-navy-deep:#1e40af;                     /* REF 柱/进度条渐变底;无原色档(§5.2 拟 --p-navy-700) */
+  --scr-inset-bg:var(--p-ink-800);             /* REF 徽章/芯片/卡内底 #132244 */
+  --scr-inset-border:#192c55;                  /* REF 小件描边(§5.2 归并 #1c3664/#1e3a68 同档) */
+  --scr-iconbox-bg:#172b52;                    /* REF res-icon-box 底;无原色档 */
+  --scr-bar-track:#0d172e;                     /* REF 进度条轨道;无原色档(§5.2 拟 --p-ink-820) */
+  --scr-th-bg:linear-gradient(180deg, var(--scr-royal), var(--scr-royal-deep));
+                                               /* REF tech-table 表头渐变 */
+  --scr-bar-fill:linear-gradient(90deg, var(--scr-navy-deep), var(--scr-royal));
+  --scr-bar-fill-sky:linear-gradient(90deg, var(--scr-royal), var(--p-cyan-500));
+  --scr-bar-fill-cyan:linear-gradient(90deg, var(--p-cyan-500), var(--p-cyan-400));
+  --scr-bar-fill-alert:linear-gradient(90deg, var(--p-red-500), var(--p-amber-500));
+                                               /* 进度条四档:默认/亮一档/满档青/告警(REF fill 族) */
+  --scr-scrollbar-w:4px;                       /* REF 细滚动条 */
+  --scr-scrollbar-thumb:#1c2b46;               /* REF 滚动条 thumb;无原色档 */
   /* 画布:1920×1080(裁决:cockpit 真大屏实际实现 + 会议室主流分辨率;
      archive/output 冻结稿 2048×1152 为旧稿值,不再采用)
      消费方:ScreenLayout 经 scrTokens.readScrCanvas() 运行时读取——禁止 JS 内再写 1920/1080 字面量 */
   --scr-canvas-w:1920px; --scr-canvas-h:1080px;
+
+  /* —— P07 浮层布局度量(院区图垫底+浮层面板,frontend-architecture §12.2;值为参考稿像素) —— */
+  --scr-header-h:64px;        /* 顶栏高 */
+  --scr-stage-h:calc(var(--scr-canvas-h) - var(--scr-header-h)); /* 主视口高 1016px */
+  --scr-overlay-pad:16px;     /* ui-overlay 内边距 */
+  --scr-col-left:430px;       /* 左列宽 */
+  --scr-col-gap:15px;         /* 左列内面板间距 */
+  --scr-ribbon-h:56px;        /* 顶部 KPI ribbon 高 */
+  --scr-ribbon-px:18px;       /* ribbon 横向内边距 */
+  --scr-bottom-h:265px;       /* 底行面板高 */
+
+  /* —— 复刻新增材质/色基(复合值注明原色档,无档者标无原色档;
+     --scr-royal/--scr-inset-border(pin 描边用此档)/--scr-fs-19(KPI 大数) 复用上方面板侧登记,勿再开) —— */
+  --scr-header-bg:linear-gradient(180deg,var(--p-ink-900) 0%,#101a30 70%,#0c1428 100%); /* ink 系复合 */
+  --scr-ribbon-bg:linear-gradient(90deg,rgba(14,24,46,.94) 0%,rgba(18,34,64,.92) 50%,rgba(14,24,46,.94) 100%); /* ink 系复合 */
+  --scr-ribbon-border:rgba(30,64,115,.55);  /* --scr-border 色基加深 */
+  --scr-ribbon-shadow:0 8px 24px rgba(0,4,15,.45), inset 0 1px 0 rgba(255,255,255,.08);
+  --scr-vignette:radial-gradient(circle at 55% 42%,transparent 35%,rgba(10,17,38,.85) 90%); /* ink-950 系复合,偏心压边 */
+  --scr-pin-bg:rgba(16,28,54,.94);   /* ink-900 系复合 */
+  --scr-map-filter:contrast(1.08) brightness(.95); /* 底图调性滤镜 */
+  --scr-blur-ribbon:14px;  --scr-blur-pop:10px;   /* pin 卡/弹层玻璃档(REF=10,区别于 --scr-blur-panel=12) */
+  --scr-shadow-pin:0 4px 12px rgba(0,0,0,.5);
+  --scr-radius-chip:12px;         /* 适配胶囊圆角(REF scale-indicator-pill,非全圆角) */
+
+  /* —— 字号半档补齐(spec §2.3 阶梯,新增 5 档;fs-19 见上方面板侧) —— */
+  --scr-fs-8p5:8.5px;   /* 头部英文副标 */
+  --scr-fs-9p5:9.5px;   /* FIT/FILL 模式芯片 */
+  --scr-fs-10p5:10.5px; /* KPI 单位 */
+  --scr-fs-11p5:11.5px; /* 适配胶囊文本 */
+  --scr-fs-21:21px;     /* 头部主标题 */
+  /* 行高补齐(REF hero 区 1.1/1.2 档,命名同 wb 侧 --wb-lh-mini/compact) */
+  --scr-lh-mini:1.1; --scr-lh-compact:1.2;
+
+  /* —— 层级(spec §1.4:stage < overlay < ribbon < header) —— */
+  --scr-z-stage:1; --scr-z-ui:20; --scr-z-ribbon:25; --scr-z-header:100;
+  --scr-dur-pop:.25s; /* pin hover/modal 弹出 */
 }
 ```
+
+> P07 起字体族：`--p-font-base`/`--p-font-number` 栈首项挂自托管 `Rajdhani`（woff2 在 `src/assets/fonts/`，tokens.css 顶部 `@font-face`；无 CJK 字形，中文回落 Noto Sans SC/PingFang SC）。参考稿原栈 `'Rajdhani','Noto Sans SC',system-ui…` 的语义即"拉丁数字窄体科技字 + 中文无衬线"。
 
 ## 6. 治理规则
 

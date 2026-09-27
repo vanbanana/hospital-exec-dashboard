@@ -1,6 +1,8 @@
 <template>
   <ScrPanel title="科室效能榜" sub="CMI · DRG结余 · 效能分">
-    <table v-if="list && list.length" class="scr-table rank-table">
+    <!-- B6：行数超容器时静默裁切 → 独立滚动层 + 细滚动条；表头 sticky 由 .scr-table th 承担 -->
+    <div v-if="list && list.length" class="rank-scroll">
+      <table class="scr-table rank-table">
       <thead>
         <tr>
           <th>名次</th>
@@ -38,7 +40,8 @@
           </td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </div>
     <div v-else class="scr-empty">暂无科室数据</div>
   </ScrPanel>
 </template>
@@ -51,8 +54,27 @@ defineProps<{ list?: DeptRankItem[] }>()
 </script>
 
 <style scoped>
-.rank-table {
+/* B6 修复：溢出滚动层（滚动条按 REF ::-webkit-scrollbar 4px 细条风格） */
+.rank-scroll {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scr-scrollbar-thumb) transparent;
+}
+
+.rank-scroll::-webkit-scrollbar {
+  width: var(--scr-scrollbar-w);
+}
+.rank-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.rank-scroll::-webkit-scrollbar-thumb {
+  background: var(--scr-scrollbar-thumb);
+  border-radius: var(--scr-radius-badge);
+}
+.rank-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scr-royal);
 }
 
 .rank-table th.num,
@@ -123,16 +145,17 @@ defineProps<{ list?: DeptRankItem[] }>()
 
 .eff-track {
   width: 52px; /* 美术稿 */
-  height: 4px;
-  border-radius: var(--scr-radius-badge);
-  background: rgb(from var(--p-slate-400) r g b / 0.18);
+  height: 6px; /* REF progress-bar-bg 轨道高 */
+  border-radius: var(--scr-radius-tag);
+  background: var(--scr-bar-track);
+  border: 1px solid var(--scr-inset-border);
   overflow: hidden;
 }
 
 .eff-fill {
   height: 100%;
   border-radius: var(--scr-radius-badge);
-  background: linear-gradient(90deg, var(--p-blue-600), var(--scr-accent-bright));
+  background: var(--scr-bar-fill-cyan);
 }
 
 .eff-val {
