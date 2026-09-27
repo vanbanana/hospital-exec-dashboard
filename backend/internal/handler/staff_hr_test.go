@@ -4,12 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 	"hospital-edss/internal/middleware"
@@ -19,17 +16,7 @@ import (
 // hrTestRouter 接真实库挂 Hr handler(集成测试;DB 缺席则 skip)
 func hrTestRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Skipf("DB 不可用,跳过集成测试: %v", err)
-	}
-	if err := db.Raw("SELECT 1").Error; err != nil {
-		t.Skipf("DB 不可用,跳过集成测试: %v", err)
-	}
+	db := testDB(t)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(middleware.TraceID())

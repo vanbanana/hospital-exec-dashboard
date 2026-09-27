@@ -367,7 +367,7 @@ jz AS (    -- 急诊楼：09:00 切面在观集重建（与 today_kpi dept19 同
     WHERE arrive_at >= TIMESTAMPTZ '2026-10-27 00:00:00+08'
       AND arrive_at <  TIMESTAMPTZ '2026-10-29 00:00:00+08') o
 )
-SELECT 'mz', 'normal', mz.v::text || ' 人', 'info',
+SELECT 'mz', 'normal', to_char(mz.v, 'FM9,999,999') || ' 人', 'info',
        jsonb_build_object('today_visit', mz.v, 'queue_avg_min', COALESCE(mz.w, 18)),
        TIMESTAMPTZ '2026-10-28 09:00:00+08'
 FROM mz

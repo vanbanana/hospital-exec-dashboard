@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -25,21 +26,38 @@ type envelopeBody struct {
 	Ts      int64           `json:"ts"`
 }
 
+var (
+	testDBOnce sync.Once
+	testDBPool *gorm.DB
+	testDBErr  error
+)
+
+// 全包共享单池:每测试各自 gorm.Open 会累积泄漏连接撞 max_connections(B2)
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := envOr("DATABASE_URL", "postgres://localhost/hospital_edss?sslmode=disable")
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("gorm.Open: %v", err)
+	testDBOnce.Do(func() {
+		dsn := envOr("DATABASE_URL", "postgres://localhost/hospital_edss?sslmode=disable")
+		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err != nil {
+			testDBErr = err
+			return
+		}
+		sqlDB, err := db.DB()
+		if err != nil {
+			testDBErr = err
+			return
+		}
+		sqlDB.SetMaxOpenConns(8)
+		if err := sqlDB.Ping(); err != nil {
+			testDBErr = err
+			return
+		}
+		testDBPool = db
+	})
+	if testDBErr != nil {
+		t.Skipf("postgres 不可达: %v", testDBErr)
 	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("db.DB: %v", err)
-	}
-	if err := sqlDB.Ping(); err != nil {
-		t.Skipf("postgres 不可达(%s): %v", dsn, err)
-	}
-	return db
+	return testDBPool
 }
 
 // 手工注册路由——internal/router 依赖 handler,反向 import 会成环;trace_id 由测试中间件模拟注入

@@ -54,9 +54,9 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   --p-teal-bg:#e5f6f3; --p-blue-bg:#e9f0fe;
   --p-white:#ffffff;
   /* 字体族 */
-  --p-font-base:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  --p-font-base:"Rajdhani", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --p-font-number:"DIN Alternate", "Helvetica Neue", "Arial", sans-serif;
+  --p-font-number:"Rajdhani", "DIN Alternate", "Helvetica Neue", "Arial", sans-serif;
 }
 ```
 
@@ -135,24 +135,23 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   --scr-text-3:#8fa0bf;        --scr-text-4:var(--p-slate-500);
   --scr-up:var(--p-red-500); --scr-down:var(--p-green-500); --scr-warn:var(--p-amber-500);
   --scr-radius-card:4px; --scr-radius-tag:3px; --scr-radius-badge:2px;
-  --scr-radius-pill:999px;
   --scr-shadow-panel:0 8px 24px rgba(0,4,15,.55), inset 0 1px 0 rgba(255,255,255,.05);
   --scr-fs-axis:10px; --scr-fs-xxs:8px; --scr-fs-xs:10px; --scr-fs-sm:11px;
   /* fs-axis 升 10px 与 fs-xs 同值不同槽(轴标语义);REF 折线轴标=10px */
   --scr-fs-12:12px; --scr-fs-14:14px; --scr-fs-19:19px;
   /* 新档:表格/res-label=12、面板标题=14、面板大数字=19(spec §2.3 半档命名) */
-  --scr-fs-md:13px; --scr-fs-title:20px; --scr-fs-num:26px;
-  --scr-fw-normal:400; --scr-fw-medium:500; --scr-fw-semibold:600; --scr-fw-bold:700;
+  --scr-fs-md:13px; --scr-fs-title:20px;
+  --scr-fw-medium:500; --scr-fw-semibold:600; --scr-fw-bold:700;
   --scr-lh-tight:1.15; --scr-lh-normal:1.4;
-  --scr-ls-xs:0.2px; --scr-ls-sm:0.3px; --scr-ls-mid:0.5px;
+  --scr-ls-sm:0.3px; --scr-ls-mid:0.5px;
   --scr-ls-md:1px; --scr-ls-lg:1.4px; --scr-ls-xl:1.5px;
-  --scr-opacity-sub:0.85; --scr-opacity-img:0.94;
+  --scr-opacity-sub:0.85;
   --scr-z-pin:2; --scr-z-overlay:5;
   --scr-dur-fast:0.18s; --scr-dur-normal:0.2s;
   /* 间距阶梯(收编 screen 域全部 padding/gap/margin 字面量,就近吸附) */
   --scr-space-1:2px;  --scr-space-2:4px;  --scr-space-3:6px;  --scr-space-4:8px;
   --scr-space-5:10px; --scr-space-6:12px; --scr-space-7:14px; --scr-space-8:16px;
-  --scr-space-9:20px; --scr-space-10:24px;
+  --scr-space-10:24px;
   /* 图表语义(scrTokens.ts 唯一引用源;alpha 变体色基注明原色档) */
   --scr-chart-axis:rgba(255,255,255,.12);      /* p-white @ .12 轴线(REF 白基弱化) */
   --scr-chart-grid:rgba(255,255,255,.06);      /* p-white @ .06 分隔线 dashed */

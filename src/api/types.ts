@@ -5,7 +5,7 @@
 
 /* ===== §1 通用约定 ===== */
 
-/** 统一响应包络（§1.1）；api() 当前已拆包直返 data，此类型供接真实 http 层时使用 */
+/** 统一响应包络（§1.1）；api() 真后端路径拆此包络直返 data */
 export interface ApiEnvelope<T> {
   code: number
   message: string

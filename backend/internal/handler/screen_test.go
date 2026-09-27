@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 
 	"gorm.io/driver/postgres"
@@ -17,25 +18,42 @@ import (
 	"hospital-edss/internal/router"
 )
 
+var (
+	snapDBOnce sync.Once
+	snapDBPool *gorm.DB
+	snapDBErr  error
+)
+
 // 实库断言锚点:sim.clock BASE_DATE=2026-10-28;库不可达时 Skip(验收环境库必在)
+// handler_test 外部包共享单池,理由同内部包 testDB(连接泄漏 B2)
 func snapDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
+	snapDBOnce.Do(func() {
+		dsn := os.Getenv("DATABASE_URL")
+		if dsn == "" {
+			dsn = "postgres://localhost/hospital_edss?sslmode=disable"
+		}
+		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err != nil {
+			snapDBErr = err
+			return
+		}
+		sqlDB, err := db.DB()
+		if err != nil {
+			snapDBErr = err
+			return
+		}
+		sqlDB.SetMaxOpenConns(8)
+		if err := sqlDB.Ping(); err != nil {
+			snapDBErr = err
+			return
+		}
+		snapDBPool = db
+	})
+	if snapDBErr != nil {
+		t.Skipf("postgres 不可达: %v", snapDBErr)
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("gorm.Open: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("db.DB: %v", err)
-	}
-	if err := sqlDB.Ping(); err != nil {
-		t.Skipf("postgres 不可达(%s): %v", dsn, err)
-	}
-	return db
+	return snapDBPool
 }
 
 type snapEnvelope struct {

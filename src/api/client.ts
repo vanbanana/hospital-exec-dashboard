@@ -1,17 +1,10 @@
 // 统一取数层 — api<T>(key, params):VITE_USE_MOCK=1(默认)走 src/mock 注册表,
 // =0 时经 vite proxy 打 Go 后端 /api/v1/<key>,拆 ApiEnvelope 包络(error-codes §1/§4)
 import { mockResolvers, type MockParams } from '../mock'
+import type { ApiEnvelope } from './types'
 
 const MOCK_LATENCY_MS = 120
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== '0'
-
-interface ApiEnvelope<T> {
-  code: number
-  message: string
-  data: T | null
-  trace_id: string
-  ts: number
-}
 
 /**
  * 统一取数入口。key = 契约端点路径(如 'workbench/overview')。
@@ -33,11 +26,15 @@ export async function api<T>(key: string, params: MockParams = {}): Promise<T> {
   }
   const url = `/api/v1/${key}${qs.size ? `?${qs}` : ''}`
   const resp = await fetch(url, { headers: { Accept: 'application/json' } })
-  if (!resp.ok && resp.status !== 400) {
-    // 无包络可拆的传输层失败(404 未注册/5xx 兜底)
+  let env: ApiEnvelope<T>
+  try {
+    env = (await resp.json()) as ApiEnvelope<T>
+  } catch {
+    // 无包络可拆的传输层失败(网关/代理裸 404、非 JSON 5xx)
     throw new Error(`[api] http ${resp.status}`)
   }
-  const env = (await resp.json()) as ApiEnvelope<T>
+  // 31004 口径正常但无数据→resolve(null) 页面自渲空态(error-codes §4)
+  if (env.code === 31004) return env.data as T
   if (env.code !== 0) {
     const err = new Error(env.message || `[api] code ${env.code}`) as Error & {
       code?: number

@@ -59,9 +59,9 @@ type hospitalProfileResp struct {
 
 // AuthProfile GET /api/v1/auth/profile(契约 §2.1);?role= 值为演示账号 username
 func (h *Context) AuthProfile(c *gin.Context) {
-	role := c.Query("role")
-	if role == "" { // 缺省与 ?role= 空值同按 president 处理(与 mock 行为一致)
-		role = "president"
+	role := "president"
+	if v, present := c.GetQuery("role"); present { // 出席即须合法:?role= 空串→10001
+		role = v
 	}
 	switch role {
 	case "president", "ops_director", "dept_leader":

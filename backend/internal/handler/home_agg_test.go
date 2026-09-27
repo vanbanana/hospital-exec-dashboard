@@ -4,28 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 )
 
-// 实库 DSN 同 Task-A 约定:env DATABASE_URL,缺省本地演示库
 func aggTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("db: %v", err)
-	}
-	return db
+	return testDB(t)
 }
 
 func aggTestRouter(t *testing.T) *gin.Engine {

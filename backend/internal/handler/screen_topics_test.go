@@ -7,30 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 )
 
 func tpsRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Skipf("测试库不可达: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil || sqlDB.Ping() != nil {
-		t.Skipf("测试库 Ping 失败: %v", err)
-	}
+	db := testDB(t)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	h := NewTopicsHandler(db, clock.New(db))

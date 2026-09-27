@@ -6,12 +6,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 	"hospital-edss/internal/handler"
@@ -21,14 +18,7 @@ import (
 
 func researchRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("db: %v", err)
-	}
+	db := snapDB(t)
 	h := handler.NewStaffHandler(repo.NewStaffRepo(db, clock.New(db)))
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

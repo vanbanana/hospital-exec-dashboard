@@ -5,13 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"regexp"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 	"hospital-edss/internal/repo"
@@ -68,21 +65,7 @@ type patientData struct {
 
 func patientRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("gorm.Open: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("db.DB: %v", err)
-	}
-	if err := sqlDB.Ping(); err != nil {
-		t.Skipf("postgres 不可达(%s): %v", dsn, err)
-	}
+	db := testDB(t)
 	h := NewStaffHandler(repo.NewStaffRepo(db, clock.New(db)))
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

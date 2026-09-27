@@ -72,11 +72,15 @@ type Table struct {
 
 /* ========== 参数校验(非法枚举→10001,见 error-codes §3) ========== */
 
-// enumParam 读枚举 query 参数;空串→缺省;非法→已回 10001,ok=false
+// enumParam 读枚举 query 参数;缺席→缺省;出席即须合法(?x= 空串/非法值→10001,ok=false)
 func enumParam(c *gin.Context, name, def string, allowed ...string) (string, bool) {
-	v := c.Query(name)
-	if v == "" {
+	v, present := c.GetQuery(name)
+	if !present {
 		return def, true
+	}
+	if v == "" {
+		envelope.InvalidArg(c, name, "取值须为 "+strings.Join(allowed, "/")+" 之一")
+		return "", false
 	}
 	for _, a := range allowed {
 		if v == a {

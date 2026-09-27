@@ -2,6 +2,8 @@
 package router
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
@@ -28,6 +30,10 @@ func Build(d *Deps) *gin.Engine {
 	registerOps(v1, d)         // E2:overview · medical · operations · compare
 	registerStaff(v1, d)       // E3:hr · research · patient · quality · assets · settings/config
 	registerScreen(v1, d)      // E4:screen/snapshot · topics
+
+	r.NoRoute(func(c *gin.Context) {
+		envelope.Fail(c, http.StatusNotFound, envelope.CodeNotFound, "资源不存在", nil)
+	})
 
 	return r
 }

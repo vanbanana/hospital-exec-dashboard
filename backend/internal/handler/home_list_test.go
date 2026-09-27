@@ -5,27 +5,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"regexp"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 )
 
 func newHomeTestRouter(t *testing.T) *gin.Engine {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = "postgres://localhost/hospital_edss?sslmode=disable"
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
+	db := testDB(t)
 	h := NewHome(db, clock.New(db))
 	r := gin.New()
 	r.GET("/api/v1/workbench/home/top10", h.Top10)
