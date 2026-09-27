@@ -8,7 +8,7 @@
 
 ```
 L0 原色层 primitive  :root      --p-*   只有"值",不带用途语义,双形态共用
-L1 语义层 semantic   按形态作用域 --wb-* / --scr-*  绑定"用途",指向原色层
+L1 语义层 semantic   按形态作用域 --wb-* / --scr-*（+登录页 .auth-layout 复用 --wb-*，R8）  绑定"用途",指向原色层
 L2 组件层 component  (可选)      --{cmp}-*  组件内部件,指向语义层
 ```
 
@@ -236,6 +236,7 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
 | R5 图表同源 | ECharts 配色/字号只允许经各域**单一出口**取色：wb 侧 `chartPresets.ts`（静态表，字面值必须行内注释标注对应 token 名，值与 token 同步）；scr 侧 `scrTokens.ts::readScrPalette()`（运行时 getComputedStyle 读 --scr-*/--p-*）。script 内 hex map（toneStyle/cardStyle/TITLE_COLORS）与 inline rgba 字面量全部消灭 |
 | R6 死 token 清零 | 无消费方的 token 立即删除。**消费方认定**：运行时 var() 引用，或图表单一出口（chartPresets/scrTokens）对照表行内注释挂名——后者 token 定位为"语义锚"，允许无运行时 var 引用（`--wb-chart-*` 族即此类） |
 | R7 别名言明 | 同值双名必须注释互指（--wb-up↔--wb-red） |
+| R8 作用域登记 | L1 形态作用域合法集 = `.workbench-layout`（`--wb-*`）/ `.screen-layout`（`--scr-*`）/ `.auth-layout`（登录页 L1 块，**复用 `--wb-*` 名称与取值**——登录表单直接消费 `var(--wb-*)`，不新增 token；P3 auth 预案，随 `LoginView` 落地时登记于 tokens.css） |
 
 ## 7. 白名单（豁免字面量）
 

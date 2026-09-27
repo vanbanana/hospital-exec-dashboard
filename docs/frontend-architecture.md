@@ -161,6 +161,7 @@ src/
 - 导航栏 `WorkbenchSidebar.vue` 采用 `router-link` 的 `custom v-slot` 驱动高亮，完全基于 `isActive` 与 `isExactActive` 状态渲染激活效果。
 - `/screen` 由 `layouts/ScreenLayout.vue` 承载（`.screen-layout` 令牌作用域 + 1920×1080 画布缩放，经 `provide('screen-adapt')` 注入适配模式与缩放系数供 `ScrHeader` 胶囊消费）。
 - **已知缺口**：catch-all 仅声明在 `/workbench` children 内（`:pathMatch(.*)*` → 重定向 `/workbench`）；**根级无 catch-all**，访问未注册路径会渲染空白页（无组件匹配）。待补根级 404 或重定向，见 §13.2。
+- **（P3 预案，随 auth epic 落码）登录态守卫**：`meta.public` 标记豁免路由（`/login`、`/screen` 大屏公开位）；`router.beforeEach` 对非 public 路由 `await currentProfile()` 校验会话，失败 → `/login?redirect=<fullPath>`；已登录访问 `/login` → 回 `/workbench`。会话态唯一事实源 `src/api/session.ts`（模块级单 Promise 缓存，`useSystemDate` 同形模式，不依赖 Pinia）。
 
 ### 3.2 完整路由定义表
 
@@ -181,6 +182,7 @@ src/
 | `/workbench/topics` | `wb-topics` | `views/workbench/TopicsView.vue` | 懒加载 | 专题分析：DRG病组入组与CMI、医保基金监管、公立医院国考、门诊统筹专项 |
 | `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：HIS/EMR 数据源管理、指标预警阈值、用户与权限、5项系统偏好 |
 | `/workbench/:pathMatch(.*)*` | — | 重定向到 `/workbench` | 静态 | 工作台子域 404 兜底回落（仅覆盖 `/workbench/*`） |
+| `/login` | `login` | `views/LoginView.vue` | 懒加载 | （P3 预案）登录页：用户名/口令表单 → `POST /auth/login`（契约 §2.3）；`meta.public` 守卫豁免；`.auth-layout` 令牌作用域（design-tokens §6 R8） |
 | `/screen`（父） | — | `layouts/ScreenLayout.vue` | 布局承载 | 大屏画布容器（viewport + 等比缩放 + `screen-adapt` provide） |
 | `/screen`（子） | `screen` | `views/screen/ScreenView.vue` | 同步 | 院长驾驶舱大屏：snapshot 单端点 + 10 个 Scr* 组件 |
 
@@ -206,7 +208,7 @@ src/
 | 资产与后勤 | `WbSeg` range | **仅 UI 态**：契约 §11.1 无 range 参数，无 `watch`，切换不取数 |
 | 对比分析 | `WbSeg` dim（业务量/收入/效率/质量）+ range | `watch` 触发 `getCompare(dim, range)`；中文选项映射为契约枚举（scale/benefit/efficiency/quality） |
 | 专题分析 | 4 张专题卡点击（DRG/医保/国考/门诊统筹）+ `WbSeg` range | `watch` 触发 `getTopics(topic, range)` 重取 |
-| 系统设置 | 阈值启用开关、5 项偏好下拉/开关 | **仅本地 `reactive` 态**：刷新即失，无持久化端点 |
+| 系统设置 | 阈值启用开关、5 项偏好下拉/开关 | **仅本地 `reactive` 态**：刷新即失；持久化端点已契约化（R15/R16，契约 §15.7/15.8），待 write epic 落码 |
 | 各页 `WbTable` 行 | — | 无点击下钻；L4/L5 穿透属契约 §15 远期预留 |
 | 大屏 `ScrHeader` | 全屏按钮 / 适配胶囊 | `requestFullscreen` 切换（拒绝静默）；点击胶囊切 contain/fill 适配（`screen-adapt` inject） |
 | 大屏 `ScrAlertFeed` | 告警跑马灯 | CSS 纵向循环滚动，自动随 DOM 卸载 |
@@ -464,6 +466,17 @@ const systemDate = useSystemDate()
 4. **四位一体改单**：新增/变更端点 = `api-contract.md`（先改契约）→ `types.ts` 类型 → `mock/<域>.ts` 数据 + `index.ts` 注册 → `api/workbench.ts` 端点函数，四层缺一即断链。
 5. **零成本对接后端（已兑现）**：`client.ts` 内 `VITE_USE_MOCK` 双轨开关已落地——`=0` 经 vite proxy 打 Go 后端 `/api/v1/<key>` 并拆 `ApiEnvelope`，视图、端点函数、mock 注册表一行未改。
 
+### 8.4 写路径与有状态 mock（P3 契约预案）
+
+契约 §15 R04–R08/R15/R16 写端点与 §2.3–2.4 会话端点已定义，落码时数据链路按本节演进：
+
+1. **api() 写形**：`api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body? })`——GET 签名不变（21 端点零回归）；写路径同包络拆解。`fetch` 显式 `credentials:'same-origin'` 携带 `edss_sid` Cookie。mock 轨以 `method:key` 复合键注册写 resolver。
+2. **401 拦截**：`env.code ∈ {20001,20002,20003}` → `clearSession()` + `location.assign('/login?redirect=…')` 硬跳转（`client.ts` 不 import router，防依赖环）。
+3. **写后读**：调用方 `useAsyncData.reload()` 局部重取受影响区块；不做跨组件失效广播（Pinia 落地再议）。
+4. **有状态 mock 域（首个状态源）**：写流引入 `src/mock/alertflow.ts`——模块态 Map 存告警状态机 + todos 数组；`workbench/home/alerts` resolver 改由该源派生打开集，实现 mock 轨写后读一致（ack/dispatch 不政变开数，close/todo done 后减一）。页面刷新即重置 = 演示可接受行为（restart→seed 语义对齐真后端）。`auth` 域 mock 同步引入会话旗标（`auth/login` 置位、`auth/logout` 清除、无旗标 `auth/profile` 抛 `code=20001`）。
+5. **操作人传输**：演示期写端点函数自动拼 `?role=<当前演示角色>`（`api/auth.ts` 模块级 ref 存当前角色，Header 角色下拉切换写回；契约 §15 头部约定）。
+6. **写操作反馈**：`33002`/`33104` 冲突类 → 警告提示 + 相关区块局部刷新；`10002` → 表单内联错（`data.fields` 逐字段红标，不弹全局消息）；`20004`/`20005` → 警告提示 + 停留。全局提示走 token 化轻量 toast 等价物（error-codes §4 矩阵的 ElMessage 语义，登记后落码）。
+
 ---
 
 ## 9. 新增页面标准开发流程（Standard Playbook）
@@ -532,6 +545,7 @@ npx vue-tsc -b && npm run build
 - **接线范围**：首页 7 卡片 + 11 业务视图全部改经 `useAsyncData`；页面/卡片 `data===null` 渲面板级 error/skeleton/empty，`stale` 时页头操作区或列表首行挂 `WbStaleTag`，列表区块空集合局部 `WbEmpty`。图表空数据沿用"画空坐标轴"（`?? []` 兜底）。
 - **全局兜底**：`main.ts` 挂 `app.config.errorHandler` 与 `window unhandledrejection`——console 留痕 + `preventDefault` 防裸崩，不吞错。
 - **真后端轨下**：`client.ts` 拆包络按 `error-codes.md` §4 矩阵产出 `ApiError`（`code`/`fields`/`trace_id` 透传），视图五态渲染零改动；`api()` 签名与 mock 行为不变。
+- **写操作反馈（P3 契约预案）**：写端点错误码按 error-codes §4 矩阵——`33002`/`33104` 冲突类 → 警告提示+相关区块局部刷新；`10002` → 表单内联错（fields 逐字段红标，不弹全局消息）；`20101` → 登录页表单内联；`20104` → 锁定提示+15min 倒计时展示；`20004`/`20005` → 警告提示+停留当前页（无独立 /403 页，面板错误态等价）；表单提交中 loading 复用 `useAsyncData.loading` 或提交按钮本地态。
 
 ---
 

@@ -49,6 +49,10 @@
 3. 医疗业务/运营管理：科室明细表 → 脊柱微创组耗材占比异常
 4. （P2 后）督办派发 → 工单流转 → 指标复常
 
-## 3. 仿真器（生成引擎未实施，保留要点）
+## 3. 仿真器（控制面档 A 已定义；生成引擎未实施，保留要点）
 
-v1.1 的核心设计部分已随库落地：`sim.clock` 单源虚拟时钟已建表并驱动后端时间（`virtual_now=2026-10-28 09:00+08`，业务侧禁 `time.Now`）；**未实施**的为生成引擎：SimTick 原子事务、DayGen/Intraday 生成模型（双峰门急诊曲线、星期因子、LogNormal LOS、Poisson 手术）、告警去重键、`POST /sim/reset` 开箱重置。详见 git 历史 v1.1 文档。
+v1.1 的核心设计部分已随库落地：`sim.clock` 单源虚拟时钟已建表并驱动后端时间（`virtual_now=2026-10-28 09:00+08`，业务侧禁 `time.Now`）。
+
+**P3 档 A——仿真控制面（契约 §16 已定义）**：`/sim/*` 端点——`GET /sim/clock`（时钟状态 + `seed_end` 余量，`sim.profile.seed_end` 缺省回退 `MAX(dwd.charge_day.date)`）、`POST /sim/tick`（时钟前移 N 分钟，界校验 `≤ seed_end+1d` 越界 → `35002`，**非幂等**）、`POST /sim/reset`（时钟复位 `base_date 09:00`，**幂等**，`scope=full` 全量重灌未开放 → `35002`）、`GET /sim/jobs`（`sim.job_log` 作业台账分页）、`POST /sim/clock`（定点跳转）。**环境门控**：`SIM_ENABLED=0` 时 `/sim` 路由不注册 → `NoRoute` → `10003`。语义边界：tick 同日全系统一致；跨日工作台显示真实播种数据（种子窗至 2026-12-31），ads 快照层（today_kpi/campus_status/alert/dept_rank）维持"最近派生切面"冻结语义——档 A 不触发派生重跑。
+
+**未实施**的为生成引擎：SimTick 写侧原子事务（数据生成）、DayGen/Intraday 生成模型（双峰门急诊曲线、星期因子、LogNormal LOS、Poisson 手术）、告警去重键（AlertScan）、`scope:"full"` 全量重灌。详见 git 历史 v1.1 文档。

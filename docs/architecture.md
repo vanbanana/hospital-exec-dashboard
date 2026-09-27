@@ -29,6 +29,7 @@
 | Element Plus | ❌ 暂不引入 | 工作台用自研 `--wb-*` 设计体系（表格/表单已覆盖），引入会破坏视觉统一；确需复杂组件时先问用户 |
 | Tailwind/样式框架 | ❌ 不引入 | 已有自研 token 体系 |
 | Go + Gin + GORM + PG16 + Redis | ✅ 已落地（读侧） | `backend/` 读侧 21 端点 + 57 表 hospital_edss 库在跑；写侧督办闭环未做（契约 §15 预留）；Redis 未启用 |
+| golang.org/x/crypto（bcrypt） | ✅ 审批已过 | 登录口令安全必需（契约 §2.3 `POST /auth/login` bcrypt 校验）；Go 官方扩展库，`go.mod` 现为 indirect → 使用时转直接依赖，非新增外部库；不引入第三方 auth/JWT 库 |
 
 **当前真实栈**：前端 `Vue3 + TS + Vite + VueRouter + ECharts + lucide`（无 Pinia、无 axios）；后端 `backend/` Go + Gin + GORM + PG15/16（读侧已落地，写侧未做）。
 
@@ -75,7 +76,9 @@
 
 ## 5. 安全与合规（演示级）
 
-- 演示期**不做登录/鉴权**（头部"院长"角色为静态展示）；权限/RBAC/脱敏属 P3 远期范围
+- **认证（P3 契约已定义，落码随 auth epic）**：`POST /auth/login`/`logout`（契约 §2.3–2.4）= PG 会话表 `sys.user_session` + `edss_sid` HttpOnly Cookie（生产追加 `Secure`）；口令 bcrypt（x/crypto，§1 已批）；登录防爆破 5 次/15min → `20104`（`sys.audit_log` 计数）。当前实状仍无鉴权——`?role=` 为演示角色切换参数（契约 §2.1 演进注/§15 头部约定）。
+- **RBAC（端点级）**：`/workbench/settings/config` 写面限管理域角色（`20004`/`20005`）；数据域 RBAC（`dept_leader` 本科室过滤）与实名脱敏属 P3.1 远期。
+- **CORS/TLS**：dev（vite proxy 同源 `/api`→:8080）与 prod（静态托管 + 反代同源）均不实现 CORS 中间件；TLS 在生产反代（Nginx）终结，Go 后端保 HTTP，本地不强制。
 - 密钥一律 `.env`；演示截图/录屏场景注意不展示真实敏感信息
 
 ## 6. 部署
@@ -83,3 +86,22 @@
 - 当前：`npm run dev`（:5173）本地开发预览；真链路 `VITE_USE_MOCK=0`（需 `backend/` Go 服务 :8080 + PG hospital_edss，见 `backend/README.md`）
 - 演示：`npm run build` + 静态托管即可（mock 轨纯前端无依赖）
 - 后端生产部署（远期）：恢复 v1.1 的 docker-compose 方案（db+redis+backend+web）
+
+**端口归一（P3 登记）**：
+
+dev 形态（本机）：
+
+| 端口 | 用途 | 必开 | 备注 |
+| :--- | :--- | :--- | :--- |
+| 5173 | vite dev 唯一 canonical（mock 与真链路同端口） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
+| 8080 | Go API | 真链路时 | `PORT` env |
+| 5432 | 本地 PG | 真链路时 | brew postgresql@15/16 |
+| — | vite proxy `/api`→`localhost:8080` | — | target 硬编码于 `vite.config.ts` |
+
+prod 形态（静态托管 + 反代，远期）：
+
+| 端口 | 用途 | 暴露面 |
+| :--- | :--- | :--- |
+| 80/443 | 反代（Nginx）：`/` 静态 SPA + `/api` 反代后端；TLS 终结 | 公网唯一入口 |
+| 8080 | backend | 内网；可选 `127.0.0.1:8080` 调试透出 |
+| 5432 | postgres | 仅内网，不 publish |

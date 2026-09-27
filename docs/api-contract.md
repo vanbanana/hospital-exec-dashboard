@@ -132,6 +132,7 @@
   }
   ```
   > **字段注**：`dept_id: null` 表示院级领导视角。在数据库存储中院级哨兵键使用 `0`，在 API 契约层统一对外序列化为 `null`。
+  > **演进注（P3 认证）**：本端点由会话中间件保护，无有效会话 → `20001`。`role` 参数演示期保留——出席时返回对应演示账号上下文（不校验会话身份，纯演示切换）；**缺席时返回当前会话用户**（原"缺省 president"语义调整为"会话用户"）。
 - **可返回错误码**：`10001` (INVALID_PARAM), `20001` (UNAUTHORIZED)
 
 ### 2.2 GET /hospital/profile
@@ -149,6 +150,26 @@
   ```
   > **字段注**：`name` 对齐视图与前端设计稿品牌展示；`english_name` 为品牌对外展示名，非逐字行政翻译。
 - **可返回错误码**：`10001` (INVALID_PARAM)
+
+### 2.3 POST /auth/login
+- **说明**：账号口令登录，签发演示会话（Cookie `edss_sid`）。成功响应下发与 §2.1 同形上下文（`user` + `available_roles` + `system_date` + `weekday`），前端免二次拉取。
+- **Request JSON**：
+
+  | 字段 | 类型 | 必填 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `username` | string | 是 | 登录名（`sys.user.username`） |
+  | `password` | string | 是 | 明文口令，服务端 bcrypt 校验（演示口令仅本地用，见 `backend/README` 与种子注释） |
+- **Response `data`**：与 §2.1 `data` 同形 `{ user, available_roles, system_date, weekday }`。
+- **响应头**：`Set-Cookie: edss_sid=<会话令牌>; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200`。生产 TLS 部署追加 `Secure`（后端配置项控制）；中间件同时接受 `Authorization: Bearer <令牌>`（供 curl/断言脚本，不进示例）。
+- **可返回错误码**：`10001`（字段缺失/显式空串，`data.fields` 定位）、`10006`（请求体 JSON 非法）、`20101`（账号或口令错误）、`20102`（账号已停用）、`20104`（15 分钟内失败 ≥5 次锁定）
+- **审计**：成功/失败均写 `sys.audit_log`（`action` = `login` / `login_fail`，username + ip）。
+
+### 2.4 POST /auth/logout
+- **说明**：吊销当前会话并清除 Cookie。**幂等**：无会话/会话已失效调用同样返回 `code=0`。
+- **Request**：无 body；凭证取自 Cookie `edss_sid`。
+- **Response `data`**：`null`
+- **响应头**：`Set-Cookie: edss_sid=; Path=/; Max-Age=0`
+- **可返回错误码**：无业务码（幂等成功）；系统错 `10000`。
 
 ---
 
@@ -1161,13 +1182,13 @@
       { "name": "医保结算接口", "type": "局端接口 · 日终批", "status": "异常", "sync": "2026-10-27 23:58" }
     ],
     "thresholds": [
-      { "name": "床位使用率", "rule": "连续 3 日 > 95%", "level": "urgent", "enabled": true },
-      { "name": "药占比", "rule": "> 30%", "level": "major", "enabled": true },
-      { "name": "耗占比", "rule": "> 20%", "level": "major", "enabled": true },
-      { "name": "住院费用增幅", "rule": "同比 > 8%", "level": "urgent", "enabled": true },
-      { "name": "库存周转天数", "rule": "> 35 天", "level": "minor", "enabled": true },
-      { "name": "危急值超时率", "rule": "及时率 < 95%", "level": "urgent", "enabled": true },
-      { "name": "设备开机率", "rule": "< 60%", "level": "minor", "enabled": false }
+      { "code": "BED_OVER_95", "name": "床位使用率", "rule": "连续 3 日 > 95%", "level": "urgent", "enabled": true },
+      { "code": "DRUG_RATIO_WARN", "name": "药占比", "rule": "> 30%", "level": "major", "enabled": true },
+      { "code": "MAT_OVER_20", "name": "耗占比", "rule": "> 20%", "level": "major", "enabled": true },
+      { "code": "INPT_FEE_SURGE", "name": "住院费用增幅", "rule": "同比 > 8%", "level": "urgent", "enabled": true },
+      { "code": "STOCK_TURN_SLOW", "name": "库存周转天数", "rule": "> 35 天", "level": "minor", "enabled": true },
+      { "code": "CRIT_TIMEOUT_95", "name": "危急值超时率", "rule": "及时率 < 95%", "level": "urgent", "enabled": true },
+      { "code": "EQUIP_RUN_LOW", "name": "设备开机率", "rule": "< 60%", "level": "minor", "enabled": false }
     ],
     "users": [
       { "name": "system_admin", "role": "管理员", "scope": "全部", "login": "2026-10-28 09:12", "status": "启用" },
@@ -1190,6 +1211,7 @@
   > 1. `thresholds` 中的 `level` 统一使用英文枚举 `urgent | major | minor`。
   > 2. `sync` 和 `login` 日期时间统一为 `YYYY-MM-DD HH:mm` 规范。
   > 3. `users` 中保留“骨科主任”以与演示系统三级角色故事闭环。
+  > 4. `thresholds[].code` 为规则寻址键（`ads.alert_rule.code`），即 R15 写回端点（§15.7）的路径参数。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ---
@@ -1278,26 +1300,239 @@
 
 以下端点源自 v1.1 深度决策架构设计，属于**“远期真实业务演进与后端落地项”**。在当前前端 Mock/API 解耦阶段，前端不发起真实调用，保留此清单以备未来后端开发与深层穿透扩展：
 
+> **操作人传输约定（演示期）**：本清单写端点（R04–R08、R15、R16）的操作人一律经 Query `?role=<username>` 显式传输——缺席取 `president`，出席须为合法演示账号（非法 → `10001`），写入 `ack_by`/`dispatcher_id`/`sys.audit_log` 等操作人列。会话机制（§2.3）落地后改由会话中间件解析操作人并按端点角色矩阵校验 `20001`/`20004`/`20005`，届时 `?role=` 语义回归 §2.1 演示切换注。
+
 | # | Method | Path | 用途与定位 | 规划阶段 | 错误码 | 说明 |
 | :- | :----- | :--- | :--------- | :------ | :----- | :--- |
 | R01 | GET | `/cases` | L4 病例列表（按科室/病组/死因筛选） | P2 | 10001, 10002, 30001 | 用于从 DRG 病组穿透至具体病例集合，带分页参数 |
 | R02 | GET | `/cases/{id}` | L5 电子病历（脱敏事实） | P2 | 10001, 30001, 30002 | 默认患者姓名身份证脱敏（`张**`） |
 | R03 | GET | `/cases/{id}?unmask=1` | L5 实名解密调阅 | P2 | 10001, 20002, 32006 | 需二次验密（验密口令错误码 32006 已在 error-codes.md 注册）并记录审计日志 |
-| R04 | POST | `/alerts/{id}/ack` | 告警认领 | P2 | 10001, 31001, 31004 | 告警状态变为 `processing` |
-| R05 | POST | `/alerts/{id}/dispatch` | 告警一键督办派发 | P2 | 10001, 31002, 31004 | 生成 Todo 工单，指定承办人与截止期 |
-| R06 | POST | `/alerts/{id}/close` | 告警直接闭环关闭 | P2 | 10001, 31003, 31004 | 填写办结理由与改善说明 |
-| R07 | GET | `/todos` | 督办追踪工单列表 | P2 | 10001, 10002 | 包含整改前/当前/目标值三点锚点，带分页参数 |
-| R08 | POST | `/todos/{id}/status` | 督办工单反馈与办结 | P2 | 10001, 31005 | 承办科室主任提交整改举措并申请验收 |
+| R04 | POST | `/alerts/{id}/ack` | 告警认领 | P2 | 10001, 33001, 33002 | 告警状态变为 `processing`；展开见 §15.1 |
+| R05 | POST | `/alerts/{id}/dispatch` | 告警一键督办派发 | P2 | 10001, 10002, 33001, 33002, 33102, 33103 | 生成 Todo 工单，指定承办人与截止期；展开见 §15.2 |
+| R06 | POST | `/alerts/{id}/close` | 告警直接闭环关闭 | P2 | 10001, 10002, 33001, 33002 | 填写办结理由与改善说明；展开见 §15.3 |
+| R07 | GET | `/todos` | 督办追踪工单列表 | P2 | 10001, 10002 | 包含整改前/当前/目标值三点锚点，带分页参数；展开见 §15.4 |
+| R08 | POST | `/todos/{id}/status` | 督办工单反馈与办结 | P2 | 10001, 10002, 20005, 33101, 33104 | 承办科室主任提交整改举措并申请验收；展开见 §15.5 |
 | R09 | GET | `/campus/buildings/{code}`| 楼宇详情抽屉（病区/设备） | P2 | 10001, 30001 | 大屏点击外科楼/急诊楼拉出二级抽屉 |
-| R10 | GET | `/staff` | 组织人员下拉选择器 | P2 | 10001 | 督办派发时根据科室联想责任人 |
-| R11 | POST| `/auth/login` | 正式 JWT 登录 | P3 | 10001, 20001, 20002 | 真实 Go 后端上线时启用 |
-| R12 | POST| `/auth/refresh` | Token 静默轮换 | P3 | 10001, 20003, 20004 | 双 Token 并发安全轮换 |
+| R10 | GET | `/staff` | 组织人员下拉选择器 | P2 | 10001 | 督办派发时根据科室联想责任人；展开见 §15.6 |
+| R11 | POST| `/auth/login` | 会话登录（Cookie Session） | P3 | 10001, 10006, 20001, 20101, 20102, 20104 | **已展开为正式小节 → §2.3**（凭证机制 = PG 会话表 + HttpOnly Cookie，非 JWT） |
+| R12 | POST| `/auth/refresh` | Token 静默轮换 | P3 | 10001, 20003, 20004 | **保留远期**：Bearer/refresh 轮换路线备选；当前凭证为会话 Cookie（§2.3），本端点不实施 |
 | R13 | POST| `/metrics/query` | ChatBI / 指标语义层查询 | P3 | 10001, 30001 | 大模型 NLQ to DSL 智能问数接口 |
-| R14 | GET/POST | `/sim/*` | 仿真时钟与故障注入 | P3 | 10001, 10002 | 演示控制接口（时钟加速、重置、注入告警） |
+| R14 | GET/POST | `/sim/*` | 仿真时钟与故障注入 | P3 | 10001, 10002, 35002, 35003 | **已展开为正式节 → §16**（档 A：时钟控制面） |
+| R15 | POST | `/workbench/settings/rules/{code}` | 预警阈值启停写回 | P3 | 10001, 10003, 10006, 20005 | 设置页阈值表开关持久化（`ads.alert_rule.enabled`）；展开见 §15.7 |
+| R16 | PUT | `/workbench/settings/preferences` | 系统偏好写回 | P3 | 10001, 10002, 10006 | 设置页 5 项偏好表单持久化（`sys.user_pref` upsert）；展开见 §15.8 |
+
+> **错误码注**：R01/R02/R09/R13 引用的 `30001`/`30002` 定义见 `error-codes.md` §3「通用业务 30xxx」段；R04–R08 的 `33xxx` 系列定义见同文「告警与督办」段（§15 早期版本误挂 `310xx` 指标域码，本次对账修正）。
+
+### 15.1 R04 `POST /alerts/{id}/ack` — 告警认领
+- **说明**：将告警从 `pending` 推进到 `processing`（认领）。操作人经 `?role=` 传输（见本节头部约定）。
+- **路径参数**：`id`（int，必填，`ads.alert_event.id`）
+- **Request JSON**：`{}`（无字段）
+- **Response `data`**：
+  ```json
+  { "id": 12, "alert_status": "processing", "ack_at": "2026-10-28T09:12:00+08:00", "ack_by": 1 }
+  ```
+- **可返回错误码**：`10001`（id 非数 / `?role=` 非法）、`33001`（告警不存在）、`33002`（已非 `pending`，`data.current_status` 回传最新态——重复认领同此码，天然幂等）
+- **语义注**：单事务 `FOR UPDATE` 锁行 → 校验 `alert_status='pending'` → `UPDATE`（`ack_at` 取虚拟时钟 `virtual_now`、`ack_by` 取操作人 id）→ `sys.audit_log` 写 `alert_ack`。
+
+### 15.2 R05 `POST /alerts/{id}/dispatch` — 告警督办派发
+- **说明**：告警一键派发为督办工单（`ads.todo_order`）；`pending` 告警连带自动认领（→`processing`）。
+- **路径参数**：`id`（int，必填）
+- **Request JSON**：
+
+  | 字段 | 类型 | 必填 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `assignee_id` | int | 是 | 承办人（`dim.staff.id`，须在职；科室关系校验见 `33102`） |
+  | `deadline` | string | 是 | 截止时间，ISO 8601（须晚于 `virtual_now`） |
+  | `title` | string | 否 | 工单标题，缺省=告警标题 |
+  | `note` | string | 否 | 派发备注 |
+- **Response `data`**：
+  ```json
+  { "todo_id": 7, "alert_id": 12, "alert_status": "processing", "assignee_id": 118, "deadline": "2026-10-30T17:00:00+08:00" }
+  ```
+- **可返回错误码**：`10001`、`10002`（字段缺失/格式非法，`data.fields` 定位）、`33001`（告警不存在）、`33002`（已 `done`/`closed`/已有打开工单，`data.current_status`+`data.todo_id` 回传）、`33102`（承办人非在职或非本科室）、`33103`（deadline 不晚于当前时间）
+- **幂等**：`ads.todo_order` 以部分唯一索引 `(alert_id, alert_occurred_at) WHERE todo_status IN ('open','doing')` 保证"一告警一打开工单"，撞键 → `33002`。
+- **语义注**：单事务——锁告警行校验状态 → INSERT todo（`baseline_value`/`target_value`/`metric_code` 承接告警三点锚点）→ `pending` 时连带 `ack` 回填 → 审计 `todo_dispatch`。
+
+### 15.3 R06 `POST /alerts/{id}/close` — 告警直接闭环
+- **说明**：不派工单直接办结关闭，须填办结理由。
+- **路径参数**：`id`（int，必填）
+- **Request JSON**：
+
+  | 字段 | 类型 | 必填 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `close_note` | string | 是 | 办结理由/改善说明（空串 → `10002`） |
+- **Response `data`**：
+  ```json
+  { "id": 12, "alert_status": "closed", "closed_at": "2026-10-28T09:40:00+08:00" }
+  ```
+- **可返回错误码**：`10002`（`close_note` 缺失/空串）、`33001`（告警不存在）、`33002`（已 `closed`；**存在打开工单**时亦拒，`data.current_status='todo_open'`——打开工单须先办结，不得跨越关闭）
+- **语义注**：单事务锁行 → `UPDATE alert_status='closed', closed_at, close_note` → 审计 `alert_close`；重复关闭 → `33002`（幂等语义=已被处理）。
+
+### 15.4 R07 `GET /todos` — 督办工单列表
+- **说明**：督办追踪工单分页列表（`ads.todo_order`；与资产页"后勤工单"`dwd.logistics_order` 属不同域，勿混口径）。
+- **Query 参数**：`page`（默认 1）、`size`（默认 20，≤100）、`status`（可选 `open|doing|done|expired`）、`assignee_id`（可选 int）
+- **Response `data`**（分页包络 §1.2）：
+  ```json
+  { "list": [
+    { "id": 7, "alert_id": 12, "title": "急诊留观超时整改",
+      "assignee_id": 118, "assignee_name": "周婷", "dept_name": "急诊科",
+      "deadline": "2026-10-30 17:00", "todo_status": "doing", "status_label": "办理中",
+      "baseline_value": 4.2, "current_value": 3.1, "target_value": 2.0,
+      "metric_code": "OBS_OVER_2H", "note": "限期三日", "result_note": null,
+      "created_at": "2026-10-28 09:20" } ],
+    "page": 1, "size": 20, "total": 5 }
+  ```
+- **字段注**：
+  1. `current_value` 实时组装：`metric_code` 命中 `ads.today_kpi`（realtime 指标）取实时值，否则取 `dws.metric_value` 最新期值；无指标行 → `null`（三点锚点 = 整改前/当前/目标）。
+  2. `expired` 为**存储值**：每次请求先惰性清扫 `deadline < virtual_now` 的 `open|doing` 单 → `expired`，再出参（无后台作业的确定性语义）。
+  3. `deadline`/`created_at` 按 §1.4 `YYYY-MM-DD HH:mm`；`status_label` 由 `sys.dict(todo_status)` 文案渲染。
+- **可返回错误码**：`10001`（page/size/status/assignee 非法）、`10002`
+
+### 15.5 R08 `POST /todos/{id}/status` — 工单反馈与办结
+- **说明**：承办人反馈工单状态；`report` 办结时同事务回填源告警 `done`。
+- **路径参数**：`id`（int，必填，`ads.todo_order.id`）
+- **Request JSON**：
+
+  | 字段 | 类型 | 必填 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `action` | string | 是 | `accept`（open→doing 接单）/ `report`（doing→done 办结申请验收） |
+  | `result_note` | string | 条件必填 | `action=report` 时必填（整改举措/办结说明；库 CHECK 强制非空） |
+- **Response `data`**：
+  ```json
+  { "id": 7, "todo_status": "done", "alert_id": 12, "alert_status": "done" }
+  ```
+- **可返回错误码**：`10001`、`10002`（action 非法/`result_note` 缺）、`20005`（`dept_leader` 仅可办本科室工单——以 `sys.user.dept_id` 比对承办人 `dim.staff.dept_id`）、`33101`（工单不存在）、`33104`（`done`/`expired` 禁变更，`data.current_status` 回传）
+- **语义注**：`report` 为双表单事务——工单 `done`（`result_note` 必填落库）+ 源告警 `alert_status='done'`（`done_at` 回填）；审计 `todo_status`（`detail` 记 from→to）。
+- **写后读一致性**：`home/alerts` 计数、`screen` 告警块实时派生 `alert_status IN ('pending','processing')`——ack/dispatch 不政变开数（仍在打开集），close/todo done 后自动减一；工单读面即本端点，**不回流** `home/progress`（`ads.work_item` 为行政重点工作域，不同物）。
+
+### 15.6 R10 `GET /staff` — 承办人联想选择器
+- **说明**：督办派发时按科室联想责任人（在职人员 `dim.staff.active`）。
+- **Query 参数**：`dept_id`（可选 int；缺席返回全院在职人员，按负责人优先排序）
+- **Response `data`**：
+  ```json
+  { "list": [
+    { "id": 118, "code": "E0128", "name": "周婷", "title": "副主任医师",
+      "dept_id": 5, "dept_name": "急诊科", "is_leader": true } ] }
+  ```
+- **字段注**：`is_leader` = `dim.department.leader_id = staff.id`（科室负责人优先联想）；排序 `is_leader DESC, id`。
+- **可返回错误码**：`10001`（`dept_id` 非数）
+
+### 15.7 R15 `POST /workbench/settings/rules/{code}` — 预警阈值启停写回
+- **说明**：切换 `ads.alert_rule` 单条规则启停（`enabled`），对应设置页阈值表开关（`§13.2 thresholds[].code` 寻址）。
+- **路径参数**：`code`（string，必填，`ads.alert_rule.code`，须为 `source='rule'` 行）
+- **Request JSON**：
+
+  | 字段 | 类型 | 必填 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `enabled` | bool | 是 | 目标启停态 |
+- **Response `data`**：
+  ```json
+  { "code": "BED_OVER_95", "enabled": false }
+  ```
+- **可返回错误码**：`10001`（`?role=` 非法）、`10003`（规则 code 不存在或非 `rule` 源行）、`10006`、`20005`（角色不足——写面限管理域角色 `admin`/`president`/`ops_director`）
+- **语义注**：`UPDATE ... SET enabled, updated_at=virtual_now`；审计 `rule_toggle`。
+
+### 15.8 R16 `PUT /workbench/settings/preferences` — 系统偏好写回
+- **说明**：当前操作人的偏好 KV 部分更新（`sys.user_pref` upsert），对应设置页 5 项偏好表单。
+- **Request JSON**（与 §13.2 `preferences` 出参同形，全部可选但至少一项）：
+
+  | 字段 | 类型 | 说明 |
+  | :--- | :--- | :--- |
+  | `default_range` | string | `本月`/`本季`/`本年`（入库换算 `month`/`quarter`/`year`） |
+  | `refresh_interval` | string | `5 分钟`/`15 分钟`/`30 分钟`（入库换算秒数 `300`/`900`/`1800`） |
+  | `alert_sound` | bool | 预警声音 |
+  | `unit_abbreviation` | bool | 单位缩写 |
+  | `privacy_mask` | bool | 敏感脱敏 |
+- **Response `data`**：与 §13.2 `preferences` 同形（回写后的完整偏好集）
+- **可返回错误码**：`10001`（body 空对象/未知键/`?role=` 非法）、`10002`（枚举值越界，`data.fields` 定位）、`10006`
+- **语义注**：逐键 `INSERT ... ON CONFLICT (user_id, pref_key) DO UPDATE`（`updated_at=virtual_now`）；审计 `pref_save`。
 
 ---
 
-## 16. 前端 Mock 实施指引（Next Action）
+## 16. 仿真控制面 /sim/*（P3 档 A）
+
+仿真时钟与演示控制的契约面。**环境门控**：仅 `SIM_ENABLED` 开启时注册路由；关闭（生产形态）时 `/sim/*` 一律未注册 → `NoRoute` → `10003`（error-codes §3 35xxx 段注）。操作人校验（admin 限定）待会话机制（§2.3）落地后生效，本期不解析 `?role=`。
+
+统一前缀 `/api/v1/sim`，包络同 §1。`virtual_now`/`updated_at`/`started_at` 等时刻字段按 §1.4 ISO 8601 字符串；`weekday` 中文星期；**ads 快照层（today_kpi/campus_status/alert/dept_rank）跨日后维持"最近派生切面"冻结语义**（档 A 不触发派生重跑）。
+
+### 16.1 GET /sim/clock
+- **说明**：当前虚拟时钟状态与种子余量。
+- **Response `data`**：
+  ```json
+  {
+    "virtual_now": "2026-10-28T09:00:00+08:00",
+    "base_date": "2026-10-28",
+    "seed_end": "2026-12-31",
+    "speed": 1,
+    "paused": false,
+    "weekday": "星期三",
+    "updated_at": "2026-10-28T09:00:00+08:00"
+  }
+  ```
+- **字段注**：`seed_end` 为 tick 上界事实源（`sim.profile.seed_end` 键；缺省回退 `SELECT MAX(date) FROM dwd.charge_day`）；`updated_at` 为墙钟审计字段（同包络 `ts` 豁免逻辑）；`speed`/`paused` 为远期 auto-runner 预留列，手动 tick 不读取。
+- **可返回错误码**：`10000`
+
+### 16.2 POST /sim/tick
+- **说明**：虚拟时钟前移 N 分钟。**非幂等**——重复提交=重复推进。
+- **Request JSON**：
+
+  | 字段 | 类型 | 必填 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `minutes` | int | 是 | `≥1`；且 `virtual_now + minutes` 不越 `seed_end + 1 天`，越界 → `35002` |
+- **Response `data`**：
+  ```json
+  {
+    "virtual_now_before": "2026-10-28T09:00:00+08:00",
+    "virtual_now": "2026-10-28T10:00:00+08:00",
+    "advanced_minutes": 60,
+    "crossed_day": false,
+    "job_id": 12
+  }
+  ```
+- **语义注**：单事务 `SELECT…FOR UPDATE` 行锁 → 界校验 → `UPDATE sim.clock` → `INSERT sim.job_log('SimTick')`；并发 tick 由行锁串行，`job_log` 存在 `running` 行 → `35003`。`paused` 不阻塞手动 tick（其为 auto-runner 标志）。
+- **可返回错误码**：`10001`（minutes 缺/非整/`<1`）、`10006`、`35002`（越上界）、`35003`（批次进行中）、`10000`
+
+### 16.3 POST /sim/reset
+- **说明**：时钟复位至 `base_date 09:00`（`speed=1, paused=false`）。**幂等**。
+- **Request JSON**：`{}` 或 `{ "scope": "clock" }`；`scope` 枚举 `clock|full`，`full`（全量重灌）本期未开放 → `35002`。
+- **Response `data`**：
+  ```json
+  { "scope": "clock", "virtual_now": "2026-10-28T09:00:00+08:00", "job_id": 13 }
+  ```
+- **可返回错误码**：`10001`、`10006`、`35002`、`35003`、`10000`
+
+### 16.4 GET /sim/jobs
+- **说明**：仿真作业台账（`sim.job_log`），分页。
+- **Query 参数**：`page`（默认 1）、`size`（默认 20）、`job`（精确匹配过滤）、`status`（`running|success|failed`）
+- **Response `data`**（分页包络 §1.2）：
+  ```json
+  { "list": [
+    { "id": 13, "job": "SimReset", "virtual_date": "2026-10-28",
+      "started_at": "2026-10-28T09:00:00+08:00", "finished_at": "2026-10-28T09:00:01+08:00",
+      "rows_cnt": 0, "job_status": "success", "err": null } ],
+    "page": 1, "size": 20, "total": 13 }
+  ```
+- **字段注**：按 `started_at DESC`；空集 `code=0, list=[]`。
+- **可返回错误码**：`10001`（参数非法）、`10000`
+
+### 16.5 POST /sim/clock — 时钟定点跳转
+- **说明**：直接设定虚拟时钟（演示剧本"切回晨会起点"等定点需求）；与 tick 同为非幂等。
+- **Request JSON**（全部可选，至少一项）：
+
+  | 字段 | 类型 | 说明 |
+  | :--- | :--- | :--- |
+  | `virtual_now` | string | ISO 8601 目标时刻，界校验同 tick（越界 → `35002`） |
+  | `speed` | int | `1–1000`（预留列，本期无消费方） |
+  | `paused` | bool | （预留列） |
+- **Response `data`**：
+  ```json
+  { "virtual_now": "2026-10-28T07:55:00+08:00", "job_id": 14 }
+  ```
+- **可返回错误码**：`10001`（无有效字段）、`10006`、`35002`、`35003`、`10000`
+
+---
+
+## 17. 前端 Mock 实施指引（Next Action）
 
 在前端工程中落地 v2.0 契约的推荐目录组织：
 ```
@@ -1305,14 +1540,14 @@ src/
 ├── api/                   # API 请求定义（TypeScript）
 │   ├── types.ts           # 镜像本契约中的所有接口类型（已就位）
 │   ├── client.ts          # 统一解析层：mock 注册表查取，VITE_USE_MOCK 开关位预留 http 切换（已就位）
-│   ├── auth.ts            # /auth/*, /hospital/*（待补）
+│   ├── auth.ts            # /auth/*, /hospital/*（已就位）
 │   ├── workbench.ts       # /workbench/*（已就位）
-│   └── screen.ts          # /screen/snapshot（随大屏重建补齐）
+│   └── screen.ts          # /screen/snapshot（已就位）
 ├── mock/                  # 本地 Mock 数据集（可随时被真实 HTTP 拦截替换）
 │   ├── index.ts           # mockResolvers 注册表：key=契约端点路径（已就位）
 │   ├── home.ts overview.ts medical.ts operations.ts hr.ts research.ts
 │   ├── patient.ts quality.ts assets.ts compare.ts topics.ts settings.ts
-│   └── screen.ts          # 大屏快照 mock（随大屏重建补齐）
+│   └── screen.ts          # 大屏快照 mock（已就位）
 ```
 
 **实施要诀**：
