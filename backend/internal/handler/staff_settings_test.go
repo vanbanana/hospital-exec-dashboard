@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,11 @@ func settingsRouter(t *testing.T) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.Use(middleware.TraceID())
+	// §2.1 演进注:preferences 取会话用户 id——handler 直连测试注入会话替身(等价 Session 中间件产物)
+	r.Use(func(c *gin.Context) {
+		c.Set("session_user", middleware.SessionUser{ID: 1, Username: "president", Role: "president"})
+		c.Next()
+	})
 	r.GET("/api/v1/workbench/settings/config", h.SettingsConfig)
 	return r
 }
@@ -129,21 +135,26 @@ func TestStaffSettingsUsers(t *testing.T) {
 	if !ok || len(us) != 7 {
 		t.Fatalf("users=%v", us)
 	}
-	type want struct{ name, role, scope, login, status string }
+	// login 列随登录实时更新(P3 会话化,clk.Now 落库)——不再锚定种子值,只断言 §13.2 分钟格式
+	loginFmt := regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$`)
+	type want struct{ name, role, scope, status string }
 	wants := []want{
-		{"系统管理员", "管理员", "全部", "2026-10-28 09:12", "启用"},
-		{"王建国", "院领导", "全院", "2026-10-28 08:46", "启用"},
-		{"陈国平", "院领导", "全院", "2026-10-27 17:32", "启用"},
-		{"赵明诚", "部门负责人", "医疗业务", "2026-10-28 08:58", "启用"},
-		{"孙雅琴", "部门负责人", "运营财务", "2026-10-28 09:05", "启用"},
-		{"李明", "部门负责人", "运营质控", "2026-10-28 09:30", "启用"},
-		{"刘志远", "科室主任", "骨科", "2026-10-28 08:30", "启用"},
+		{"系统管理员", "管理员", "全部", "启用"},
+		{"王建国", "院领导", "全院", "启用"},
+		{"陈国平", "院领导", "全院", "启用"},
+		{"赵明诚", "部门负责人", "医疗业务", "启用"},
+		{"孙雅琴", "部门负责人", "运营财务", "启用"},
+		{"李明", "部门负责人", "运营质控", "启用"},
+		{"刘志远", "科室主任", "骨科", "启用"},
 	}
 	for i, w := range wants {
 		row := us[i].(map[string]any)
 		if row["name"] != w.name || row["role"] != w.role || row["scope"] != w.scope ||
-			row["login"] != w.login || row["status"] != w.status {
+			row["status"] != w.status {
 			t.Errorf("users[%d]=%v want %v", i, row, w)
+		}
+		if login, ok := row["login"].(string); !ok || !loginFmt.MatchString(login) {
+			t.Errorf("users[%d].login=%v 不符 YYYY-MM-DD HH:mm", i, row["login"])
 		}
 	}
 }

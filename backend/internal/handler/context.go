@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -57,37 +58,54 @@ type hospitalProfileResp struct {
 	Pillars     []string `json:"pillars"`
 }
 
-// AuthProfile GET /api/v1/auth/profile(契约 §2.1);?role= 值为演示账号 username
+// AuthProfile GET /api/v1/auth/profile(契约 §2.1 演进注):?role= 出席=纯演示切换
+// (不校验会话身份);缺席=当前会话用户(原"默认 president"语义已调整);会话缺失兜底 20001
 func (h *Context) AuthProfile(c *gin.Context) {
-	role := "president"
+	var username string
 	if v, present := c.GetQuery("role"); present { // 出席即须合法:?role= 空串→10001
-		role = v
-	}
-	switch role {
-	case "president", "ops_director", "dept_leader":
-	default:
-		envelope.InvalidArg(c, "role", "非法角色")
-		return
+		switch v {
+		case "president", "ops_director", "dept_leader":
+			username = v
+		default:
+			envelope.InvalidArg(c, "role", "非法角色")
+			return
+		}
+	} else {
+		su, ok := sessionUser(c)
+		if !ok {
+			envelope.Fail(c, http.StatusUnauthorized, envelope.CodeUnauth, "未登录或凭证缺失", nil)
+			return
+		}
+		username = su.Username
 	}
 
 	ctx := c.Request.Context()
-	u, err := repo.FindContextUser(ctx, h.db, role)
-	if err != nil || u == nil { // 0 行=演示账号被清,属数据异常非参数错
+	u, err := repo.FindContextUser(ctx, h.db, username)
+	if err != nil || u == nil { // 0 行=账号被清/停用,属数据异常非参数错
 		failInternal(c)
 		return
 	}
-	demos, err := repo.ListDemoUsers(ctx, h.db)
+	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u)
 	if err != nil {
 		failInternal(c)
 		return
 	}
-	today, err := h.clk.Today(ctx)
+	envelope.OK(c, resp)
+}
+
+// buildAuthProfileResp §2.1 同形 data 组装(user + available_roles + system_date + weekday)
+// ——AuthProfile 与 Login(§2.3 响应注)共用
+func buildAuthProfileResp(ctx context.Context, db *gorm.DB, clk *clock.Source, u *repo.ContextUser) (*authProfileResp, error) {
+	demos, err := repo.ListDemoUsers(ctx, db)
 	if err != nil {
-		failInternal(c)
-		return
+		return nil, err
+	}
+	today, err := clk.Today(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	resp := authProfileResp{
+	resp := &authProfileResp{
 		User: authUser{
 			ID:       u.ID,
 			Username: u.Username,
@@ -110,7 +128,7 @@ func (h *Context) AuthProfile(c *gin.Context) {
 			Scope: scopeLabel(d.ScopeType, d.ScopeVal),
 		})
 	}
-	envelope.OK(c, resp)
+	return resp, nil
 }
 
 // HospitalProfile GET /api/v1/hospital/profile(契约 §2.2)

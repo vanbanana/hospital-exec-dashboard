@@ -21,7 +21,7 @@ for f in seed/*.sql;       do psql -d hospital_edss -v ON_ERROR_STOP=1 -f "$f"; 
 
 ## 执行顺序约定
 
-### migrations/（12 个文件）
+### migrations/（13 个文件）
 
 | 序 | 文件 | 内容 |
 |---|---|---|
@@ -34,6 +34,7 @@ for f in seed/*.sql;       do psql -d hospital_edss -v ON_ERROR_STOP=1 -f "$f"; 
 | 0400/0410 | ads 两域 | 工作台集市（work_item/dept_rank_day/radar/benchmark/exam_indicator）+ 大屏集市（alert/today_kpi/campus_status） |
 | 0500 | `0500_sim.sql` | 仿真时钟/参数/日志 |
 | 0900 | `0900_sys_user_dept_fk.sql` | **延迟挂载**：`fk_user_department` ON DELETE RESTRICT（防科室删除静默升格账号权限） |
+| 0910 | `0910_sys_user_session.sql` | sys.user_session 会话表 + 演示账号口令重置 |
 
 ### seed/（13 个文件，相位序）
 

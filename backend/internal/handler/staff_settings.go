@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -72,8 +73,13 @@ func (h *StaffHandler) SettingsConfig(c *gin.Context) {
 		})
 	}
 
-	// ---- preferences:user_id=1(president 演示角色);缺键→契约默认(本月/5 分钟/true/true/true) ----
-	pref, err := h.r.SettingPrefs(ctx, 1)
+	// ---- preferences:会话用户 id(P3 会话化,原 user_id=1 硬编码);缺键→契约默认(本月/5 分钟/true/true/true) ----
+	su, ok := sessionUser(c)
+	if !ok { // 中间件白名单外兜底;正常路由必有会话
+		envelope.Fail(c, http.StatusUnauthorized, envelope.CodeUnauth, "未登录或凭证缺失", nil)
+		return
+	}
+	pref, err := h.r.SettingPrefs(ctx, su.ID)
 	if err != nil {
 		fail(c)
 		return

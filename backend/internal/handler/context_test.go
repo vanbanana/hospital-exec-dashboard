@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
+	"hospital-edss/internal/middleware"
 )
 
 // 实库断言锚点:种子 1001_sys_defs.sql + 1150_sys_deferred.sql(dept_leader→骨科 id=1)
@@ -67,7 +68,12 @@ func contextRouter(t *testing.T) *gin.Engine {
 	h := NewContext(db, clock.New(db))
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(func(c *gin.Context) { c.Set("trace_id", "test-trace"); c.Next() })
+	r.Use(func(c *gin.Context) {
+		c.Set("trace_id", "test-trace")
+		// §2.1 演进注:?role= 缺席=会话用户——handler 直连测试注入会话替身(等价 Session 中间件产物)
+		c.Set("session_user", middleware.SessionUser{ID: 1, Username: "president", Role: "president"})
+		c.Next()
+	})
 	r.GET("/api/v1/auth/profile", h.AuthProfile)
 	r.GET("/api/v1/hospital/profile", h.HospitalProfile)
 	return r

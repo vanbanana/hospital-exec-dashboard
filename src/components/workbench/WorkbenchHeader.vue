@@ -39,15 +39,23 @@
           <span class="user-role">{{ profile?.user.title ?? '院长' }}</span>
           <ChevronDown class="dropdown-icon" :size="14" />
           <div v-if="roleOpen" class="role-menu" @click.stop>
-            <div
-              v-for="r in profile?.available_roles ?? []"
-              :key="r.role"
-              class="role-item"
-              :class="{ 'is-active': r.role === profile?.user.role }"
-              @click="switchRole(r.role)"
-            >
-              <span class="role-name">{{ r.name }}</span>
-              <span class="role-scope">{{ r.scope }}</span>
+            <!-- 视角切换=管理位特权：仅 admin/president 会话开放（§2.1 演进注，写面 admin 域同口径） -->
+            <template v-if="canSwitchRole">
+              <div
+                v-for="r in profile?.available_roles ?? []"
+                :key="r.role"
+                class="role-item"
+                :class="{ 'is-active': r.role === profile?.user.role }"
+                @click="switchRole(r.role)"
+              >
+                <span class="role-name">{{ r.name }}</span>
+                <span class="role-scope">{{ r.scope }}</span>
+              </div>
+              <div class="menu-divider"></div>
+            </template>
+            <div class="role-item logout-item" @click="onLogout">
+              <LogOut :size="14" class="logout-icon" />
+              <span class="role-name">退出登录</span>
             </div>
           </div>
         </div>
@@ -63,14 +71,20 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Search, Bell, ChevronDown } from 'lucide-vue-next'
-import { getAuthProfile } from '../../api/auth'
+import { Search, Bell, ChevronDown, LogOut } from 'lucide-vue-next'
+import { getAuthProfile, logout } from '../../api/auth'
+import { currentProfile } from '../../api/session'
 import { getHomeAlerts } from '../../api/workbench'
 import type { AuthProfileResp } from '../../api/types'
 
 const profile = ref<AuthProfileResp | null>(null)
+const session = ref<AuthProfileResp | null>(null)
 const alertCount = ref(0)
 const roleOpen = ref(false)
+
+// 会话真身（?role= 只切 display 层 profile，session 不动）
+const ROLE_SWITCH_ALLOW: readonly string[] = ['admin', 'president']
+const canSwitchRole = computed(() => ROLE_SWITCH_ALLOW.includes(session.value?.user.role ?? ''))
 
 // §2.1 ?role= 切换演示上下文;失败保持当前角色,菜单收起
 const switchRole = async (role: string) => {
@@ -78,10 +92,16 @@ const switchRole = async (role: string) => {
   profile.value = await getAuthProfile(role).catch(() => profile.value)
 }
 
+const onLogout = () => {
+  roleOpen.value = false
+  void logout()
+}
+
 // 头像降级：data=null/接口失败时回退默认身份展示（frontend-api §2.1 空态）
 const fallbackAvatar = new URL('../../assets/workbench/director_avatar.png', import.meta.url).href
 
 onMounted(async () => {
+  session.value = await currentProfile().catch(() => null)
   profile.value = await getAuthProfile().catch(() => null)
   alertCount.value = await getHomeAlerts().then((r) => r.list.length).catch(() => 0)
 })
@@ -259,6 +279,21 @@ const dateText = computed(() => {
 .role-item.is-active {
   color: var(--wb-primary);
   font-weight: var(--wb-fw-semibold);
+}
+
+.menu-divider {
+  height: 1px;
+  background: var(--wb-hairline);
+  margin: var(--wb-space-1) 0;
+}
+
+.logout-item {
+  justify-content: flex-start;
+}
+
+.logout-icon {
+  color: var(--wb-text-3);
+  flex-shrink: 0;
 }
 
 .role-scope {

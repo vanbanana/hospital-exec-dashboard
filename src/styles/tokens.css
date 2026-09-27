@@ -87,8 +87,8 @@
   --p-font-number: "Rajdhani", "DIN Alternate", "Helvetica Neue", "Arial", sans-serif;
 }
 
-/* ---------- L1 语义层 — 工作台（.workbench-layout） ---------- */
-.workbench-layout {
+/* ---------- L1 语义层 — 工作台（.workbench-layout / .auth-layout，R8 登录页复用 --wb-* 零新增） ---------- */
+.workbench-layout, .auth-layout {
   /* —— 既有 token（值不变，改为 var(--p-*) 引用） —— */
   /* 浅灰蓝底色族无对应原色档，按 design-tokens §4 先例在 L1 登记字面 */
   --wb-bg: #f0f5fc;                /* 页面主背景（浅灰蓝） */
