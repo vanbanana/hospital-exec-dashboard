@@ -134,8 +134,9 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
   --scr-shadow-panel:0 8px 24px rgba(0,4,15,.55), inset 0 1px 0 rgba(255,255,255,.05);
   --scr-fs-axis:9px; --scr-fs-sm:11px; --scr-fs-md:13px;
   --scr-fs-title:20px; --scr-fs-num:26px;
-  /* 画布:2048×1152(冻结设计稿基准,cockpit 实现为 1920×1080——差异已上报,以冻结稿为准) */
-  --scr-canvas-w:2048px; --scr-canvas-h:1152px;
+  /* 画布:1920×1080(裁决:cockpit 真大屏实际实现 + 会议室主流分辨率;
+     archive/output 冻结稿 2048×1152 为旧稿值,不再采用) */
+  --scr-canvas-w:1920px; --scr-canvas-h:1080px;
 }
 ```
 
