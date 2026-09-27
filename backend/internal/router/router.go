@@ -22,6 +22,10 @@ type Deps struct {
 func Build(d *Deps) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
+	// 仅信任本机回环代理的 X-Forwarded-For——gin 默认信任全部 CIDR,
+	// 公网直连时伪造 XFF 可污染 audit_log/user_session 的 ip 列;
+	// vite/nginx 反代与客户端不同机部署时按部署文档另行放开
+	_ = r.SetTrustedProxies([]string{"127.0.0.1", "::1"})
 	r.Use(middleware.TraceID(), middleware.RequestLog(), middleware.Recovery(), middleware.Session(d.DB))
 
 	r.GET("/health", func(c *gin.Context) { envelope.OK(c, gin.H{"status": "up"}) })

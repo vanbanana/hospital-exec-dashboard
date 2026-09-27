@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -27,12 +28,15 @@ func NewWriteRepo(db *gorm.DB, clk *clock.Source) *WriteRepo {
 	return &WriteRepo{db: db, clk: clk}
 }
 
-// Operator §15 头部操作人——?role= 解析出的 sys.user 行(演示账号域,username 即 role 名)
+// Operator §15 头部操作人——?role= 或会话用户解析出的 sys.user 行
 type Operator struct {
 	ID       int64
 	Username string
 	Role     string
 	DeptID   *int64
+	// SessionUser 演示切换双身份注记:?role= 与会话用户不一致时记实际登录人
+	// (审计溯源用;handler 填充,不入 SQL 投影)
+	SessionUser string
 }
 
 // FindOperator 按演示账号 username 查启用用户;0 行→(nil,nil) 由 handler 判数据异常
@@ -75,6 +79,14 @@ func (e *StatusConflict) Error() string { return "status conflict: " + e.Current
 // auditLog sys.audit_log 写入——created_at 显式传虚拟时钟覆写列默认(纪律同任务书);
 // ip 空串→NULL(inet),detail nil→NULL;在事务内调用,失败回滚整个写
 func auditLog(tx *gorm.DB, op Operator, action, targetType, targetID string, detail map[string]any, ip string, now time.Time) error {
+	// 演示切换(?role= 与会话用户不一致)时 detail 同记双身份——行为人以 op.Username 计,
+	// session_user 记实际登录账号,审计可还原"谁登的、以谁名义办的"
+	if op.SessionUser != "" && op.SessionUser != op.Username {
+		if detail == nil {
+			detail = map[string]any{}
+		}
+		detail["session_user"] = op.SessionUser
+	}
 	var dj []byte
 	if detail != nil {
 		b, err := json.Marshal(detail)
@@ -180,20 +192,34 @@ func (r *WriteRepo) AlertDispatch(ctx context.Context, op Operator, alertID, ass
 			AlertStatus string
 			DeptID      *int64
 			Title       string
+			RuleCode    string
 			Baseline    *float64
 			MetricCode  *string
 			Threshold   *float64
 		}
+		// 告警与规则分两步:JOIN 缺规则行会把"告警存在"误判成 33001——
+		// 规则缺失属数据完整性故障,走默认 10000 而非业务码
 		q := tx.Raw(`SELECT e.id,e.occurred_at,e.alert_status,e.dept_id,e.title,
-			(e.payload->>'value')::numeric AS baseline,r.metric_code,r.threshold
-			FROM ads.alert_event e JOIN ads.alert_rule r ON r.code=e.rule_code
-			WHERE e.id=$1 FOR UPDATE OF e`, alertID).Scan(&row)
+			e.rule_code,(e.payload->>'value')::numeric AS baseline
+			FROM ads.alert_event e WHERE e.id=$1 FOR UPDATE OF e`, alertID).Scan(&row)
 		if q.Error != nil {
 			return q.Error
 		}
 		if q.RowsAffected == 0 {
 			return ErrAlertNotFound
 		}
+		var rule struct {
+			MetricCode *string
+			Threshold  *float64
+		}
+		qr := tx.Raw(`SELECT metric_code,threshold FROM ads.alert_rule WHERE code=$1`, row.RuleCode).Scan(&rule)
+		if qr.Error != nil {
+			return qr.Error
+		}
+		if qr.RowsAffected == 0 {
+			return fmt.Errorf("alert_rule 缺失: code=%s (alert_id=%d)", row.RuleCode, row.ID)
+		}
+		row.MetricCode, row.Threshold = rule.MetricCode, rule.Threshold
 		if row.AlertStatus == "done" || row.AlertStatus == "closed" {
 			return &StatusConflict{Current: row.AlertStatus}
 		}

@@ -69,13 +69,19 @@ async function load() {
 }
 
 // refresh 静默轮询(契约 §16 档 A:大屏随虚拟时钟滚动,30s 一拍)——不置 loading 防闪烁;
+// in-flight 去重(AGENTS §4 轮询纪律):慢响应时下一拍直接跳过,不叠并发请求;
 // 成功换快照并清错误态;失败仅在无旧数据兜底时才落错误屏,有旧数据保持展示
+let inflight = false
 async function refresh() {
+  if (inflight) return
+  inflight = true
   try {
     snap.value = await getScreenSnapshot()
     error.value = null
   } catch (e) {
     if (!snap.value) error.value = toApiError(e)
+  } finally {
+    inflight = false
   }
 }
 

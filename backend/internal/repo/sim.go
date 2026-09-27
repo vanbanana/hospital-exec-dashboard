@@ -67,9 +67,15 @@ func simSeedEnd(ctx context.Context, db *gorm.DB) (time.Time, error) {
 			return d, nil
 		}
 	}
-	var d time.Time
-	err := db.WithContext(ctx).Raw(`SELECT MAX(date) FROM dwd.charge_day`).Scan(&d).Error
-	return d, err
+	// 空 charge_day → MAX 为 NULL,指针接收防 Scan 报原生转换错;NULL 时给可读语义错
+	var d *time.Time
+	if err := db.WithContext(ctx).Raw(`SELECT MAX(date) FROM dwd.charge_day`).Scan(&d).Error; err != nil {
+		return time.Time{}, err
+	}
+	if d == nil {
+		return time.Time{}, errors.New("seed_end 无法解析:sim.profile 缺省且 dwd.charge_day 为空")
+	}
+	return *d, nil
 }
 
 // checkRunning 写事务第一步:任一 running 批次存在即 ErrSimBusy(契约 §16.2 语义注)

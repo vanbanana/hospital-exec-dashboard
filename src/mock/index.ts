@@ -2,7 +2,7 @@
  * Mock 端点注册表 — key 与 api-contract.md 端点路径一一对应。
  * api/client.ts 经此表取数；接 mock server / 真实后端时整层被 http 替换（见 §16）。
  */
-import { getAuthProfileMock, hospitalProfile } from './auth'
+import { getAuthProfileMock, hospitalProfile, postAuthLoginMock, postAuthLogoutMock } from './auth'
 import { homeIndicators, homeKpis, homeNotices, homeProgress, homeTop10, homeTrends } from './home'
 import {
   alertStateList,
@@ -90,6 +90,9 @@ export const mockResolvers: Record<string, (params: MockParams, body?: unknown) 
   /* ===== §15 写侧端点 — 读(GET 精确键) ===== */
   'todos': (p) => getTodosList(p),
   'staff': (p) => staffList(p),
+  /* ===== §2.3/§2.4 会话端点(frontend-architecture §8.4-4 会话旗标) ===== */
+  'POST:auth/login': (_p, body) => postAuthLoginMock(body),
+  'POST:auth/logout': () => postAuthLogoutMock(),
   /* ===== §15 写侧端点 — 写(METHOD:key 复合键,{id}/{code} 由 client 模式匹配回填 params) ===== */
   'POST:alerts/{id}/ack': (p) => postAlertAck(p),
   'POST:alerts/{id}/dispatch': (p, body) => postAlertDispatch(p, body),

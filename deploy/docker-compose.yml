@@ -6,6 +6,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: hospital_edss
+      # 默认口令仅本地演示兜底——共享/生产部署前必须经 .env 覆盖 POSTGRES_PASSWORD
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edss}
     volumes:
       - pgdata:/var/lib/postgresql/data

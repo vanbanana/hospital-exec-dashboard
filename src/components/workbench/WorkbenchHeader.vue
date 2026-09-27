@@ -87,10 +87,12 @@ const roleOpen = ref(false)
 const ROLE_SWITCH_ALLOW: readonly string[] = ['admin', 'president']
 const canSwitchRole = computed(() => ROLE_SWITCH_ALLOW.includes(session.value?.user.role ?? ''))
 
-// §2.1 ?role= 切换演示上下文;失败保持当前角色,菜单收起
+// §2.1 ?role= 切换演示上下文;失败保持当前角色与操作人不动(写端点 ?role= 不跟挂),菜单收起
 const switchRole = async (role: string) => {
   roleOpen.value = false
-  profile.value = await getAuthProfile(role).catch(() => profile.value)
+  const next = await getAuthProfile(role).catch(() => null)
+  if (!next) return
+  profile.value = next
   setOperatorRole(role) // 写端点 ?role= 操作人同步切换(契约 §15 头部)
 }
 

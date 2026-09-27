@@ -25,25 +25,29 @@ func NewWriteHandler(r *repo.WriteRepo) *WriteHandler {
 	return &WriteHandler{r: r}
 }
 
-// operator 契约 §15 头部——?role= 出席=演示切换(须为演示账号,非法→10001);
-// 缺席=当前会话用户(EA 会话落地后补缺,FindOperator 按 username 定位;测试直挂路径兜底 president)
+// operator 契约 §15 头部——?role= 出席=演示切换(白名单只管这个入参:须为演示账号,非法→10001);
+// 缺席=当前会话用户(任何已认证账号直查 FindOperator,不走演示白名单;测试直挂路径兜底 president)
 func (h *WriteHandler) operator(c *gin.Context) (*repo.Operator, bool) {
-	role := "president"
+	username := "president"
 	if v, present := c.GetQuery("role"); present {
-		role = v
+		switch v {
+		case "president", "ops_director", "dept_leader", "admin":
+			username = v
+		default:
+			envelope.InvalidArg(c, "role", "非法角色")
+			return nil, false
+		}
 	} else if su, ok := sessionUser(c); ok {
-		role = su.Username
+		username = su.Username
 	}
-	switch role {
-	case "president", "ops_director", "dept_leader", "admin":
-	default:
-		envelope.InvalidArg(c, "role", "非法角色")
-		return nil, false
-	}
-	op, err := h.r.FindOperator(c.Request.Context(), role)
-	if err != nil || op == nil { // 0 行=演示账号被清,数据异常同 context.go
+	op, err := h.r.FindOperator(c.Request.Context(), username)
+	if err != nil || op == nil { // 0 行=账号被清,数据异常同 context.go
 		fail(c, err)
 		return nil, false
+	}
+	// ?role= 演示切换与会话用户不一致时,审计 detail 同记双身份(谁登的、以谁名义办的)
+	if su, ok := sessionUser(c); ok && su.Username != op.Username {
+		op.SessionUser = su.Username
 	}
 	return op, true
 }

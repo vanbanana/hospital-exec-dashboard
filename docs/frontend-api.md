@@ -123,7 +123,7 @@
 
 **Settings 写回**：阈值开关 → R15 `POST /workbench/settings/rules/{code}` `{enabled}`（行 `code` 键寻址，§13.2 `thresholds[].code` 已就位）；偏好表单 change → R16 `PUT /workbench/settings/preferences`（与 §13.2 `preferences` 出参同形部分更新）。
 
-**操作人传输**：演示期写端点经 `?role=<当前演示角色>` 显式传操作人（契约 §15 头部约定；缺席=`president`）。
+**操作人传输**：演示期写端点经 `?role=<当前演示角色>` 显式传操作人（契约 §15 头部约定；缺席=当前会话用户——非演示集账号登录时前端省略 `?role=`，后端按会话身份定位）。
 
 ---
 

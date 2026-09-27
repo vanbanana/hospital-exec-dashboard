@@ -4,6 +4,7 @@
 // mockNow() 用墙钟 ISO 串 —— mock 轨无后端虚拟时钟(sim.clock.virtual_now),墙钟为可接受近似
 import { homeAlerts } from './home'
 import { settingsData } from './settings'
+import { sessionUsername } from './auth'
 import type { MockParams } from './index'
 import type {
   AlertAckResp,
@@ -251,6 +252,14 @@ export function getTodosList(params: MockParams): TodoListResp {
   return { list: list.slice(start, start + size).map(stripTodo), page, size, total: list.length }
 }
 
+// 操作人 id 回填:?role= 出席按演示账号定,缺席回落 mock 会话旗标(与后端 operator() 同语义);
+// 与 mock/auth.ts ROLE_USER 的 id 同源——演示账号 username↔id 是契约 §15 头部事实
+const OPERATOR_ID: Record<string, number> = { president: 1, ops_director: 2, dept_leader: 3, admin: 4 }
+
+function operatorId(params: MockParams): number {
+  return OPERATOR_ID[params.role ?? sessionUsername() ?? ''] ?? 1
+}
+
 /** §15.1 R04 POST /alerts/{id}/ack */
 export function postAlertAck(params: MockParams): AlertAckResp {
   const id = Number(params.id)
@@ -260,7 +269,7 @@ export function postAlertAck(params: MockParams): AlertAckResp {
   if (a.alert_status !== 'pending') fail(33002, '告警已被处理', { current_status: a.alert_status })
   a.alert_status = 'processing'
   save()
-  return { id: a.id, alert_status: 'processing', ack_at: mockNow(), ack_by: 1 }
+  return { id: a.id, alert_status: 'processing', ack_at: mockNow(), ack_by: operatorId(params) }
 }
 
 /** §15.2 R05 POST /alerts/{id}/dispatch */
@@ -274,15 +283,16 @@ export function postAlertDispatch(params: MockParams, body?: unknown): AlertDisp
   if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
   const a = alerts.get(id)
   if (!a) fail(33001, '告警不存在')
-  const dl = new Date(String(b.deadline).replace(' ', 'T'))
-  if (Number.isNaN(dl.getTime()) || dl.getTime() <= Date.now()) fail(33103, '截止时间须晚于当前时间')
-  const staff = STAFF.find((s) => s.id === b.assignee_id)
-  if (!staff) fail(33102, '承办人非在职或不存在')
+  // 校验序对齐后端 write.go AlertDispatch:状态冲突 → 打开工单判重 → 承办人 → deadline
   if (a.alert_status === 'done' || a.alert_status === 'closed') {
     fail(33002, '告警已办结', { current_status: a.alert_status })
   }
   const opened = openTodoFor(a)
   if (opened) fail(33002, '该告警已有打开的督办工单', { current_status: 'todo_open', todo_id: opened.id })
+  const staff = STAFF.find((s) => s.id === b.assignee_id)
+  if (!staff) fail(33102, '承办人非在职或不存在')
+  const dl = new Date(String(b.deadline).replace(' ', 'T'))
+  if (Number.isNaN(dl.getTime()) || dl.getTime() <= Date.now()) fail(33103, '截止时间须晚于当前时间')
   const todo: StoredTodo = {
     id: nextTodoId++,
     alert_id: a.id,

@@ -32,6 +32,10 @@ func NewAuth(db *gorm.DB, clk *clock.Source) *Auth {
 	return &Auth{db: db, clk: clk}
 }
 
+// dummyHash 未知用户名分支的占位 bcrypt 散列(bcrypt 官方测试向量,cost=10 与种子口令同档)——
+// 让 bad_user 与 bad_password 耗时同阶,堵用户名枚举的计时 oracle
+var dummyHash = []byte("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy")
+
 // Login POST /api/v1/auth/login(契约 §2.3);处理序:r-auth C2 登录处理序 verbatim
 func (h *Auth) Login(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -62,6 +66,8 @@ func (h *Auth) Login(c *gin.Context) {
 	}
 	ip := clientIPPtr(c)
 	if u == nil {
+		// 计时 oracle 封堵:未知用户名也跑一次同成本 bcrypt——否则按响应时长可枚举账号存在性
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(req.Password))
 		h.auditLoginFail(ctx, nil, req.Username, ip, "bad_user")
 		envelope.Fail(c, http.StatusUnauthorized, envelope.CodeLoginFail, "用户名或密码错误", nil)
 		return
