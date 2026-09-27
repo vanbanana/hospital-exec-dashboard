@@ -30,6 +30,8 @@ type SessionUser struct {
 // logout 在白名单是幂等语义:无会话/失效会话调用同样 code=0,吊销由 Logout 内部自验凭证。
 var publicPaths = map[string]struct{}{
 	"GET /health":                  {},
+	"GET /ready":                   {}, // compose healthcheck 探针,nginx 不透出(README §探针表)
+	"GET /stats":                   {}, // 内部运维面,同上网络层隔离
 	"POST /api/v1/auth/login":      {},
 	"POST /api/v1/auth/logout":     {},
 	"GET /api/v1/hospital/profile": {},

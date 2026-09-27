@@ -14,6 +14,12 @@ import (
 // rbacMatrix "METHOD path" → 允许角色集
 var rbacMatrix = map[string]map[string]struct{}{
 	"GET /api/v1/workbench/settings/config": {"admin": {}, "president": {}},
+	// 契约 §16:sim 操作人校验 admin 限定,会话机制(§2.3)落地后生效——EA 落地故启用
+	"GET /api/v1/sim/clock":  {"admin": {}},
+	"POST /api/v1/sim/clock": {"admin": {}},
+	"POST /api/v1/sim/tick":  {"admin": {}},
+	"POST /api/v1/sim/reset": {"admin": {}},
+	"GET /api/v1/sim/jobs":   {"admin": {}},
 }
 
 // rbacCheck 由 Session 在 c.Set("session_user") 后调用;false=已回 20004 并 Abort
