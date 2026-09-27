@@ -14,7 +14,6 @@ import { researchData } from './research'
 import { patientData } from './patient'
 import { assetsData } from './assets'
 import { settingsData } from './settings'
-import { screenSnapshot } from './screen'
 
 export type MockParams = Record<string, string>
 
@@ -37,5 +36,4 @@ export const mockResolvers: Record<string, (params: MockParams) => unknown> = {
   'workbench/compare': (p) => getCompareMock(p.dim, p.range),
   'workbench/topics': (p) => getTopicsMock(p.topic, p.range),
   'workbench/settings/config': () => settingsData,
-  'screen/snapshot': () => screenSnapshot,
 }
