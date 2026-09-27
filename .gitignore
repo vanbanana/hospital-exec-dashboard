@@ -11,3 +11,4 @@ coverage.out
 .DS_Store
 tsconfig.tsbuildinfo
 archive/**/package-lock.json
+.worktrees/
