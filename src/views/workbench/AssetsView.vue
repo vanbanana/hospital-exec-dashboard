@@ -20,7 +20,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">月度能耗费用</h3>
-          <span class="wb-panel-sub">水电气合计（万元）</span>
+          <span class="wb-panel-sub">水电气合计（{{ energy?.unit ?? '万元' }}）</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="energyOption" />

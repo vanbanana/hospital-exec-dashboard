@@ -34,7 +34,7 @@
 - 统一取数入口：`api<T>(key, params)`（`src/api/client.ts`），`key` = 契约端点路径去掉前导 `/`（如 `'workbench/overview'`）。
 - 工作台端点均有薄封装函数（`src/api/workbench.ts`），视图**不直接调 `api()`**，经封装函数取数。
 - Mock 解析层：`src/mock/index.ts` 的 `mockResolvers` 注册表（key → resolver），模拟延迟 120 ms，返回前深拷贝隔离。
-- **Mock 参数校验**：带参 resolver 对枚举外取值抛 `Error{ code: 10001 }`（`src/mock/index.ts` 内 `ENUM_DOMAIN`/`assertParams`，对齐契约 INVALID_PARAM），`useAsyncData.toApiError` 透传 `code` 到错误面板——五态的 error/retry 路径在 mock 期即可演练；缺省值与合法值照常返回。
+- **Mock 参数校验**：带参 resolver 对枚举外取值抛 `Error{ code: 10001 }`（`src/mock/index.ts` 内 `ENUM_DOMAIN`/`assertParams`，对齐契约 INVALID_PARAM），`useAsyncData.toApiError` 透传数值 `code` 到错误面板（非 ApiError 的 `err.code` 直通，无码落 10000）——五态的 error/retry 路径在 mock 期即可演练；必填参数缺席（`workbench/topics.topic`）与空串同样抛 10001，缺省值与合法值照常返回。
 - `api()` 当前已**拆包直返 `data`**；接 http 层后由拦截器统一拆 `ApiEnvelope` 并映射错误码（`error-codes.md` §4），视图层不改字段。
 
 ---
@@ -424,7 +424,7 @@
 
 > `range=本年` 时 `stats` 累计值与 `scale_revenue_trend` 前 10 个月求和严格相等（契约 §4.1 注1）。
 
-> **实现注记**：`scale_revenue_trend` 副标轴名消费 `units.revenue`；`income_structure` 环图 tooltip 与图例后缀均消费 `unit`；收入结构面板"…累计"口径文案随视图 `range` 状态派生（mock 期该块为恒等快照，不随 range 分档）。
+> **实现注记**：`scale_revenue_trend` 副标轴名消费 `units.revenue`；`income_structure` 环图 tooltip 与图例后缀均消费 `unit`；收入结构面板"…累计"口径文案绑 `data.range`（已取数据的真实口径，stale 时显示旧档而非控件态）；dept_share_top8 的 metric 文案与值随 range 等比缩放、bar_pct 重归一。
 
 **前端消费位置**：`src/views/workbench/OverviewView.vue` ← `getOverview(range)`；`watch(range)` 重取。
 
@@ -637,7 +637,7 @@
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `date/type/dept/channel/content/status/score` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `status` 五态枚举 `待核实`/`处理中`/`已整改`/`已办结`/`已归档`（契约 §9.1 注2）；`date` 为 `YYYY-MM-DD` |
 
-> **实现注记**：`satisfaction_trend` 面板副标单位、`channel_distribution` 环图 tooltip 与图例后缀均消费各自 `unit` 字段；渠道面板"{range}各渠道占比"文案随页内分段器状态派生（该分段器不触发取数，契约无 `range` 参数）；流水表副标仅渲行数，不再声明时间窗（`近 30 日` 为契约外口径，已删）。
+> **实现注记**：`satisfaction_trend` 面板副标单位、`channel_distribution` 环图 tooltip 与图例后缀均消费各自 `unit` 字段；渠道面板副标静态"各渠道占比"（该分段器不触发取数，契约无 `range` 参数——文案不随死控件联动，防口径撒谎）；流水表副标仅渲行数，不再声明时间窗（`近 30 日` 为契约外口径，已删）。
 
 **前端消费位置**：`src/views/workbench/PatientView.vue` ← `getPatient()`
 
@@ -675,7 +675,7 @@
 | &nbsp;&nbsp;`columns` | object[] | — | 否 | 键集 `name/sample/pass/rate/issues` |
 | &nbsp;&nbsp;`rows` | object[] | — | 否 | `rate = pass/sample*100%` 严格自洽（契约 §10.1 注3），`rate` 带 `%` 后缀直渲 |
 
-> **实现注记**：院感面板副标与 markLine 文案均消费 `infection_trend.target`+`unit`；不良事件面板"{range}累计上报 N {unit}"中单位消费 `adverse_events.unit`、口径词随页内分段器状态派生（该分段器不触发取数，契约无 `range` 参数）。
+> **实现注记**：院感面板副标与 markLine 文案均消费 `infection_trend.target`+`unit`；不良事件面板"累计上报 N {unit}"中单位消费 `adverse_events.unit`、口径词不随死控件分段器联动（契约无 `range` 参数，静态如实描述）；核心制度面板副标静态"抽查结果"。
 
 **前端消费位置**：`src/views/workbench/QualityView.vue` ← `getQuality()`
 

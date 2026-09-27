@@ -22,7 +22,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">业务规模与收入趋势</h3>
-          <span class="wb-panel-sub">门诊人次（柱） × 医疗收入（线 · 万元）</span>
+          <span class="wb-panel-sub">门诊人次（柱） × 医疗收入（线 · {{ trend?.units?.revenue ?? '万元' }}）</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="trendOption" />
@@ -32,7 +32,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">收入结构</h3>
-          <span class="wb-panel-sub">{{ range }}累计</span>
+          <span class="wb-panel-sub">{{ data?.range ?? range }}累计</span>
         </div>
         <div class="wb-panel-body income-body">
           <WbEmpty v-if="!incomeData.length" text="暂无收入结构数据" />
@@ -196,7 +196,7 @@ const trendOption = computed<EChartsOption>(() => {
 
 const incomeOption = computed<EChartsOption>(() => ({
   animation: false,
-  tooltip: { ...wbTooltip('item'), formatter: '{b}：{c}%' },
+  tooltip: { ...wbTooltip('item'), formatter: (params) => { const p = Array.isArray(params) ? params[0] : params; return `${p?.name ?? ''}：${p?.value ?? ''}${incomeUnit.value}` } },
   series: [
     {
       type: 'pie',

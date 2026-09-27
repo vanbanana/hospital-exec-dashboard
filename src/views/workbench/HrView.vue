@@ -41,7 +41,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">职称结构</h3>
-          <span class="wb-panel-sub">医师 / 护理 / 医技分段</span>
+          <span class="wb-panel-sub">{{ (titles?.categories ?? []).join(' / ') || '职称分段' }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="titleOption" />
@@ -119,7 +119,7 @@ const staffing = computed((): WbTableData => data.value?.dept_staffing ?? { colu
 
 const structureOption = computed<EChartsOption>(() => ({
   animation: false,
-  tooltip: { ...wbTooltip('item'), formatter: '{b}：{c}%（{d}%）' },
+  tooltip: { ...wbTooltip('item'), formatter: (params) => { const p = Array.isArray(params) ? params[0] : params; return `${p?.name ?? ''}：${p?.value ?? ''}${structureUnit.value}（${p?.percent ?? ''}%）` } },
   series: [
     {
       type: 'pie',

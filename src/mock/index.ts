@@ -30,12 +30,22 @@ const ENUM_DOMAIN: Record<string, Record<string, readonly string[]>> = {
   'workbench/topics': { topic: ['drg', 'insurance', 'exam', 'outp_fund'], range: ['本月', '本季', '本年'] },
 }
 
+// 契约必填参数(无默认值):缺席即 10001;其余参数缺席走默认、出现则必须落在枚举域(空串同样非法)
+const REQUIRED_PARAMS: Record<string, readonly string[]> = {
+  'workbench/topics': ['topic'],
+}
+
 function assertParams(key: string, params: MockParams) {
   const domain = ENUM_DOMAIN[key]
   if (!domain) return
+  for (const k of REQUIRED_PARAMS[key] ?? []) {
+    if (params[k] === undefined || params[k] === '') {
+      throw Object.assign(new Error(`缺少必填参数 ${k}`), { code: 10001 })
+    }
+  }
   for (const [k, allowed] of Object.entries(domain)) {
     const v = params[k]
-    if (v !== undefined && v !== '' && !allowed.includes(v)) {
+    if (v !== undefined && !allowed.includes(v)) {
       throw Object.assign(new Error(`非法参数 ${k}=${v}`), { code: 10001 })
     }
   }

@@ -24,8 +24,10 @@ let localTraceSeq = 0
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
   const message = err instanceof Error ? err.message : String(err)
-  // 10000 = 通用"系统繁忙"兜底（error-codes §3 通用段）
-  return new ApiError(10000, message || '系统繁忙，请稍后重试', `local-${++localTraceSeq}`)
+  // 业务码透传：http 期拦截器同样按失败包络 code 直通(error-codes §4);无码才落 10000 兜底
+  const code =
+    typeof (err as { code?: unknown })?.code === 'number' ? (err as { code: number }).code : 10000
+  return new ApiError(code, message || '系统繁忙，请稍后重试', `local-${++localTraceSeq}`)
 }
 
 export interface AsyncData<T> {

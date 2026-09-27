@@ -94,7 +94,7 @@ src/
 │   │   ├── ScrCampusMap.vue        # 院区楼宇态势（4 栋 anchor 定位+徽标）
 │   │   ├── ScrDeptRank.vue         # 科室效能榜
 │   │   ├── ScrAlertFeed.vue        # 告警跑马灯（纵向滚动）
-│   │   └── ScrTrendGrid.vue        # 7 日趋势小图组
+│   │   └── ScrTrendTabs.vue        # 7 日趋势页签小图组
 │   └── workbench/                  # 工作台专属组件库（20 文件）
 │       ├── WbPageHead.vue          # [原语] 页面标题与操作区
 │       ├── WbSeg.vue               # [原语] 分段选择器（Segmented Control）
@@ -450,7 +450,7 @@ const systemDate = useSystemDate()
 | **专题分析** | `/workbench/topics` | `workbench/topics` | 4 类专题动态切换专属 5 项指标条（DRG / 医保 / 国考 / 门诊统筹） | 专题趋势与分布分析图（DRG入组率线图 / 医保支出线图 / 国考完成度柱图 / 门诊统筹人次线图） | 专题明细数据监测表（WbTable，重点病组DRG / 险种基金 / 国考核心指标 / 常见慢病统筹） | 4 类专题卡片导航选择器（DRG付费 / 医保基金 / 三级国考 / 门诊统筹） |
 | **系统设置** | `/workbench/settings` | `workbench/settings/config` | 数据源管理表格（WbTable，HIS/LIS/PACS/EMR/HRP 对接状态、延迟与同步时间） | 指标预警阈值配置表（WbTable，5 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
 | **工作台 chrome** | 布局件 | `auth/profile` · `hospital/profile` | 顶栏日期/角色称谓（auth）+ 铃铛未闭环计数（home/alerts） | 侧栏院名/英文名/座右铭（hospital） | Hero 标语阶梯（hospital.slogans/pillars） | — |
-| **大屏** | `/screen` | `screen/snapshot` | ScrHeader 时钟/态势/未闭环告警 + ScrKpiStrip 4 项 KPI | ScrDrgQuadrant 象限散点 + ScrCampusMap 四栋楼宇 | ScrDeptRank 效能榜 + ScrAlertFeed 告警跑马灯 | ScrTrendGrid 7 日趋势小图组 |
+| **大屏** | `/screen` | `screen/snapshot` | ScrHeader 时钟/态势/未闭环告警 + ScrKpiStrip 4 项 KPI | ScrDrgQuadrant 象限散点 + ScrCampusMap 四栋楼宇 | ScrDeptRank 效能榜 + ScrAlertFeed 告警跑马灯 | ScrTrendTabs 7 日趋势页签小图组 |
 
 ### 8.3 Mock 数据集中治理纪律（现行）
 
@@ -549,7 +549,7 @@ npx vue-tsc -b && npm run build
 ### 12.1 建成物
 - **布局/画布**：`src/layouts/ScreenLayout.vue` —— `.screen-layout` 作用域 + 1920×1080 画布 + 等比缩放适配（resize 监听配对清理）。
 - **视图**：`src/views/screen/ScreenView.vue` —— `getScreenSnapshot()` 取数，自管理 loading/error/data 三态（顶部 error-bar + 手动重连，§15 豁免 useAsyncData 登记）。
-- **组件族** `src/components/screen/`：`ScrHeader`（院名/时钟/态势/未闭环告警计数，`setInterval` 走秒卸载清理）、`ScrKpiStrip`、`ScrDrgQuadrant`、`ScrCampusMap`、`ScrDeptRank`、`ScrAlertFeed`、`ScrTrendGrid`；原语 `ScrPanel`/`ScrChart`/`scrTokens.ts`。
+- **组件族** `src/components/screen/`：`ScrHeader`（院名/时钟/态势/未闭环告警计数，`setInterval` 走秒卸载清理）、`ScrKpiStrip`、`ScrDrgQuadrant`、`ScrCampusMap`、`ScrDeptRank`、`ScrAlertFeed`、`ScrTrendTabs`；原语 `ScrPanel`/`ScrChart`/`scrTokens.ts`。
 - **样式**：`src/styles/screen.css` 基元 + `--scr-*` 语义令牌（tokens.css `.screen-layout` 块）；ECharts 经 `scrTokens.readScrPalette()` 运行时取色。
 - **数据层**：`api/screen.ts::getScreenSnapshot()` + `mock/screen.ts` + `mockResolvers['screen/snapshot']`；锚点自洽（KPI.value=spark末点=badge、alert_open 合计=total_open、BASE_DATE=2026-10-28 周三）。
 

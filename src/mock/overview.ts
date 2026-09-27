@@ -17,6 +17,18 @@ const sumRange = (arr: number[], range: RangeKey) => {
 }
 const fmt = (n: number) => n.toLocaleString('en-US')
 
+// §4.1 科室住院收入 TOP8 锚值（本年口径示例）
+const DEPT_SHARE_BASE = [
+  { name: '心血管内科', value: 1723 },
+  { name: '骨科', value: 1515 },
+  { name: '呼吸与危重症医学科', value: 1364 },
+  { name: '普通外科', value: 1220 },
+  { name: '神经内科', value: 1165 },
+  { name: '肿瘤科', value: 1128 },
+  { name: '妇产科', value: 976 },
+  { name: '儿科', value: 877 },
+]
+
 /** §4.1 GET /workbench/overview（rate 类指标为时点口径，不随 range 累计） */
 export function getOverviewMock(range?: string): OverviewResp {
   const r: RangeKey = range === '本月' || range === '本季' ? range : '本年'
@@ -44,20 +56,22 @@ export function getOverviewMock(range?: string): OverviewResp {
         { name: '其他收入', value: 4 },
       ],
     },
-    dept_share_top8: {
-      metric: '住院收入（万元·本月）',
-      unit: '万元',
-      list: [
-        { name: '心血管内科', value: 1723, bar_pct: 100 },
-        { name: '骨科', value: 1515, bar_pct: 88 },
-        { name: '呼吸与危重症医学科', value: 1364, bar_pct: 79 },
-        { name: '普通外科', value: 1220, bar_pct: 71 },
-        { name: '神经内科', value: 1165, bar_pct: 68 },
-        { name: '肿瘤科', value: 1128, bar_pct: 65 },
-        { name: '妇产科', value: 976, bar_pct: 57 },
-        { name: '儿科', value: 877, bar_pct: 51 },
-      ],
-    },
+    dept_share_top8: (() => {
+      // 口径词与值同步随 range 缩放（收入系数等比,bar_pct 按缩放后榜首重归一）
+      const f = sumRange(REVENUE, r) / sumRange(REVENUE, '本年')
+      const list = DEPT_SHARE_BASE.map((d) => ({
+        name: d.name,
+        value: Math.round(d.value * f),
+        bar_pct: 0,
+      }))
+      const max = list[0]?.value ?? 1
+      for (const d of list) d.bar_pct = Math.round((d.value / max) * 100)
+      return {
+        metric: `住院收入（万元·${r}）`,
+        unit: '万元',
+        list,
+      }
+    })(),
     live_inpatient: [
       { label: '当前在院人数', value: '1,846', tone: 'primary' },
       { label: '今日入院人数', value: '285', tone: 'teal' },

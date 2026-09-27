@@ -30,7 +30,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">论文发表</h3>
-          <span class="wb-panel-sub">近五年 · {{ (paperDist?.categories ?? []).join(' / ') }}</span>
+          <span class="wb-panel-sub">分区构成 · {{ (paperDist?.categories ?? []).join(' / ') }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="paperOption" />

@@ -30,7 +30,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">挂号渠道分布</h3>
-          <span class="wb-panel-sub">{{ range }}各渠道占比</span>
+          <span class="wb-panel-sub">各渠道占比</span>
         </div>
         <div class="wb-panel-body channel-body">
           <WbEmpty v-if="!channelData.length" text="暂无渠道数据" />
@@ -153,7 +153,7 @@ const satOption = computed<EChartsOption>(() => ({
 
 const channelOption = computed<EChartsOption>(() => ({
   animation: false,
-  tooltip: { ...wbTooltip('item'), formatter: '{b}：{c}%' },
+  tooltip: { ...wbTooltip('item'), formatter: (params) => { const p = Array.isArray(params) ? params[0] : params; return `${p?.name ?? ''}：${p?.value ?? ''}${channelUnit.value}` } },
   series: [
     {
       type: 'pie',

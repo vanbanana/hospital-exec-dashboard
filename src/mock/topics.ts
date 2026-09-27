@@ -198,7 +198,12 @@ export function getTopicsMock(topic?: string, range?: string): TopicsResp {
       topic: t,
       range: r,
       stats: base.stats,
-      chart: { ...base.chart, values: base.chart.values.map((v) => Math.round(v * fInpt)) },
+      // sub 随 range 实写：值缩放后仍写"本月"会撒谎
+      chart: {
+        ...base.chart,
+        sub: `${r}出院病例按 RW 分段（仅已入组病例）`,
+        values: base.chart.values.map((v) => Math.round(v * fInpt)),
+      },
       table: {
         ...base.table,
         rows: base.table.rows.map((row) => ({
@@ -223,6 +228,7 @@ export function getTopicsMock(topic?: string, range?: string): TopicsResp {
       chart: base.chart,
       table: {
         ...base.table,
+        sub: r,
         rows: base.table.rows.map((row) => ({
           ...row,
           cases: scaleInt(row.cases, fInpt),

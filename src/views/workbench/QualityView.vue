@@ -30,7 +30,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">不良事件类型分布</h3>
-          <span class="wb-panel-sub">{{ range }}累计上报 {{ adverseTotal }} {{ adverse?.unit ?? '起' }}</span>
+          <span class="wb-panel-sub">累计上报 {{ adverseTotal }} {{ adverse?.unit ?? '起' }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="eventOption" />
@@ -41,7 +41,7 @@
     <div class="wb-panel">
       <div class="wb-panel-head">
         <h3 class="wb-panel-title">医疗核心制度执行监测</h3>
-        <span class="wb-panel-sub">{{ range }}抽查结果</span>
+        <span class="wb-panel-sub">抽查结果</span>
       </div>
       <div class="wb-panel-body">
         <WbTable :columns="rulesTable.columns" :rows="rulesTable.rows" row-key="name" />
@@ -125,7 +125,7 @@ const infectionOption = computed<EChartsOption>(() => ({
       markLine: {
         symbol: 'none',
         label: {
-          formatter: `控制目标 ${infection.value?.target ?? 0}%`,
+          formatter: `控制目标 ${infection.value?.target ?? 0}${infection.value?.unit ?? '%'}`,
           fontSize: wbChartFs.axis,
           color: wbPalette.red,
           position: 'insideEndTop',
