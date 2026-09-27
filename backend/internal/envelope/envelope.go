@@ -14,8 +14,36 @@ const (
 	CodeOK          = 0
 	CodeInternal    = 10000 // 系统繁忙
 	CodeInvalidArg  = 10001 // 请求参数错误(枚举外/必填缺席)
+	CodeFieldErr    = 10002 // 表单字段校验失败(data.fields 定位)
 	CodeNotFound    = 10003 // 资源不存在
-	CodeNoData      = 31004 // 指标口径正常但无数据(唯一 HTTP200 非0码)
+	CodeBadJSON     = 10006 // 请求体 JSON 解析失败
+	CodeConflict    = 10007 // 资源状态冲突
+	// 20xxx 认证授权
+	CodeUnauth     = 20001 // 未认证/凭证缺失
+	CodeSessExpire = 20002 // 会话过期
+	CodeSessRevoke = 20003 // 会话已吊销
+	CodeRoleDeny   = 20004 // 角色不符
+	CodeScopeDeny  = 20005 // 数据域外访问
+	// 201xx 登录子域
+	CodeLoginFail  = 20101 // 账号或口令错误
+	CodeUserBanned = 20102 // 账号停用
+	CodeLoginLock  = 20104 // 登录失败锁定
+	// 30xxx 资源域(预留端点引用)
+	CodeResNotFound = 30001 // 资源不存在
+	CodeResProtect  = 30002 // 资源受保护
+	// 31xxx 指标域
+	CodeNoData = 31004 // 指标口径正常但无数据(唯一 HTTP200 非0码)
+	// 33xxx 告警督办
+	CodeAlertNotFound = 33001 // 告警事件不存在
+	CodeAlertConflict = 33002 // 告警已处理/状态冲突
+	CodeAlertNoDrill  = 33003 // 告警不可下钻
+	CodeTodoNotFound  = 33101 // 工单不存在
+	CodeAssigneeBad   = 33102 // 指派人非法
+	CodeDeadlineBad   = 33103 // 截止期非法
+	CodeTodoClosed    = 33104 // 工单已关闭
+	// 35xxx 仿真域
+	CodeSimTierNA = 35002 // 该档位未开放
+	// 42xxx 数据管道
 	CodeUpstreamNil = 42001 // 数据管道无上游数据(预留)
 )
 

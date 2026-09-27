@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("db: %v", err)
 	}
-	r := router.Build(&router.Deps{DB: db, Clock: clock.New(db)})
+	r := router.Build(&router.Deps{DB: db, Clock: clock.New(db), SimEnabled: cfg.SimEnabled})
 	log.Printf("edss listening :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server: %v", err)
