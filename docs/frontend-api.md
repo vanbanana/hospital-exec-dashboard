@@ -29,13 +29,13 @@
 3. 每个端点一节，固定栏目顺序：**端点+方法 → 请求参数表 → 响应字段表 → 前端消费位置 → 空态与错误态 → mock key**。新增端点按同模板补节。
 4. 状态变化（如未接入端点完成接入、预留端点启用）须同步更新 §16 覆盖总表。
 
-### 0.3 当前接入形态（mock 期）
+### 0.3 当前接入形态（mock / 真后端双轨）
 
 - 统一取数入口：`api<T>(key, params)`（`src/api/client.ts`），`key` = 契约端点路径去掉前导 `/`（如 `'workbench/overview'`）。
 - 工作台端点均有薄封装函数（`src/api/workbench.ts`），视图**不直接调 `api()`**，经封装函数取数。
-- Mock 解析层：`src/mock/index.ts` 的 `mockResolvers` 注册表（key → resolver），模拟延迟 120 ms，返回前深拷贝隔离。
-- **Mock 参数校验**：带参 resolver 对枚举外取值抛 `Error{ code: 10001 }`（`src/mock/index.ts` 内 `ENUM_DOMAIN`/`assertParams`，对齐契约 INVALID_PARAM），`useAsyncData.toApiError` 透传数值 `code` 到错误面板（非 ApiError 的 `err.code` 直通，无码落 10000）——五态的 error/retry 路径在 mock 期即可演练；必填参数缺席（`workbench/topics.topic`）与空串同样抛 10001，缺省值与合法值照常返回。
-- `api()` 当前已**拆包直返 `data`**；接 http 层后由拦截器统一拆 `ApiEnvelope` 并映射错误码（`error-codes.md` §4），视图层不改字段。
+- **双轨切换**：`VITE_USE_MOCK`(默认 `1`) 走 `src/mock/` 注册表（120 ms 延迟 + 深拷贝）；`=0` 时 `api()` 经 vite proxy(`/api` → `localhost:8080`)打 **Go 后端** `/api/v1/<key>`，拆 `ApiEnvelope` 包络——`code!==0` 抛带数值 `code`/`fields`/`trace_id` 的 Error，`useAsyncData.toApiError` 透传到五态；HTTP 层失败（无包络）抛 `[api] http N`。视图层对来源无感。
+- **Mock 参数校验**（仅 mock 轨）：带参 resolver 对枚举外取值抛 `Error{ code: 10001 }`（`src/mock/index.ts` 内 `ENUM_DOMAIN`/`assertParams`）；必填缺席与空串同样抛 10001——真后端轨下同一语义由 Gin handler 下发（HTTP400 + `data.fields`）。
+- **Go 后端运行**（详见 `backend/README.md`）：`brew services start postgresql@15` → `cd backend && go run ./cmd/server`（默认 DSN `postgres://localhost/hospital_edss?sslmode=disable`，端口 `PORT`）；前端 `VITE_USE_MOCK=0 npm run dev`。
 
 ---
 

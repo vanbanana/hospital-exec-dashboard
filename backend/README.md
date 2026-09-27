@@ -54,3 +54,30 @@ for f in seed/*.sql;       do psql -d hospital_edss -v ON_ERROR_STOP=1 -f "$f"; 
 - **锚点**（详见 `docs/database-schema.md` §勾稽）：BASE_DATE=2026-10-28；在院 1,846 / 床用 92.1% / 月出院 8,110 / ALOS 6.8 / 月门急诊 123,443 / 月医疗收入 14,800 万（住院 71%·门诊 25%·其他 4%）。
 - **费用真源**：`dwd.charge_day`（门诊次均≈300 元 / 住院次均≈13,000 元）；`outpatient_hourly.fee_total` 逐日归一到 charge_day。
 - `backend/` 下 SQL 与 `/tmp/modeling/schema/` lane 源文件一一对应；改数据请改 lane 源再装配，勿直接改本目录。
+
+---
+
+## Go 服务层(已落地)
+
+薄查询层:handler → repo → dws/ads/dwd 已预聚合表 → 契约 JSON。无聚合重算管线。
+
+```
+cmd/server/main.go        # config → pg pool → router → listen
+internal/
+  config/                 # DATABASE_URL / PORT,fail-fast
+  envelope/               # 统一包络唯一出口(error-codes §1)
+  middleware/             # trace_id 生成 + panic→10000
+  clock/                  # sim.clock 唯一时间源(禁 time.Now 业务化)
+  router/                 # 引擎 + register_<epic>.go 分域注册
+  handler/ repo/          # 分域实现:e1 context/home · e2 ops · e3 staff · e4 screen/topics
+```
+
+```bash
+export GOPROXY=https://goproxy.cn,direct   # proxy.golang.org 本机不可达
+go run ./cmd/server                      # :8080;env DATABASE_URL/PORT
+go vet ./... && go test ./... && go build ./...
+```
+
+- 契约端点:`/api/v1/` + 契约路径(`auth/profile`、`workbench/**`、`screen/snapshot`),`/health` 根挂
+- 前端切换:`vite.config` 已代理 `/api`→`:8080`;`VITE_USE_MOCK=0 npm run dev` 即真链路
+- 断言脚本:`/tmp/backend-orch/e{1..4}-check.sh`(`PORT=808N bash …`),newman 集合 `collections/e{1..4}.json`
