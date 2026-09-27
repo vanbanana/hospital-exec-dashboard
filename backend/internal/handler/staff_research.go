@@ -20,7 +20,7 @@ func (h *StaffHandler) Research(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.r.Today(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	yearStart := repo.PeriodStart(today, "year")
@@ -35,7 +35,7 @@ func (h *StaffHandler) Research(c *gin.Context) {
 	}
 	proj, err := h.r.ResearchProjectYears(ctx, yearNums)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	prevProj, prevOK := proj[today.Year()-1]
@@ -43,12 +43,12 @@ func (h *StaffHandler) Research(c *gin.Context) {
 	// 论文分区聚合(dws 事实):当年分布 + SCI_PAPER 前期(Σq1..q4)
 	paperCur, err := h.r.ResearchPaperYear(ctx, yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	paperPrev, err := h.r.ResearchPaperYear(ctx, prevStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	sciPrev, sciOK := 0.0, false
@@ -64,14 +64,14 @@ func (h *StaffHandler) Research(c *gin.Context) {
 
 	v, def, err := h.researchYearMetric(ctx, "RESEARCH_PROJ_CNT", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	stats = append(stats, statItem("在研课题", fmtComma(v), def.DispUnit, "", "", "", ""))
 
 	v, def, err = h.researchYearMetric(ctx, "RESEARCH_NEW_CNT", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	d, dir := deltaAbs(v, float64(prevProj.Total), prevOK, def.DispUnit)
@@ -79,7 +79,7 @@ func (h *StaffHandler) Research(c *gin.Context) {
 
 	v, def, err = h.researchYearMetric(ctx, "RESEARCH_FUND", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	d, dir = deltaRel(v, prevProj.FundsAmt, prevOK)
@@ -87,7 +87,7 @@ func (h *StaffHandler) Research(c *gin.Context) {
 
 	v, def, err = h.researchYearMetric(ctx, "SCI_PAPER_CNT", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	d, dir = deltaAbs(v, sciPrev, sciOK, def.DispUnit)
@@ -95,12 +95,12 @@ func (h *StaffHandler) Research(c *gin.Context) {
 
 	v, def, err = h.researchYearMetric(ctx, "TRAINEE_CNT", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	pass, _, err := h.researchYearMetric(ctx, "TRAINEE_PASS_RATE", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	stats = append(stats, statItem("住培学员", fmtComma(v), def.DispUnit, "", "", "",
@@ -108,12 +108,12 @@ func (h *StaffHandler) Research(c *gin.Context) {
 
 	v, def, err = h.researchYearMetric(ctx, "CME_COVER_RATE", yearStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	cmePrev, cmeOK, err := h.r.MetricAt(ctx, "CME_COVER_RATE", 0, prevStart)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	d, dir = deltaRel(v, cmePrev, cmeOK)
@@ -140,12 +140,12 @@ func (h *StaffHandler) Research(c *gin.Context) {
 	// ---- disciplines:dim.discipline id>0 order by sort;指标=metric_value dept 级行 ----
 	dis, err := h.r.DisciplineList(ctx)
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	lvlRows, err := h.r.DictList(ctx, "discipline_level")
 	if err != nil {
-		fail(c)
+		fail(c, err)
 		return
 	}
 	lvlLabel := make(map[string]string, len(lvlRows))
@@ -156,7 +156,7 @@ func (h *StaffHandler) Research(c *gin.Context) {
 	for _, dc := range dis {
 		row, err := h.researchDisciplineRow(ctx, dc, lvlLabel[dc.LevelKey], yearStart)
 		if err != nil {
-			fail(c)
+			fail(c, err)
 			return
 		}
 		discRows = append(discRows, row)

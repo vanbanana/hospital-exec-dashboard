@@ -73,17 +73,17 @@ func (h *Context) AuthProfile(c *gin.Context) {
 	ctx := c.Request.Context()
 	u, err := repo.FindContextUser(ctx, h.db, role)
 	if err != nil || u == nil { // 0 行=演示账号被清,属数据异常非参数错
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	demos, err := repo.ListDemoUsers(ctx, h.db)
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *Context) AuthProfile(c *gin.Context) {
 func (h *Context) HospitalProfile(c *gin.Context) {
 	dict, err := repo.HospitalDict(c.Request.Context(), h.db)
 	if err != nil {
-		failInternal(c)
+		failInternal(c, err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *Context) HospitalProfile(c *gin.Context) {
 			continue
 		}
 		if err := json.Unmarshal(row.Extra, dst); err != nil { // extra 非 JSON 数组=数据异常
-			failInternal(c)
+			failInternal(c, err)
 			return
 		}
 	}
@@ -176,6 +176,9 @@ func scopeLabel(scopeType string, scopeVal *string) string {
 	return ""
 }
 
-func failInternal(c *gin.Context) {
+func failInternal(c *gin.Context, err error) {
+	if err != nil {
+		_ = c.Error(err)
+	}
 	envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 }

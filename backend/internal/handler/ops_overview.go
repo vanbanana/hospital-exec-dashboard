@@ -124,8 +124,8 @@ func (h *OpsHandler) Overview(c *gin.Context) {
 	obs, e9 := h.ops.ObservingNow(ctx)
 	icu, e10 := h.ops.ICUBedUsed(ctx, today)
 	doing, e11 := h.ops.SurgDoing(ctx, today)
-	if ovFirstErr(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11) != nil {
-		h.internalErr(c)
+	if err := ovFirstErr(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11); err != nil {
+		h.internalErr(c, err)
 		return
 	}
 

@@ -4,7 +4,9 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
 
@@ -29,6 +31,7 @@ func Recovery() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if rec := recover(); rec != nil {
+				slog.ErrorContext(c.Request.Context(), "panic recovered", "value", rec, "stack", string(debug.Stack()), "trace_id", c.GetString("trace_id"))
 				envelope.Fail(c, http.StatusInternalServerError, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 				c.Abort()
 			}

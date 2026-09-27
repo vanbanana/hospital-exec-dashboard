@@ -7,4 +7,3 @@ import "github.com/gin-gonic/gin"
 func registerAuth(v1 *gin.RouterGroup, d *Deps)   {}
 func registerWrite(v1 *gin.RouterGroup, d *Deps)  {}
 func registerSim(v1 *gin.RouterGroup, d *Deps)    {}
-func registerSystem(v1 *gin.RouterGroup, d *Deps) {}

@@ -1,0 +1,60 @@
+# EDSS prod 三服务拓扑:web(nginx) → backend(edss) → db(postgres)
+# 变量全部 ${VAR:-default} 兜底——无 .env 也能直接起;有 .env 自动被 --env-file 读入(见 Makefile)
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hospital_edss
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edss}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hospital_edss"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # 5432 不 publish:仅内网,防撞本机 brew pg(architecture §6)
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: backend
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-edss}@db:5432/hospital_edss?sslmode=disable
+      PORT: "8080"
+      DB_MAX_OPEN: ${DB_MAX_OPEN:-25}
+      DB_MAX_IDLE: ${DB_MAX_IDLE:-5}
+      DB_MAX_LIFETIME_MIN: ${DB_MAX_LIFETIME_MIN:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SIM_ENABLED: ${SIM_ENABLED:-1}
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-}
+    # $$ 防 compose 插值——扩张在容器内 sh 发生;SEED_ON_BOOT 置非空(约定 1)时 migrate 追加 -seed
+    command: sh -c 'edss-migrate $${SEED_ON_BOOT:+-seed} && exec edss'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # /ready = DB Ping + 关键表行数,就绪口径;仅 compose 内网自探(nginx 不透出)
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ready >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    ports:
+      # 仅本机调试透出,prod 入口是 web:80
+      - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata: {}

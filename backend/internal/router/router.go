@@ -34,7 +34,7 @@ func Build(d *Deps) *gin.Engine {
 	registerAuth(v1, d)        // P3-EA:auth login/logout
 	registerWrite(v1, d)       // P3-EW:alerts/todos/settings 写
 	registerSim(v1, d)         // P3-ES:sim 控制面(SIM_ENABLED 门控)
-	registerSystem(v1, d)      // P3-EO:ready/stats
+	registerSystem(r, d)       // P3-EO:ready/stats
 
 	r.NoRoute(func(c *gin.Context) {
 		envelope.Fail(c, http.StatusNotFound, envelope.CodeNotFound, "资源不存在", nil)

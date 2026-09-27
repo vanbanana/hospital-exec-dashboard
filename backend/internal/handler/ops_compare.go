@@ -80,8 +80,8 @@ func (h *OpsHandler) Compare(c *gin.Context) {
 	qualPrev, e7 := h.ops.DeptMetricLatest(ctx, "QUALITY_SCORE", prev)
 	sat, e8 := h.ops.DeptMetricLatest(ctx, "SAT_IP_SCORE", win)
 	sat0, sat0ok, e9 := h.ops.MetricLatestAt(ctx, "SAT_IP_SCORE", 0, win)
-	if ovFirstErr(e1, e2, e3, e4, e5, e6, e7, e8, e9) != nil {
-		h.internalErr(c)
+	if err := ovFirstErr(e1, e2, e3, e4, e5, e6, e7, e8, e9); err != nil {
+		h.internalErr(c, err)
 		return
 	}
 	if !sat0ok {
