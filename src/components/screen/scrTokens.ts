@@ -23,12 +23,22 @@ export interface ScrPalette {
   quadrantBg: string
   areaTop: string
   areaBottom: string
+  // 图表字号槽（design-tokens §5：--scr-fs-*；ECharts fontSize 唯一出口）
+  fsXxs: number
+  fsAxis: number
+  fsXs: number
+  fsSm: number
+  fsMd: number
+  // 图表透明度参数（数据可视参数归调色板，不散落）
+  itemOpacity: number
+  splitOpacity: number
 }
 
 export function readScrPalette(): ScrPalette {
   const el = document.querySelector('.screen-layout') ?? document.body
   const cs = getComputedStyle(el as Element)
   const v = (name: string) => cs.getPropertyValue(name).trim()
+  const px = (name: string) => parseFloat(v(name))
   return {
     accent: v('--scr-accent'),
     accentBright: v('--scr-accent-bright'),
@@ -50,5 +60,21 @@ export function readScrPalette(): ScrPalette {
     quadrantBg: v('--scr-chart-mark'),
     areaTop: v('--scr-chart-area-top'),
     areaBottom: v('--scr-chart-area-bottom'),
+    fsXxs: px('--scr-fs-xxs'),
+    fsAxis: px('--scr-fs-axis'),
+    fsXs: px('--scr-fs-xs'),
+    fsSm: px('--scr-fs-sm'),
+    fsMd: px('--scr-fs-md'),
+    itemOpacity: 0.92,
+    splitOpacity: 0.55,
   }
+}
+
+/* 画布基准尺寸唯一出处：--scr-canvas-w/h（design-tokens §5）——JS 侧禁写 1920/1080 */
+export function readScrCanvas(): { w: number; h: number } {
+  const el = document.querySelector('.screen-layout') ?? document.body
+  const cs = getComputedStyle(el as Element)
+  const w = parseFloat(cs.getPropertyValue('--scr-canvas-w')) || 1920
+  const h = parseFloat(cs.getPropertyValue('--scr-canvas-h')) || 1080
+  return { w, h }
 }

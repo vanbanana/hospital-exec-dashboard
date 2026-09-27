@@ -144,7 +144,7 @@ onMounted(load)
 .state-text {
   font-size: var(--scr-fs-md);
   color: var(--scr-text-3);
-  letter-spacing: 1px;
+  letter-spacing: var(--scr-ls-md);
 }
 
 .state-text.error {
@@ -166,7 +166,7 @@ onMounted(load)
   color: var(--scr-accent-bright);
   font-size: var(--scr-fs-md);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--scr-dur-normal);
 }
 
 .retry-btn:hover {

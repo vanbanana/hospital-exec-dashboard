@@ -69,7 +69,7 @@ const items = computed(() => data.value?.list ?? [])
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
 }
 
 .more-link {

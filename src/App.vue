@@ -3,14 +3,5 @@
 </template>
 
 <script setup lang="ts">
-// Router container
+// Router container —— 全局 reset 归 index.css 单一口径
 </script>
-
-<style>
-/* Global resets if needed */
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-}
-</style>

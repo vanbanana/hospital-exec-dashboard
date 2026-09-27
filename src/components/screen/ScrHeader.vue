@@ -5,7 +5,7 @@
     <div class="hdr-left">
       <img class="hdr-logo" src="../../assets/workbench/hospital_logo.png" alt="院徽" />
       <div class="hdr-title">
-        <h1>XX市人民医院</h1>
+        <h1>{{ hospitalName }}</h1>
         <span class="hdr-sub">HOSPITAL EXECUTIVE COMMAND CENTER</span>
       </div>
     </div>
@@ -47,6 +47,7 @@ import { ref, computed, inject, onMounted, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 import { Maximize } from 'lucide-vue-next'
 import type { ScreenStatus } from '../../api/types'
+import { getHospitalProfile } from '../../api/auth'
 
 /* frontend-api §15：server_time 缺失时屏显时钟回退演示基准日 */
 const BASE_FALLBACK = '2026-10-28T08:30:00+08:00'
@@ -78,6 +79,14 @@ const adaptTitle = computed(() =>
   adapt?.adaptMode.value === 'fill' ? '全屏智能铺满（无黑边），点击切换' : '等比居中（16:9 标准），点击切换'
 )
 
+/* 院名走 hospital/profile（契约 §2.2），失败回退默认名——大屏不阻断 */
+const hospitalName = ref('XX市人民医院')
+onMounted(() => {
+  getHospitalProfile()
+    .then((d) => { if (d?.name) hospitalName.value = d.name })
+    .catch(() => { /* 失败保留默认院名，大屏无 error 态 */ })
+})
+
 /* 屏显时钟：以契约 server_time 为源起跳，本地秒针推进 */
 const clock = ref({ time: '--:--:--', date: '', weekday: '' })
 let timer: number | null = null
@@ -105,6 +114,7 @@ onUnmounted(() => {
 
 const toggleFullscreen = () => {
   if (!document.fullscreenElement) {
+    // 全屏被浏览器拒绝（用户未交互/权限）时静默忽略，不阻断
     document.documentElement.requestFullscreen().catch(() => {})
   } else {
     document.exitFullscreen().catch(() => {})
@@ -140,7 +150,7 @@ const toggleFullscreen = () => {
     var(--p-blue-600) 65%,
     transparent 100%
   );
-  opacity: 0.85;
+  opacity: var(--scr-opacity-sub);
 }
 
 .hdr-left {
@@ -163,16 +173,16 @@ const toggleFullscreen = () => {
 
 .hdr-title h1 {
   font-size: var(--scr-fs-title);
-  font-weight: 700;
-  letter-spacing: 1.5px;
+  font-weight: var(--scr-fw-bold);
+  letter-spacing: var(--scr-ls-xl);
   color: var(--scr-text-1);
 }
 
 .hdr-sub {
   font-size: var(--scr-fs-axis);
   font-family: var(--p-font-number);
-  font-weight: 600;
-  letter-spacing: 1.4px;
+  font-weight: var(--scr-fw-semibold);
+  letter-spacing: var(--scr-ls-lg);
   color: var(--scr-text-3);
 }
 
@@ -212,7 +222,7 @@ const toggleFullscreen = () => {
 
 .status-text {
   font-size: var(--scr-fs-md);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
   color: var(--scr-text-1);
 }
 
@@ -240,11 +250,11 @@ const toggleFullscreen = () => {
   padding: var(--scr-space-2) var(--scr-space-5);
   background: rgb(from var(--p-ink-800) r g b / 0.85);
   border: 1px solid var(--scr-border);
-  border-radius: 12px; /* 美术稿：胶囊 */
+  border-radius: var(--scr-radius-pill);
   color: var(--scr-text-3);
   font-size: var(--scr-fs-sm);
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  transition: border-color var(--scr-dur-normal), color var(--scr-dur-normal);
 }
 
 .adapt-pill:hover {
@@ -265,7 +275,7 @@ const toggleFullscreen = () => {
 }
 
 .adapt-text {
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
   color: var(--scr-text-2);
 }
 
@@ -277,9 +287,9 @@ const toggleFullscreen = () => {
 
 .clock-time {
   font-size: var(--scr-fs-title);
-  font-weight: 700;
+  font-weight: var(--scr-fw-bold);
   color: var(--scr-text-1);
-  letter-spacing: 1px;
+  letter-spacing: var(--scr-ls-md);
 }
 
 .clock-date,
@@ -293,12 +303,12 @@ const toggleFullscreen = () => {
   align-items: center;
   justify-content: center;
   padding: var(--scr-space-3);
-  background: var(--p-ink-800);
+  background: var(--p-ink-800); /* 原色直取 */
   border: 1px solid var(--scr-border);
   border-radius: var(--scr-radius-card);
   color: var(--scr-text-3);
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  transition: color var(--scr-dur-normal), border-color var(--scr-dur-normal);
 }
 
 .fs-btn:hover {

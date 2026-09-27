@@ -56,14 +56,14 @@ const cells = computed<TrendCell[]>(() => {
           boundaryGap: false,
           axisLine: { show: false },
           axisTick: { show: false },
-          axisLabel: { color: p.text4, fontSize: 8, interval: 2 },
+          axisLabel: { color: p.text4, fontSize: p.fsXxs, interval: 2 },
         },
         yAxis: { show: false, type: 'value', min: 'dataMin', max: 'dataMax' },
         tooltip: {
           trigger: 'axis',
           backgroundColor: p.tooltipBg,
           borderColor: p.border,
-          textStyle: { color: p.text1, fontSize: 10 },
+          textStyle: { color: p.text1, fontSize: p.fsXs },
         },
         series: [
           {
@@ -120,7 +120,7 @@ const cells = computed<TrendCell[]>(() => {
 
 .trend-latest {
   font-size: var(--scr-fs-md);
-  font-weight: 700;
+  font-weight: var(--scr-fw-bold);
   color: var(--scr-accent-bright);
 }
 

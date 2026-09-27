@@ -84,6 +84,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -125,14 +126,14 @@ const revOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 14,
       itemHeight: 8,
-      textStyle: { fontSize: 12, color: wbChart.text },
+      textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.months ?? []),
     yAxis: [
-      wbValueAxis({ name: '万元', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
+      wbValueAxis({ name: '万元', nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis } }),
       wbValueAxis({
         name: '%',
-        nameTextStyle: { color: wbChart.axis, fontSize: 11 },
+        nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis },
         splitLine: { show: false },
         min: 0,
         max: 10,
@@ -224,6 +225,6 @@ const revOption = computed<EChartsOption>(() => {
   width: 2px;
   background: var(--wb-red);
   border-radius: var(--wb-radius-sm);
-  opacity: 0.6;
+  opacity: var(--wb-opacity-muted);
 }
 </style>

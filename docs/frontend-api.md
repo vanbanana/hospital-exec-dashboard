@@ -833,7 +833,7 @@
 | &nbsp;&nbsp;`name` | string | — | 否 | 指标名 |
 | &nbsp;&nbsp;`rule` | string | — | 否 | 规则表达式文案（`连续 3 日 > 95%`） |
 | &nbsp;&nbsp;`level` | string | — | 否 | `urgent`/`major`/`minor` |
-| &nbsp;&nbsp;`enabled` | bool | — | 否 | 开关态（演示期只读展示） |
+| &nbsp;&nbsp;`enabled` | bool | — | 否 | 开关态（UI 可本地点击翻转；演示期无写接口，不持久化） |
 | `users` | object[] | — | 否 | 权限用户 6 项 |
 | &nbsp;&nbsp;`name` | string | — | 否 | 账号/角色名 |
 | &nbsp;&nbsp;`role` | string | — | 否 | 角色文案（`院领导`/`部门负责人`/`科室主任` 等） |
@@ -851,7 +851,7 @@
 
 **空态与错误态**
 
-- 任一列表为空：对应区块空态；`preferences` 缺失：偏好开关区按默认 false 渲染。
+- 任一列表为空：对应区块空态；`preferences` 缺失：偏好开关区按本地默认值渲染（本地默认与 mock 一致：`alert_sound`/`unit_abbreviation`/`privacy_mask`=true，`default_range`=`本月`）。偏好/阈值开关均可本地翻转，无写接口不落库。
 - 可返回错误码：`10001` → 页级错误态 + 重试。
 
 **mock key**：`workbench/settings/config`
@@ -861,7 +861,11 @@
 ## 15. 科技大屏快照 `GET /screen/snapshot`
 
 - **契约锚点**：§14.1。大屏一站式加载快照，单端点供给整屏。
-- **当前状态**：`/screen` 形态未实施——路由未注册、`src/views/ScreenView.vue` 不存在（当前根目录 `src/components/*.vue` 为旧大屏遗留）。接入时按契约整体落 mock + 视图。
+- **当前状态**：**已实施**（e6aeb52）——路由 `/screen` 已注册（`router/index.ts`），视图为 `src/views/screen/ScreenView.vue` + `src/components/screen/Scr*` 组件族 + `src/layouts/ScreenLayout.vue`；视觉基准 `archive/smart-hospital-cockpit/`，画布 1920×1080。
+- **实现注记**：
+  - 时钟：`ScrHeader` 以 `server_time` 为锚 + `setInterval` 本地走秒（卸载清理）；`new Date()`/`Date.now()` 仅用于走秒与 ISO 解析，为本节**白名单用法**（机械扫描豁免登记）。
+  - 断线重试：顶部 error-bar 红条 + **手动**「重新连接」按钮（`ScreenView` 自管理三态，未复用 `useAsyncData`——大屏按本节豁免登记；`error-codes.md §4` 的自动重连倒计时为远期规格，当前实现以手动重试为准）。
+  - 院名：`ScrHeader` 消费 `hospital/profile.name`（经 `getHospitalProfile()`，失败回退 `XX市人民医院`）。
 
 **请求参数**：无
 
@@ -927,16 +931,16 @@
 
 > **屏值事实化原则**（契约 §14.1 注6）：契约 JSON 字面量为形态示例，服务端出参允许 ±10% 采样容差；前端**不得**与示例字面值做等值断言，只保证"同一时刻 KPI 值 = spark 末点 = 楼宇徽标"的内部一致性渲染。
 
-**前端消费位置**：`/screen` 大屏（未实施；规划 `src/views/ScreenView.vue` + 大屏组件树）。
+**前端消费位置**：`/screen` 大屏——`ScreenLayout`（画布/缩放）→ `ScreenView`（取数与三态）→ `ScrHeader`（院名/时钟/态势）、`ScrKpiStrip`（kpis）、`ScrDrgQuadrant`（drg_quadrant）、`ScrCampusMap`（buildings）、`ScrDeptRank`（dept_ranking）、`ScrAlertFeed`（alerts）、`ScrTrendGrid`（trends）、`ScrPanel/ScrChart/scrTokens`（原语与取色）。
 
 **空态与错误态**
 
 - 子块缺失（如 `buildings=[]`）：对应屏区空态，不阻断整屏。
 - `server_time` 缺失：屏显时钟回退 BASE_DATE 本地格式化。
-- HTTP 5xx/断网：大屏进"断线重试"态（顶部红条 + 自动重连倒计时，error-codes §4）。
+- HTTP 5xx/断网：大屏进"断线重试"态——顶部红条 + 手动「重新连接」按钮（当前实现；`error-codes §4` 的自动重连倒计时为远期规格）。
 - 可返回错误码：`10001`。
 
-**mock key**：`screen/snapshot`（**未注册**，随 /screen 实施登记）
+**mock key**：`screen/snapshot`（已注册，`mock/index.ts`）
 
 ---
 
@@ -964,9 +968,13 @@
 | `GET /workbench/compare` | `workbench/compare` | `CompareView.vue` | ✅ 已接入 |
 | `GET /workbench/topics` | `workbench/topics` | `TopicsView.vue` | ✅ 已接入 |
 | `GET /workbench/settings/config` | `workbench/settings/config` | `SettingsView.vue` | ✅ 已接入 |
-| `GET /screen/snapshot` | `screen/snapshot` | `/screen` 大屏（规划 `ScreenView.vue`） | ⛔ 未实施（无路由/视图） |
+| `GET /screen/snapshot` | `screen/snapshot` | `views/screen/ScreenView.vue` + `components/screen/Scr*` | ✅ 已接入 |
 
-合计 21 端点：20 已接入 mock，1 未实施。
+合计 21 端点：**21/21 已接入**。
+
+> **分段器（WbSeg）语义注记**：`research`/`patient`/`quality`/`assets` 四端点契约未声明 `range` 参数——这四页的 WbSeg 为**纯交互展示控件**，切换不产生取数（代码内已注释"仅保留视图交互状态"）。后端如为某端点补 range 参数，先走契约演进再接值。
+>
+> **本地渲染扩展注记**：`WbTableColumn.width?: string` 为前端原语的本地渲染扩展（契约 columns 仅下发 `key/title/align/num`，payload 从不下发 `width`）；视图本地构造列定义时可填，属组件层约定非契约字段。
 
 ---
 

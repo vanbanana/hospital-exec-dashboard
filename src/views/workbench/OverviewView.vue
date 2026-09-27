@@ -106,6 +106,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbDonutColor,
   wbCategoryAxis,
@@ -156,14 +157,14 @@ const trendOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 14,
       itemHeight: 8,
-      textStyle: { fontSize: 12, color: wbChart.text },
+      textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.months ?? []),
     yAxis: [
-      wbValueAxis({ name: t?.units.outpatient, nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
+      wbValueAxis({ name: t?.units.outpatient, nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis } }),
       wbValueAxis({
         name: t?.units.revenue,
-        nameTextStyle: { color: wbChart.axis, fontSize: 11 },
+        nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis },
         splitLine: { show: false },
       }),
     ],

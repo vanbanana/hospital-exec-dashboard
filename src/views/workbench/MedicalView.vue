@@ -21,7 +21,7 @@
       <div class="wb-panel">
         <div class="wb-panel-head">
           <h3 class="wb-panel-title">{{ trend?.title }}</h3>
-          <span class="wb-panel-sub">近 12 个月</span>
+          <span class="wb-panel-sub">{{ trendSub }}</span>
         </div>
         <div class="wb-panel-body">
           <WbChart :option="trendOption" />
@@ -66,6 +66,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbDonutColor,
   wbCategoryAxis,
@@ -93,6 +94,10 @@ watch([bizTab, range], reload)
 
 const stats = computed(() => data.value?.stats ?? [])
 const trend = computed(() => data.value?.trend ?? null)
+/* 面板副标题随 range 语义联动（契约 §5.1 range 枚举） */
+const trendSub = computed(
+  () => ({ 本月: '当月趋势', 本季: '近 3 个月', 本年: '近 12 个月' })[range.value] ?? '',
+)
 const dist = computed(() => data.value?.distribution ?? null)
 const table = computed((): WbTableData => data.value?.table ?? { columns: [], rows: [] })
 
@@ -104,7 +109,7 @@ const trendOption = computed<EChartsOption>(() => {
     tooltip: wbTooltip('axis'),
     xAxis: wbCategoryAxis(t?.months ?? [], { boundaryGap: false }),
     yAxis: wbValueAxis({
-      axisLabel: { color: wbChart.text, fontSize: 11, formatter: (v: number) => v.toLocaleString() },
+      axisLabel: { color: wbChart.text, fontSize: wbChartFs.axis, formatter: (v: number) => v.toLocaleString() },
     }),
     series: [
       {
@@ -132,7 +137,7 @@ const distOption = computed<EChartsOption>(() => {
         bottom: 0,
         itemWidth: 10,
         itemHeight: 10,
-        textStyle: { fontSize: 12, color: wbChart.text },
+        textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
       },
       series: [
         {
@@ -143,7 +148,7 @@ const distOption = computed<EChartsOption>(() => {
           label: {
             show: true,
             formatter: '{d}%',
-            fontSize: 11,
+            fontSize: wbChartFs.axis,
             color: wbChart.text,
           },
           data: d.categories.map((name, i) => ({
@@ -159,7 +164,7 @@ const distOption = computed<EChartsOption>(() => {
     animation: false,
     grid: wbGrid({ top: 16 }),
     tooltip: wbTooltip('axis'),
-    xAxis: wbCategoryAxis(d?.categories ?? [], { axisLabel: { color: wbChart.text, fontSize: 10, margin: 8 } }),
+    xAxis: wbCategoryAxis(d?.categories ?? [], { axisLabel: { color: wbChart.text, fontSize: wbChartFs.tick, margin: 8 } }),
     yAxis: wbValueAxis(),
     series: [
       {

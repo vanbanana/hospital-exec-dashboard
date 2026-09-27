@@ -65,6 +65,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -100,14 +101,14 @@ const infectionOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: wbChart.text },
+    textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(infection.value?.months ?? [], { boundaryGap: false }),
   yAxis: wbValueAxis({
     min: 0,
     max: 3,
     name: infection.value?.unit ?? '%',
-    nameTextStyle: { color: wbChart.axis, fontSize: 11 },
+    nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis },
   }),
   series: [
     {
@@ -123,7 +124,7 @@ const infectionOption = computed<EChartsOption>(() => ({
         symbol: 'none',
         label: {
           formatter: `控制目标 ${infection.value?.target ?? 0}%`,
-          fontSize: 11,
+          fontSize: wbChartFs.axis,
           color: wbPalette.red,
           position: 'insideEndTop',
         },
@@ -145,7 +146,7 @@ const eventOption = computed<EChartsOption>(() => ({
     data: adverse.value?.categories ?? [],
     axisLine: { show: false },
     axisTick: { show: false },
-    axisLabel: { color: wbChart.text, fontSize: 12 },
+    axisLabel: { color: wbChart.text, fontSize: wbChartFs.label },
   },
   series: [
     {
@@ -153,7 +154,7 @@ const eventOption = computed<EChartsOption>(() => ({
       data: adverse.value?.values ?? [],
       barWidth: 12,
       itemStyle: { color: wbPalette.primary, borderRadius: [0, 3, 3, 0] },
-      label: { show: true, position: 'right', fontSize: 11, color: wbChart.text },
+      label: { show: true, position: 'right', fontSize: wbChartFs.axis, color: wbChart.text },
     },
   ],
 }))

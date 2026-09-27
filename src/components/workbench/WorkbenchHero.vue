@@ -78,7 +78,7 @@ onMounted(async () => {
   font-size: var(--wb-fs-hero);
   font-weight: var(--wb-fw-bold);
   color: #123e8c; /* 美术稿 */
-  letter-spacing: 1px;
+  letter-spacing: var(--wb-ls-xl);
   line-height: var(--wb-lh-normal);
   white-space: nowrap;
 }

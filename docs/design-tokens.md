@@ -43,7 +43,7 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
   --p-blue-600:#2563eb;  --p-blue-700:#1d4ed8; --p-navy-900:#0b1f47;
   /* scr 深色底族(cockpit 基准) */
   --p-ink-950:#060b17;   --p-ink-900:#0b1325;  --p-ink-800:#132244;
-  --p-cyan-400:#38bdf8;  --p-cyan-500:#00b4d8; --p-cyan-glow:#00d2ff;
+  --p-cyan-400:#38bdf8;  --p-cyan-500:#00b4d8;
   /* 信号色(双形态共用原色) */
   --p-red-500:#ef4444;   --p-amber-500:#f59e0b; --p-amber-600:#d97706;
   --p-green-500:#10b981; --p-green-600:#059669; --p-teal-600:#0d9488;
@@ -81,9 +81,11 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
   /* —— 新增:字号阶梯(r0 审计:108 处裸值,文档阶梯 11/12/13/15/18/22-24) —— */
   --wb-fs-2xs:10px; --wb-fs-xs:11px; --wb-fs-sm:12px; --wb-fs-md:13px;
   --wb-fs-lg:15px;  --wb-fs-xl:18px; --wb-fs-num:22px; --wb-fs-hero:24px;
-  /* —— 字重/行高 —— */
+  /* —— 字重/行高/字距 —— */
   --wb-fw-normal:400; --wb-fw-medium:500; --wb-fw-semibold:600; --wb-fw-bold:700;
-  --wb-lh-tight:1.15; --wb-lh-normal:1.35; --wb-lh-loose:1.5;
+  --wb-lh-tight:1.15; --wb-lh-compact:1.2; --wb-lh-normal:1.35; --wb-lh-loose:1.5;
+  --wb-lh-solid:1; --wb-lh-mini:1.1; --wb-lh-snug:1.25; --wb-lh-mid:1.3;
+  --wb-ls-sm:0.2px; --wb-ls-md:0.3px; --wb-ls-lg:0.5px; --wb-ls-xl:1px; --wb-ls-2xl:2px;
   /* —— 间距阶梯 —— */
   --wb-space-1:4px; --wb-space-2:8px; --wb-space-3:12px;
   --wb-space-4:16px; --wb-space-5:20px;
@@ -112,7 +114,7 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
   /* —— 布局度量 —— */
   --wb-sidebar-w:204px; --wb-header-h:64px; --wb-scrollbar-w:6px;
   /* —— 杂项 —— */
-  --wb-opacity-dimmed:0.7; --wb-z-raised:1; --wb-z-sticky:2;
+  --wb-opacity-muted:0.6; --wb-opacity-dimmed:0.7; --wb-z-raised:1; --wb-z-sticky:2;
   --wb-dur-fast:0.15s; --wb-dur-normal:0.2s;
 }
 ```
@@ -121,19 +123,26 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
 
 ```css
 .screen-layout {
-  --scr-bg:var(--p-ink-950);  --scr-bg-deep:#061021;
-  --scr-panel:rgba(14,23,42,.92);          /* ink-900 玻璃底 */
-  --scr-panel-hover:rgba(26,44,78,.9);
-  --scr-border:rgba(30,64,115,.45);        /* 基础描边 */
+  --scr-bg:var(--p-ink-950);
+  --scr-panel:rgba(14,23,42,.92);          /* ink-900 玻璃底(复合值) */
+  --scr-border:rgba(30,64,115,.45);        /* 基础描边(复合值) */
   --scr-border-glow:rgba(56,189,248,.25);  /* cyan 辉光描边 */
   --scr-accent:var(--p-cyan-500); --scr-accent-bright:var(--p-cyan-400);
   --scr-text-1:var(--p-white); --scr-text-2:var(--p-slate-200);
   --scr-text-3:#8fa0bf;        --scr-text-4:var(--p-slate-500);
   --scr-up:var(--p-red-500); --scr-down:var(--p-green-500); --scr-warn:var(--p-amber-500);
   --scr-radius-card:4px; --scr-radius-tag:3px; --scr-radius-badge:2px;
+  --scr-radius-pill:999px;
   --scr-shadow-panel:0 8px 24px rgba(0,4,15,.55), inset 0 1px 0 rgba(255,255,255,.05);
-  --scr-fs-axis:9px; --scr-fs-sm:11px; --scr-fs-md:13px;
-  --scr-fs-title:20px; --scr-fs-num:26px;
+  --scr-fs-axis:9px; --scr-fs-xxs:8px; --scr-fs-xs:10px; --scr-fs-sm:11px;
+  --scr-fs-md:13px; --scr-fs-title:20px; --scr-fs-num:26px;
+  --scr-fw-normal:400; --scr-fw-medium:500; --scr-fw-semibold:600; --scr-fw-bold:700;
+  --scr-lh-tight:1.15; --scr-lh-normal:1.4;
+  --scr-ls-xs:0.2px; --scr-ls-sm:0.3px; --scr-ls-mid:0.5px;
+  --scr-ls-md:1px; --scr-ls-lg:1.4px; --scr-ls-xl:1.5px;
+  --scr-opacity-sub:0.85; --scr-opacity-img:0.94;
+  --scr-z-pin:2; --scr-z-overlay:5;
+  --scr-dur-fast:0.18s; --scr-dur-normal:0.2s;
   /* 间距阶梯(收编 screen 域全部 padding/gap/margin 字面量,就近吸附) */
   --scr-space-1:2px;  --scr-space-2:4px;  --scr-space-3:6px;  --scr-space-4:8px;
   --scr-space-5:10px; --scr-space-6:12px; --scr-space-7:14px; --scr-space-8:16px;
@@ -146,7 +155,8 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
   --scr-chart-area-bottom:rgba(56,189,248,0);  /* p-cyan-400 @ 0 面积渐变底(保色相防黑化) */
   --scr-tooltip-bg:rgba(6,11,23,.94);          /* p-ink-950 @ .94 图表浮层底 */
   /* 画布:1920×1080(裁决:cockpit 真大屏实际实现 + 会议室主流分辨率;
-     archive/output 冻结稿 2048×1152 为旧稿值,不再采用) */
+     archive/output 冻结稿 2048×1152 为旧稿值,不再采用)
+     消费方:ScreenLayout 经 scrTokens.readScrCanvas() 运行时读取——禁止 JS 内再写 1920/1080 字面量 */
   --scr-canvas-w:1920px; --scr-canvas-h:1080px;
 }
 ```
@@ -157,28 +167,35 @@ src/chartPresets.ts     ECharts 预设,颜色/字号读 token(getComputedStyle �
 |---|---|
 | R1 唯一出处 | 字面设计值只允许在 `tokens.css`;`.vue`/`.ts`/其他 `.css` 中出现 hex/rgb/px 字号间距圆角字面量 = 违例（§7 白名单除外） |
 | R2 文档先行 | 新增/修改 token → 先改本文档 → 再改代码；代码里出现文档未登记的 token 名 = 违例 |
-| R3 语义优先 | 能挂语义层就不许直用原色层；两个 .vue 需要同一取值 → 升语义 token |
+| R3 语义优先 | 能挂语义层就不许直用原色层；两个 .vue 需要同一取值 → 升语义 token。**配方豁免**：`rgb(from var(--p-*) r g b / α)` 相对色与一次性渐变底允许直用原色层（每个 tint 造 token 违反 R4 精神）；纯 `var(--p-*)` 赋值且无对应语义槽时须行内注释 `/* 原色直取 */` |
 | R4 归并不扩 | 与原色 ΔE 不可分辨的值归并最近档；禁止再出现"第 6 个蓝" |
 | R5 图表同源 | ECharts 配色/字号只允许经各域**单一出口**取色：wb 侧 `chartPresets.ts`（静态表，字面值必须行内注释标注对应 token 名，值与 token 同步）；scr 侧 `scrTokens.ts::readScrPalette()`（运行时 getComputedStyle 读 --scr-*/--p-*）。script 内 hex map（toneStyle/cardStyle/TITLE_COLORS）与 inline rgba 字面量全部消灭 |
-| R6 死 token 清零 | 无消费方的 token 立即删除（variables.css 13 个深色死 token 为首个执行对象） |
+| R6 死 token 清零 | 无消费方的 token 立即删除。**消费方认定**：运行时 var() 引用，或图表单一出口（chartPresets/scrTokens）对照表行内注释挂名——后者 token 定位为"语义锚"，允许无运行时 var 引用（`--wb-chart-*` 族即此类） |
 | R7 别名言明 | 同值双名必须注释互指（--wb-up↔--wb-red） |
 
 ## 7. 白名单（豁免字面量）
 
-- `tokens.css` 内全部定义值
-- 一次性美术稿几何（Hero 渐变形状尺寸、插画 anchor）——须行内注释 `/* 美术稿 */`
-- `1px` 细线、`100%`/`50%` 比例、`0`/`auto`/`inherit`
-- `z-index` 仅允许取 token（1/2 档已收编），更多层级先登记本文档
-- mock 数据文件中的数值（非样式）
+- `tokens.css` 内全部定义值（**L1 字面色允许条件**：复合值——shadow/渐变/rgba 变体——注释标明色基原色档；或无对应原色档的中插色、注释标"无原色档"。其余 L1 值必须 `var(--p-*)`）
+- 一次性美术稿：几何尺寸**与色值**（Hero 渐变形状尺寸/取色、插画 anchor）——须行内注释 `/* 美术稿 */`
+- `rgb(from var(--p-*) r g b / α)` 相对色配方（R3 配方豁免）
+- `1px` 细线、`100%`/`50%` 比例、`0`/`auto`/`inherit`、CSS 动画关键帧内 opacity 0↔1
+- `z-index`/`opacity`/`font-weight`/`line-height`/`letter-spacing`/`transition` 仅允许取 token（覆盖维，档已收编于各域 token 块）
+- mock 数据文件中的数值（非样式）；图表 JS `fontSize` 仅允许取各域出口常量（wb:`chartPresets.wbChartFs`，scr:`scrTokens` fs 槽）
+- ECharts option 内的数据可视参数（`margin`/`grid` 内边距、`borderWidth`、`symbolSize`、悬停/极值 `opacity`）属图表出口实现细节，不归覆盖维——含在 `chartPresets`/`scrTokens` 出口或视图 option 内均可
 
 ## 8. 验收门禁
 
 ```bash
 # 字面设计值扫描(tokens.css 豁免)——目标:颜色/字号/圆角零命中,间距仅剩白名单
-rg -n "#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(" src/ --glob '!styles/tokens.css'
-rg -n "font-size:\s*\d|border-radius:\s*\d|padding:\s*\d|margin:\s*\d|gap:\s*\d" src/ --glob '!styles/tokens.css'
-# TS 侧色值
-rg -n "#[0-9a-fA-F]{3,8}\b" src/ --glob '*.ts' --glob '!chartPresets.ts'
+rg -n "#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(" src/ --glob '!**/tokens.css'
+rg -n "font-size:\s*\d|border-radius:\s*\d|padding:\s*\d|margin:\s*\d|gap:\s*\d" src/ --glob '!**/tokens.css'
+# 覆盖维扫描(字重/行高/字距/透明/层级/时距)
+rg -n "font-weight:\s*\d|line-height:\s*[\d.]|letter-spacing:\s*[\d.]|opacity:\s*[\d.]|z-index:\s*\d|transition:\s*[a-z-]+\s+[\d.]+s" src/ --glob '!**/tokens.css'
+# TS 侧色值与图表字号
+rg -n "#[0-9a-fA-F]{3,8}\b" src/ --glob '*.ts' --glob '!**/chartPresets.ts'
+rg -n "fontSize:\s*\d" src/
+# 幽灵引用核查(引用了未定义 token 应 0 命中——人工 diff tokens.css 定义集)
+rg -o --no-filename 'var\(--[\w-]+' src/
 ```
 
-收敛目标：色值字面量 `tokens.css` 外 0 命中；`chartPresets.ts` 以外 `.ts` 0 命中。
+收敛目标：色值字面量 `tokens.css` 外 0 命中；`chartPresets.ts` 以外 `.ts` 0 命中；图表 `fontSize` 仅经 `wbChartFs`/scrTokens fs 槽。

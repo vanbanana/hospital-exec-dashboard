@@ -78,7 +78,7 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  opacity: 0.94;
+  opacity: var(--scr-opacity-img);
 }
 
 .campus-vignette {
@@ -94,7 +94,7 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
   display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 2;
+  z-index: var(--scr-z-pin);
 }
 
 .pin-card {
@@ -112,7 +112,7 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
 
 .pin-name {
   font-size: var(--scr-fs-md);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
   color: var(--scr-text-1);
 }
 
@@ -165,8 +165,8 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
   box-shadow: var(--scr-shadow-panel);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.18s, transform 0.18s;
-  z-index: 5;
+  transition: opacity var(--scr-dur-fast), transform var(--scr-dur-fast);
+  z-index: var(--scr-z-overlay);
 }
 
 .campus-pin:hover .pin-pop {
@@ -176,7 +176,7 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
 
 .pop-title {
   font-size: var(--scr-fs-sm);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
   color: var(--scr-accent-bright);
   margin-bottom: var(--scr-space-3);
   padding-bottom: var(--scr-space-3);
@@ -197,7 +197,7 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
 
 .pop-val {
   font-size: var(--scr-fs-sm);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
   color: var(--scr-text-1);
 }
 </style>

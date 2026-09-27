@@ -118,7 +118,7 @@ const styleOf = (tone: ToneType = 'primary') => TONE_STYLE[tone]
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
 }
 
 .more-link {
@@ -185,7 +185,7 @@ const styleOf = (tone: ToneType = 'primary') => TONE_STYLE[tone]
   font-size: var(--wb-fs-xl);
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
-  line-height: 1.1;
+  line-height: var(--wb-lh-mini);
 }
 
 .metric-unit {

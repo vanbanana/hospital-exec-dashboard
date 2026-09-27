@@ -10,18 +10,18 @@
 <script setup lang="ts">
 import { ref, computed, provide, onMounted, onUnmounted } from 'vue'
 import '../styles/screen.css'
+import { readScrCanvas } from '../components/screen/scrTokens'
 
-/* 美术稿尺寸 —— 与 --scr-canvas-w/h 同值（design-tokens §5 裁决 1920×1080） */
-const DESIGN_W = 1920
-const DESIGN_H = 1080
+/* 画布基准尺寸唯一出处：--scr-canvas-w/h（design-tokens §5），onMounted 时经 scrTokens 读取 */
+const dims = ref(readScrCanvas())
 
 const adaptMode = ref<'contain' | 'fill'>('contain')
 const scaleX = ref(1)
 const scaleY = ref(1)
 
 const canvasStyle = computed(() => ({
-  width: `${DESIGN_W}px`,
-  height: `${DESIGN_H}px`,
+  width: `${dims.value.w}px`,
+  height: `${dims.value.h}px`,
   transform:
     adaptMode.value === 'contain'
       ? `translate(-50%, -50%) scale(${scaleX.value})`
@@ -29,8 +29,8 @@ const canvasStyle = computed(() => ({
 }))
 
 const updateScale = () => {
-  const sx = window.innerWidth / DESIGN_W
-  const sy = window.innerHeight / DESIGN_H
+  const sx = window.innerWidth / dims.value.w
+  const sy = window.innerHeight / dims.value.h
   if (adaptMode.value === 'contain') {
     scaleX.value = scaleY.value = Math.min(sx, sy)
   } else {
@@ -54,6 +54,7 @@ const onResize = () => {
 }
 
 onMounted(() => {
+  dims.value = readScrCanvas() // 挂载后 .screen-layout 作用域变量已解析
   updateScale()
   window.addEventListener('resize', onResize)
 })

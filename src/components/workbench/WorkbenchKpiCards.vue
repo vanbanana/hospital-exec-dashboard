@@ -143,7 +143,7 @@ const TONE_BG: Record<ToneType, string> = {
   color: var(--p-green-500);
   font-weight: var(--wb-fw-bold);
   font-size: var(--wb-fs-lg);
-  line-height: 1;
+  line-height: var(--wb-lh-solid);
 }
 
 .kpi-content {
@@ -200,6 +200,6 @@ const TONE_BG: Record<ToneType, string> = {
 
 .trend-arrow {
   font-size: var(--wb-fs-xs);
-  line-height: 1;
+  line-height: var(--wb-lh-solid);
 }
 </style>

@@ -74,6 +74,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -108,14 +109,14 @@ const projectOption = computed<EChartsOption>(() => {
       right: 0,
       itemWidth: 14,
       itemHeight: 8,
-      textStyle: { fontSize: 12, color: wbChart.text },
+      textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
     },
     xAxis: wbCategoryAxis(t?.years ?? []),
     yAxis: [
-      wbValueAxis({ name: '项', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
+      wbValueAxis({ name: '项', nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis } }),
       wbValueAxis({
         name: t?.unit ?? '万元',
-        nameTextStyle: { color: wbChart.axis, fontSize: 11 },
+        nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis },
         splitLine: { show: false },
       }),
     ],
@@ -152,10 +153,10 @@ const paperOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 10,
     itemHeight: 10,
-    textStyle: { fontSize: 12, color: wbChart.text },
+    textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(paperDist.value?.categories ?? []),
-  yAxis: wbValueAxis({ name: paperDist.value?.unit ?? '篇', nameTextStyle: { color: wbChart.axis, fontSize: 11 } }),
+  yAxis: wbValueAxis({ name: paperDist.value?.unit ?? '篇', nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis } }),
   series: [
     {
       name: '论文数',

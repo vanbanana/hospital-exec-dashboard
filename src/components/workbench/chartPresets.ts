@@ -28,6 +28,13 @@ export const wbChart = {
   red: '#ef4444', // --p-red-500 (--wb-red)
 } as const
 
+/** 图表字号唯一出口（design-tokens §7）：取值为 --wb-fs-* 阶梯镜像，禁止消费侧写字面量 */
+export const wbChartFs = {
+  tick: 10, // --wb-fs-2xs
+  axis: 11, // --wb-fs-xs
+  label: 12, // --wb-fs-sm
+} as const
+
 /** 工作台图表统一色板：蓝主色 + 克制的同族辅助色 */
 export const wbPalette = {
   primary: wbChart.blue2,
@@ -62,7 +69,7 @@ export const wbAlpha = (color: string, alpha: number) =>
 
 const axisLabel = {
   color: wbChart.text,
-  fontSize: 11,
+  fontSize: wbChartFs.axis,
 }
 
 export const wbCategoryAxis = (data: string[], extra: Record<string, unknown> = {}) => ({
@@ -88,7 +95,7 @@ export const wbTooltip = (trigger: 'axis' | 'item' = 'axis') => ({
   backgroundColor: wbAlpha(wbChart.white, 0.96),
   borderColor: wbChart.slate200,
   borderWidth: 1,
-  textStyle: { color: wbChart.slate800, fontSize: 12 },
+  textStyle: { color: wbChart.slate800, fontSize: wbChartFs.label },
   axisPointer: { lineStyle: { color: wbChart.slate300 } },
 })
 

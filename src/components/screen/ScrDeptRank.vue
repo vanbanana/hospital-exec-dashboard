@@ -62,7 +62,7 @@ defineProps<{ list?: DeptRankItem[] }>()
 
 .dept-name {
   color: var(--scr-text-1);
-  font-weight: 500;
+  font-weight: var(--scr-fw-medium);
 }
 
 .rank-badge {
@@ -73,7 +73,7 @@ defineProps<{ list?: DeptRankItem[] }>()
   height: 18px;
   border-radius: var(--scr-radius-tag);
   font-size: var(--scr-fs-sm);
-  font-weight: 700;
+  font-weight: var(--scr-fw-bold);
   color: var(--scr-text-2);
   background: rgb(from var(--p-slate-400) r g b / 0.16);
 }
@@ -88,7 +88,7 @@ defineProps<{ list?: DeptRankItem[] }>()
 }
 .rank-badge.r3 {
   background: rgb(from var(--p-amber-600) r g b / 0.22);
-  color: var(--p-amber-500);
+  color: var(--scr-warn) /* --p-amber-500 */;
 }
 
 .cat-tag {
@@ -102,13 +102,13 @@ defineProps<{ list?: DeptRankItem[] }>()
 }
 .cat-tag.med {
   background: rgb(from var(--p-blue-500) r g b / 0.18);
-  color: var(--p-blue-300);
+  color: var(--p-blue-300) /* 原色直取 */;
 }
 
 /* 盈亏按国内惯例：正=红(盈) 负=绿(亏) */
 .profit-pos {
   color: var(--scr-up);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
 }
 .profit-neg {
   color: var(--scr-down);
@@ -138,6 +138,6 @@ defineProps<{ list?: DeptRankItem[] }>()
 .eff-val {
   min-width: 30px; /* 美术稿 */
   color: var(--scr-text-1);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
 }
 </style>

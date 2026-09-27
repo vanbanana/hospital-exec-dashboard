@@ -55,6 +55,7 @@ import { useAsyncData } from '../../api/useAsyncData'
 import type { HomeTrendSeries } from '../../api/types'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -85,7 +86,7 @@ const chartOption = computed<EChartsOption>(() => {
       splitLine: { show: true, lineStyle: { color: wbChart.grid } },
     }),
     yAxis: wbValueAxis({
-      axisLabel: { color: wbChart.text, fontSize: 11, formatter: (v: number) => v.toLocaleString() },
+      axisLabel: { color: wbChart.text, fontSize: wbChartFs.axis, formatter: (v: number) => v.toLocaleString() },
     }),
     series: [
       {
@@ -139,7 +140,7 @@ const chartOption = computed<EChartsOption>(() => {
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
 }
 
 .card-sub-header {

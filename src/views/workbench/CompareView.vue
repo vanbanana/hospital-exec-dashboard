@@ -81,7 +81,7 @@ import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
 import WbErrorPanel from '../../components/workbench/WbErrorPanel.vue'
 import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
-import { wbAlpha, wbChart, wbPalette, wbTooltip } from '../../components/workbench/chartPresets'
+import { wbAlpha, wbChart, wbChartFs, wbPalette, wbTooltip } from '../../components/workbench/chartPresets'
 import { getCompare } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
 import type { CompareDim, RangeKey, WbTableColumn, WbTableData } from '../../api/types'
@@ -117,13 +117,13 @@ const radarOption = computed<EChartsOption>(() => ({
     bottom: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: wbChart.text },
+    textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
   },
   radar: {
     indicator: radar.value?.indicators ?? [],
     radius: '62%',
     center: ['50%', '48%'],
-    axisName: { color: wbChart.text, fontSize: 12 },
+    axisName: { color: wbChart.text, fontSize: wbChartFs.label },
     splitLine: { lineStyle: { color: wbChart.grid } },
     splitArea: { areaStyle: { color: [wbChart.white, wbChart.slate50] } },
     axisLine: { lineStyle: { color: wbChart.axisLine } },

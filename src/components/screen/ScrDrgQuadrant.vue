@@ -37,8 +37,8 @@ function build(): echarts.EChartsOption | undefined {
         dept: pt,
       })),
     symbolSize: (val: number[]) => 8 + Math.sqrt((val[2] as number) ?? 0) * 0.32,
-    itemStyle: { color, borderColor: p.text1, borderWidth: 1, opacity: 0.92 },
-    emphasis: { itemStyle: { opacity: 1 } },
+    itemStyle: { color, borderColor: p.text1, borderWidth: 1, opacity: p.itemOpacity },
+    emphasis: { itemStyle: { opacity: 1 } }, // 悬停恢复满透明（极值豁免）
   })
 
   return {
@@ -48,13 +48,13 @@ function build(): echarts.EChartsOption | undefined {
       right: 8,
       itemWidth: 10,
       itemHeight: 6,
-      textStyle: { color: p.text3, fontSize: 10 },
+      textStyle: { color: p.text3, fontSize: p.fsXs },
     },
     tooltip: {
       trigger: 'item',
       backgroundColor: p.tooltipBg,
       borderColor: p.border,
-      textStyle: { color: p.text1, fontSize: 11 },
+      textStyle: { color: p.text1, fontSize: p.fsSm },
       formatter: (param: unknown) => {
         const pt = (param as { data: { dept: DrgPoint } }).data.dept
         return `${pt.name} · Q${pt.quadrant}<br/>CMI ${pt.cmi}　盈亏 ${pt.profit} 万元<br/>病例数 ${pt.case_cnt}`
@@ -65,17 +65,17 @@ function build(): echarts.EChartsOption | undefined {
       name: d.axis.x,
       nameLocation: 'middle',
       nameGap: 24,
-      nameTextStyle: { color: p.text4, fontSize: 10 },
+      nameTextStyle: { color: p.text4, fontSize: p.fsXs },
       axisLine: { lineStyle: { color: p.axisLine } },
-      axisLabel: { color: p.text4, fontSize: 9 },
+      axisLabel: { color: p.text4, fontSize: p.fsAxis },
       splitLine: { lineStyle: { color: p.gridLine, type: 'dashed' } },
     },
     yAxis: {
       type: 'value',
       name: d.axis.y,
-      nameTextStyle: { color: p.text4, fontSize: 10 },
+      nameTextStyle: { color: p.text4, fontSize: p.fsXs },
       axisLine: { lineStyle: { color: p.axisLine } },
-      axisLabel: { color: p.text4, fontSize: 9 },
+      axisLabel: { color: p.text4, fontSize: p.fsAxis },
       splitLine: { lineStyle: { color: p.gridLine, type: 'dashed' } },
       scale: true,
     },
@@ -86,7 +86,7 @@ function build(): echarts.EChartsOption | undefined {
         markLine: {
           silent: true,
           symbol: 'none',
-          lineStyle: { color: p.accentBright, type: 'dashed', width: 1, opacity: 0.55 },
+          lineStyle: { color: p.accentBright, type: 'dashed', width: 1, opacity: p.splitOpacity },
           label: { show: false },
           data: [{ xAxis: d.split.x }, { yAxis: d.split.y }],
         },

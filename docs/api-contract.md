@@ -942,8 +942,8 @@
         { "rank": 2, "dept": "呼吸与危重症医学科", "metric": "21,480", "bar_pct": 85, "yoy": "+8.7%", "outp": 11580, "inpt": 990, "days": 10.4, "sat": 94.8 },
         { "rank": 3, "dept": "骨科", "metric": "18,360", "bar_pct": 72, "yoy": "+5.8%", "outp": 7160, "inpt": 1120, "days": 8.6, "sat": 95.4 },
         { "rank": 4, "dept": "神经内科", "metric": "17,680", "bar_pct": 70, "yoy": "+4.1%", "outp": 9680, "inpt": 800, "days": 11.2, "sat": 93.6 },
-        { "rank": 5, "dept": "普通外科", "metric": "15,280", "bar_pct": 58, "yoy": "+3.4%", "outp": 6080, "inpt": 920, "days": 7.8, "sat": 94.2 },
-        { "rank": 6, "dept": "肿瘤科", "metric": "11,800", "bar_pct": 45, "yoy": "+5.9%", "outp": 4450, "inpt": 735, "days": 12.6, "sat": 92.8 }
+        { "rank": 5, "dept": "普通外科", "metric": "15,280", "bar_pct": 60, "yoy": "+3.4%", "outp": 6080, "inpt": 920, "days": 7.8, "sat": 94.2 },
+        { "rank": 6, "dept": "肿瘤科", "metric": "11,800", "bar_pct": 47, "yoy": "+5.9%", "outp": 4450, "inpt": 735, "days": 12.6, "sat": 92.8 }
       ]
     }
   }

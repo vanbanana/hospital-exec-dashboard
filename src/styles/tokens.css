@@ -32,7 +32,6 @@
   --p-ink-800: #132244;
   --p-cyan-400: #38bdf8;
   --p-cyan-500: #00b4d8;
-  --p-cyan-glow: #00d2ff;
 
   /* 信号色（双形态共用原色） */
   --p-red-500: #ef4444;
@@ -104,14 +103,24 @@
   --wb-fs-num: 22px;
   --wb-fs-hero: 24px;
 
-  /* —— 字重 / 行高 —— */
+  /* —— 字重 / 行高 / 字距 —— */
   --wb-fw-normal: 400;
   --wb-fw-medium: 500;
   --wb-fw-semibold: 600;
   --wb-fw-bold: 700;
   --wb-lh-tight: 1.15;
+  --wb-lh-compact: 1.2;
   --wb-lh-normal: 1.35;
   --wb-lh-loose: 1.5;
+  --wb-lh-solid: 1;
+  --wb-lh-mini: 1.1;
+  --wb-lh-snug: 1.25;
+  --wb-lh-mid: 1.3;
+  --wb-ls-sm: 0.2px;
+  --wb-ls-md: 0.3px;
+  --wb-ls-lg: 0.5px;
+  --wb-ls-xl: 1px;
+  --wb-ls-2xl: 2px;
 
   /* —— 间距阶梯 —— */
   --wb-space-1: 4px;
@@ -135,7 +144,7 @@
   /* —— 组件件（收编基元内裸值） —— */
   --wb-th-bg: var(--p-slate-50);
   --wb-bar-track: var(--p-slate-100);
-  --wb-seg-bg: #eef3fa;
+  --wb-seg-bg: #eef3fa; /* 无原色档 */
   --wb-switch-off: var(--p-slate-300);
   --wb-scrollbar: var(--p-slate-300);
 
@@ -147,8 +156,8 @@
   /* —— 图表语义（chartPresets.ts 唯一引用源） —— */
   --wb-chart-text: var(--p-slate-500);
   --wb-chart-axis: var(--p-slate-400);
-  --wb-chart-grid: #eef3f9;
-  --wb-chart-axis-line: #d7e0ee;
+  --wb-chart-grid: #eef3f9; /* 无原色档 */
+  --wb-chart-axis-line: #d7e0ee; /* 无原色档 */
   --wb-chart-green: var(--p-green-500);
   --wb-chart-amber: var(--p-amber-500);
   --wb-chart-blue-1: var(--p-blue-700);
@@ -167,6 +176,7 @@
   --wb-scrollbar-w: 6px;
 
   /* —— 杂项 —— */
+  --wb-opacity-muted: 0.6;
   --wb-opacity-dimmed: 0.7;
   --wb-z-raised: 1;
   --wb-z-sticky: 2;
@@ -177,16 +187,14 @@
 /* ---------- L1 语义层 — 大屏（.screen-layout，视觉基准 archive/smart-hospital-cockpit） ---------- */
 .screen-layout {
   --scr-bg: var(--p-ink-950);
-  --scr-bg-deep: #061021;
-  --scr-panel: rgba(14, 23, 42, 0.92);          /* ink-900 玻璃底 */
-  --scr-panel-hover: rgba(26, 44, 78, 0.9);
-  --scr-border: rgba(30, 64, 115, 0.45);        /* 基础描边 */
+  --scr-panel: rgba(14, 23, 42, 0.92);          /* ink-900 玻璃底（复合值） */
+  --scr-border: rgba(30, 64, 115, 0.45);        /* 基础描边（复合值） */
   --scr-border-glow: rgba(56, 189, 248, 0.25);  /* cyan 辉光描边 */
   --scr-accent: var(--p-cyan-500);
   --scr-accent-bright: var(--p-cyan-400);
   --scr-text-1: var(--p-white);
   --scr-text-2: var(--p-slate-200);
-  --scr-text-3: #8fa0bf;
+  --scr-text-3: #8fa0bf; /* 无原色档 */
   --scr-text-4: var(--p-slate-500);
   --scr-up: var(--p-red-500);
   --scr-down: var(--p-green-500);
@@ -194,12 +202,34 @@
   --scr-radius-card: 4px;
   --scr-radius-tag: 3px;
   --scr-radius-badge: 2px;
-  --scr-shadow-panel: 0 8px 24px rgba(0, 4, 15, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --scr-radius-pill: 999px;
+  --scr-shadow-panel: 0 8px 24px rgba(0, 4, 15, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05); /* 复合值 */
   --scr-fs-axis: 9px;
+  --scr-fs-xxs: 8px;
+  --scr-fs-xs: 10px;
   --scr-fs-sm: 11px;
   --scr-fs-md: 13px;
   --scr-fs-title: 20px;
   --scr-fs-num: 26px;
+  /* —— 字重 / 行高 / 字距 / 透明 / 层级 / 时距 —— */
+  --scr-fw-normal: 400;
+  --scr-fw-medium: 500;
+  --scr-fw-semibold: 600;
+  --scr-fw-bold: 700;
+  --scr-lh-tight: 1.15;
+  --scr-lh-normal: 1.4;
+  --scr-ls-xs: 0.2px;
+  --scr-ls-sm: 0.3px;
+  --scr-ls-mid: 0.5px;
+  --scr-ls-md: 1px;
+  --scr-ls-lg: 1.4px;
+  --scr-ls-xl: 1.5px;
+  --scr-opacity-sub: 0.85;
+  --scr-opacity-img: 0.94;
+  --scr-z-pin: 2;
+  --scr-z-overlay: 5;
+  --scr-dur-fast: 0.18s;
+  --scr-dur-normal: 0.2s;
   /* —— 间距阶梯（收编 screen 域全部 padding/gap/margin 字面量，就近吸附） —— */
   --scr-space-1: 2px;
   --scr-space-2: 4px;

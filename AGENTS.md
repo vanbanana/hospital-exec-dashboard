@@ -7,7 +7,7 @@
 **院长查询与决策支持系统**（演示/作业项目），双形态、单一前端工程：
 
 - **工作台 `/workbench`（主形态）**：浅色医疗专业风格的 Web 管理台，侧栏 11 个业务页 + 首页。院长/主任日常用，重"管"——筛选、下钻、督办、报表。
-- **大屏 `/screen`（展示形态）**：深色科技风演示大屏，参考设计稿 `archive/smart-hospital-cockpit/`（尚未整合进主工程，当前 /screen 为过渡旧稿）。重"看"——宏观态势、告警跑马灯。
+- **大屏 `/screen`（展示形态）**：深色科技风演示大屏，已按 `archive/smart-hospital-cockpit/` 视觉基准 + 契约 §14 建成（`ScreenLayout` + `ScreenView` + `Scr*` 组件族）。重"看"——宏观态势、告警跑马灯。
 
 **前期全靠模拟数据；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，将来接 mock server / 真实后端只换数据源，契约与页面不动。
 
@@ -41,7 +41,7 @@
 1.1 **文档先行铁律**：任何结构性/接口性/样式性变动 → 先改对应 `docs/` 文档（frontend-api / frontend-architecture / design-tokens）→ 再写代码。文档没改就不允许写码；发现文档与现实矛盾 → 停下报告，先修文档。
 2. **包管理一律 npm**：`package-lock.json` 是唯一锁文件。
 3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/axios/element-plus——需要时先确认再装。
-4. **文件边界**：`archive/`（全部历史设计参考资产）只读；大屏唯一视觉基准为 `archive/smart-hospital-cockpit/`（旧 `src/components/` 大屏过渡稿已删除，勿再以任何历史稿为基准）。/screen 重建按 `frontend-architecture.md` §10 路线进行。
+4. **文件边界**：`archive/`（全部历史设计参考资产）只读；大屏唯一视觉基准为 `archive/smart-hospital-cockpit/`（旧 `src/components/` 大屏过渡稿已删除，勿再以任何历史稿为基准）。/screen 已建成，迭代按 `frontend-architecture.md` §12 与契约演进流程进行。
 5. **密钥只写进 `.env`**（已在 `.gitignore`）。
 6. **数据纪律**：视图数据一律经 `src/api/` 端点函数 → `client.ts` → `src/mock/` 注册表；字段名对齐契约 snake_case，禁止视图内散落不可对回契约的字段。目标形态 组件→store→api（Pinia），当前组件直连 api 为过渡态。
 7. **commit**：每条信息说明"为什么"；`git status` 里每个文件都能对回用户指令。

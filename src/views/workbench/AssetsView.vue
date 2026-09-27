@@ -85,6 +85,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbCategoryAxis,
   wbValueAxis,
@@ -119,12 +120,12 @@ const energyOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: wbChart.text },
+    textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(energy.value?.months ?? [], { boundaryGap: false }),
   yAxis: wbValueAxis({
     name: energy.value?.unit ?? '万元',
-    nameTextStyle: { color: wbChart.axis, fontSize: 11 },
+    nameTextStyle: { color: wbChart.axis, fontSize: wbChartFs.axis },
   }),
   series: [
     {

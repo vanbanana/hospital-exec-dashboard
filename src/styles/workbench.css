@@ -38,7 +38,7 @@
   font-size: var(--wb-fs-lg);
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
   display: flex;
   align-items: baseline;
   gap: var(--wb-space-1);
@@ -121,7 +121,7 @@
   color: var(--wb-navy);
   font-family: var(--p-font-number);
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  line-height: var(--wb-lh-compact);
 }
 .wb-stat-value .wb-stat-unit {
   font-size: var(--wb-fs-sm);
@@ -268,7 +268,7 @@
   font-size: var(--wb-fs-xl);
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
 }
 .wb-page-sub {
   font-size: var(--wb-fs-sm);

@@ -87,6 +87,7 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import {
   wbChart,
+  wbChartFs,
   wbPalette,
   wbDonutColor,
   wbCategoryAxis,
@@ -119,7 +120,7 @@ const satOption = computed<EChartsOption>(() => ({
     right: 0,
     itemWidth: 14,
     itemHeight: 8,
-    textStyle: { fontSize: 12, color: wbChart.text },
+    textStyle: { fontSize: wbChartFs.label, color: wbChart.text },
   },
   xAxis: wbCategoryAxis(satTrend.value?.months ?? [], { boundaryGap: false }),
   yAxis: wbValueAxis({ min: 90, max: 100 }),

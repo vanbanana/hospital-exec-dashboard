@@ -127,8 +127,8 @@ const menuItems = [
   font-size: var(--wb-fs-lg);
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
-  line-height: 1.25;
-  letter-spacing: 0.5px;
+  line-height: var(--wb-lh-snug);
+  letter-spacing: var(--wb-ls-lg);
   margin: 0;
 }
 
@@ -136,8 +136,8 @@ const menuItems = [
   font-size: var(--wb-fs-2xs);
   font-weight: var(--wb-fw-semibold);
   color: var(--wb-text-3);
-  letter-spacing: 1px;
-  line-height: 1.2;
+  letter-spacing: var(--wb-ls-xl);
+  line-height: var(--wb-lh-compact);
   margin-top: var(--wb-space-1);
 }
 
@@ -234,6 +234,6 @@ const menuItems = [
   font-size: var(--wb-fs-sm);
   font-weight: var(--wb-fw-medium);
   color: var(--wb-text-2);
-  letter-spacing: 2px;
+  letter-spacing: var(--wb-ls-2xl);
 }
 </style>

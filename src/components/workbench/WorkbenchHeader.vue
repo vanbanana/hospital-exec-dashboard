@@ -96,7 +96,7 @@ const dateText = computed(() => {
   font-size: var(--wb-fs-xl);
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
-  letter-spacing: 0.5px;
+  letter-spacing: var(--wb-ls-lg);
   margin: 0;
 }
 
@@ -111,7 +111,7 @@ const dateText = computed(() => {
   font-size: var(--wb-fs-md);
   color: var(--wb-text-2);
   font-weight: var(--wb-fw-normal);
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
 }
 
 .header-right {
@@ -191,7 +191,7 @@ const dateText = computed(() => {
   align-items: center;
   justify-content: center;
   border: 1.5px solid var(--p-white);
-  line-height: 1;
+  line-height: var(--wb-lh-solid);
 }
 
 .action-divider {
@@ -228,6 +228,6 @@ const dateText = computed(() => {
 .header-bottom-date {
   font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
-  letter-spacing: 0.2px;
+  letter-spacing: var(--wb-ls-sm);
 }
 </style>

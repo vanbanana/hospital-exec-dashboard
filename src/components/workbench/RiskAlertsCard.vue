@@ -85,7 +85,7 @@ const LEVEL_STYLE: Record<AlertLevel, { bg: string; fg: string }> = {
   font-weight: var(--wb-fw-bold);
   color: var(--wb-navy);
   margin: 0;
-  letter-spacing: 0.3px;
+  letter-spacing: var(--wb-ls-md);
 }
 
 .more-link {
@@ -121,7 +121,7 @@ const LEVEL_STYLE: Record<AlertLevel, { bg: string; fg: string }> = {
   border-radius: var(--wb-radius-tag);
   flex-shrink: 0;
   text-align: center;
-  line-height: 1.3;
+  line-height: var(--wb-lh-mid);
 }
 
 .level-高 {

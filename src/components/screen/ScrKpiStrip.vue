@@ -120,7 +120,7 @@ function lastPt(spark: number[]) {
 .kpi-name {
   font-size: var(--scr-fs-sm);
   color: var(--scr-text-3);
-  letter-spacing: 0.3px;
+  letter-spacing: var(--scr-ls-sm);
   white-space: nowrap;
 }
 
@@ -132,9 +132,9 @@ function lastPt(spark: number[]) {
 
 .kpi-value {
   font-size: var(--scr-fs-num);
-  font-weight: 700;
+  font-weight: var(--scr-fw-bold);
   color: var(--scr-text-1);
-  line-height: 1.15;
+  line-height: var(--scr-lh-tight);
 }
 
 .kpi-item.is-warn .kpi-value {
@@ -148,7 +148,7 @@ function lastPt(spark: number[]) {
 
 .kpi-delta {
   font-size: var(--scr-fs-sm);
-  font-weight: 600;
+  font-weight: var(--scr-fw-semibold);
   font-family: var(--p-font-number);
 }
 .kpi-delta.is-up {
