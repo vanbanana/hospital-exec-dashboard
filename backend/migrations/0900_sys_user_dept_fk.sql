@@ -1,6 +1,6 @@
 -- ============================================================================
--- lane L1 sys-org  延迟 FK 收口（migration 0113）
--- file: migrations/0113_sys_user_dept_fk.sql  lane: L1  verdict: 补挂（§3 定档）
+-- lane L1 sys-org  延迟 FK 收口（migration 0900，自 0113 重命名）
+-- file: migrations/0900_sys_user_dept_fk.sql  lane: L1  verdict: 补挂（§3 定档）
 -- 目标库：PG16（自验于 PG15.15，未使用 16 专有特性）
 --
 -- 为什么独立成文件：sys.user 建于 0003，父表 dim.department 建于 0104——

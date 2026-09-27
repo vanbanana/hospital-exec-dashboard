@@ -104,7 +104,7 @@ export const homeNotices: HomeNoticesResp = {
   list: [
     { id: 201, text: '关于加强医疗质量安全管理的通知', date: '2026-10-28', urgent: true },
     { id: 202, text: '院务会会议材料（10月）', date: '2026-10-27', urgent: true },
-    { id: 203, text: '请审阅2025年预算编制方案', date: '2026-10-26', urgent: true },
+    { id: 203, text: '请审阅2027年预算编制方案', date: '2026-10-26', urgent: true },
     { id: 204, text: '智慧医院二期建设进展汇报', date: '2026-10-25', urgent: false },
     { id: 205, text: '上级主管部门调研安排', date: '2026-10-24', urgent: false },
   ],

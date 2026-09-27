@@ -1,6 +1,6 @@
-# 验证与验收基线 — EDSS（v2.0）
+# 验证与验收基线 — EDSS（v2.1）
 
-> 版本：v2.0  
+> 版本：v2.1（后端门禁生效 + 机械检查路径修正）  
 > 回答一个问题：**怎么证明这一版做完了？**
 
 ---
@@ -8,11 +8,14 @@
 ## 1. 门禁（不许跳过）
 
 ```bash
-# 前端（当前唯一常跑门禁）
+# 前端
 npx vue-tsc -b && npm run build
 
-# 机械自查（输出应为空；后端启用后 src/ 与 cmd/ 同扫 *.go）
-grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ cmd/ 2>/dev/null
+# 后端（在 backend/ 目录跑）
+cd backend && go vet ./... && go build ./... && go test ./... -run Contract
+
+# 机械自查（期望输出仅剩 envelope.go 两处 time.Now——包络 ts 为传输墙钟字段，豁免业务时钟纪律）
+grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ backend/ 2>/dev/null
 
 # 页面自验：无头截图后人工/半自动看图
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
@@ -20,7 +23,7 @@ grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ c
   http://localhost:5173/workbench/<路由>
 ```
 
-后端启用后恢复：`go vet ./... && go build ./... && go test ./... -run Contract` + `sim validate`。
+注：`sim validate` 为 v1.1 残留命令，仓库中不存在，暂不列入门禁。
 
 ## 2. 前端设计验收（工作台）
 
@@ -42,6 +45,6 @@ grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ c
 | 3 | 自洽 | 同指标跨页同值；环比方向与数值一致；床位占用≤开放 |
 | 4 | 剧情可讲 | 预警→下钻链路数据相互印证（见 simulation-plan §2） |
 
-## 4. 远期验收（后端启用后恢复）
+## 4. 远期验收（写侧/仿真启用后恢复）
 
-v1.1 清单保留（契约冒烟/五级穿透/权限/时钟/重置），见 git 历史；届时按启用范围逐项恢复。
+v1.1 清单保留（契约冒烟/五级穿透/权限/时钟/重置），见 git 历史；读侧 21 端点已由 §1 后端门禁覆盖，写侧与仿真引擎启用时按范围逐项恢复。

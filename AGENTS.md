@@ -9,7 +9,7 @@
 - **工作台 `/workbench`（主形态）**：浅色医疗专业风格的 Web 管理台，侧栏 11 个业务页 + 首页。院长/主任日常用，重"管"——筛选、下钻、督办、报表。
 - **大屏 `/screen`（展示形态）**：深色科技风演示大屏，已按 `archive/smart-hospital-cockpit/` 视觉基准 + 契约 §14 建成（`ScreenLayout` + `ScreenView` + `Scr*` 组件族）。重"看"——宏观态势、告警跑马灯。
 
-**前期全靠模拟数据；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，将来接 mock server / 真实后端只换数据源，契约与页面不动。
+**双轨数据供给：默认契约 mock + `VITE_USE_MOCK=0` 经 vite proxy 接 Go 真后端（读侧 21 端点已落地，写侧未做）；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，换数据源契约与页面不动。
 
 ### 0.1 设计资产定位（重要，别搞反）
 
@@ -31,19 +31,20 @@
 | 4 | `docs/architecture.md` | 技术栈白名单、系统拓扑、分期路线 |
 | 5 | `docs/simulation-plan.md` | 数据供给分层（mock→契约层→仿真）、演示 runbook |
 | 6 | `docs/acceptance.md` | 验收门禁 |
-| 7 | `docs/database-schema.md` | 后端库表设计（**未实施**，后端动工时启用） |
+| 7 | `docs/database-schema.md` | 库表设计（**已实施**：57 表 hospital_edss；演进按"只加列/表/索引"纪律） |
 | 8 | `docs/frontend-api.md` | 前端接口使用文档：每端点怎么调、字段怎么用、空错态怎么渲染 |
 | 9 | `docs/design-tokens.md` | 设计令牌治理：颜色/字号/间距/圆角唯一出处，token 增改先过本文 |
+| 10 | `backend/README.md` | 后端跑法、迁移/种子清单、断言脚本位置 |
 
 ## 2. 硬规则
 
 1. **契约演进唯一方式**：新需求 → 先改 `api-contract.md`（加端点或加可选字段）→ 再写代码。已有路径/字段名/枚举值/语义保持原样。
 1.1 **文档先行铁律**：任何结构性/接口性/样式性变动 → 先改对应 `docs/` 文档（frontend-api / frontend-architecture / design-tokens）→ 再写代码。文档没改就不允许写码；发现文档与现实矛盾 → 停下报告，先修文档。
 2. **包管理一律 npm**：`package-lock.json` 是唯一锁文件。
-3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/axios/element-plus——需要时先确认再装。
+3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/element-plus——需要时先确认再装；axios 已定不引入（api 层用原生 fetch）。
 4. **文件边界**：`archive/`（全部历史设计参考资产）只读；大屏唯一视觉基准为 `archive/smart-hospital-cockpit/`（旧 `src/components/` 大屏过渡稿已删除，勿再以任何历史稿为基准）。/screen 已建成，迭代按 `frontend-architecture.md` §12 与契约演进流程进行。
 5. **密钥只写进 `.env`**（已在 `.gitignore`）。
-6. **数据纪律**：视图数据一律经 `src/api/` 端点函数 → `client.ts` → `src/mock/` 注册表；字段名对齐契约 snake_case，禁止视图内散落不可对回契约的字段。目标形态 组件→store→api（Pinia），当前组件直连 api 为过渡态。
+6. **数据纪律**：视图数据一律经 `src/api/` 端点函数 → `client.ts`（双轨：默认 `src/mock/` 注册表；`VITE_USE_MOCK=0` 走真后端 `/api/v1/<key>`）；字段名对齐契约 snake_case，禁止视图内散落不可对回契约的字段。目标形态 组件→store→api（Pinia），当前组件直连 api 为过渡态。
 7. **commit**：每条信息说明"为什么"；`git status` 里每个文件都能对回用户指令。
 8. **agy 产物原则**：AI 复刻 agent（agy/pixel 类）的产出是参考素材，代码工程性不保证——合并前按本文件标准审查，能用的用，不达标的重写。
 
@@ -109,7 +110,7 @@
 
 ### 3.7 错误处理路径
 
-- 后端（启用后）：错误 → 错误码映射 → 统一包络；内部细节留服务端日志，客户端只收 code + trace_id
+- 后端：错误 → 错误码映射 → 统一包络；内部细节留服务端日志，客户端只收 code + trace_id
 - 前端：接口错误 → http 拦截器 → 统一处理矩阵（error-codes §4）；`try/catch` 只处理本地逻辑
 - 每个 `catch` 有明确去向；每个 Promise 有 rejection 处理
 
@@ -123,19 +124,21 @@
 - 金额/比率渲染先读单位声明
 - count-up 等动效只在值真实变化时触发
 
-### 后端（目标态，未实施）
+### 后端（已落地，读侧）
 
-- 技术栈与分层见 `architecture.md §3`（Go + Gin + GORM + PG16 + Redis 为候选目标；动工时复核裁剪）
-- 响应一律经包络 helper；多表写放事务；唯一时间源 `clock.Now(ctx)`
+- `backend/`：`cmd/server` + `internal/{config,envelope,middleware,clock,router,handler,repo}`；薄查询层 handler→repo→预聚合表（dws/ads/dwd），读侧 21 端点；写侧督办闭环未做
+- 响应一律经包络 helper；多表写放事务；唯一时间源 `clock`（`sim.clock.virtual_now`）；包络 `ts` 为传输墙钟字段，豁免业务时钟纪律
+- 跑法见 `backend/README.md`（`go run ./cmd/server` :8080；前端 `VITE_USE_MOCK=0 npm run dev` 即真链路）
 
-### 数据库（目标态，未实施）
+### 数据库（已实施，57 表 hospital_edss）
 
-- `database-schema.md` 为设计参考；动工时按"已建表只加列/表/索引"纪律执行
+- `docs/database-schema.md` 为设计文档；演进按"已建表只加列/表/索引"纪律执行
+- 灌库与种子幂等/确定性纪律见 `backend/README.md`
 
 ## 5. 交付门禁（结果写进汇报）
 
 ```bash
-# 前端（当前唯一常跑门禁）
+# 前端
 npx vue-tsc -b && npm run build
 
 # 页面自验（无头截图，1568×880）
@@ -143,11 +146,11 @@ npx vue-tsc -b && npm run build
   --screenshot=/tmp/shot.png --window-size=1568,880 --hide-scrollbars \
   http://localhost:5173/workbench/<路由>
 
-# 后端（启用后）
-# go vet ./... && go build ./... && go test ./... -run Contract
+# 后端（在 backend/ 目录跑）
+cd backend && go vet ./... && go build ./... && go test ./... -run Contract
 
-# 机械自查（输出应为空）
-grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ cmd/ 2>/dev/null
+# 机械自查（期望输出仅剩 envelope.go 两处 time.Now——包络 ts 为传输墙钟字段，豁免业务时钟纪律）
+grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ backend/ 2>/dev/null
 ```
 
 ## 6. 拿不准时

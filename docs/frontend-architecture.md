@@ -1,4 +1,4 @@
-# 前端架构与交互规范（Frontend Architecture）— EDSS v2.1
+# 前端架构与交互规范（Frontend Architecture）— EDSS v2.2
 
 > 版本：v2.2（双形态基线 —— `/workbench` 工作台 + `/screen` 大屏均已落地；`src/api/` + `src/mock/` 契约化数据层 21 端点全接入；设计令牌 tokens.css 统一治理）  
 > 技术栈：Vue 3 + TypeScript + Vite + Vue Router 4 + ECharts 5 + Lucide Vue Next  
@@ -13,16 +13,16 @@
 | 形态 | 路由入口 | 状态 | 视觉风格 | 目标场景 | 核心诉求 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **管理工作台（主形态）** | `/workbench` | **现役** | 浅灰蓝医疗专业风（`#f0f5fc` 系） | 院长/院领导/主任日常桌面端办公 | 重"管"：多维筛选、下钻明细、运营监测、报表表格 |
-| **指挥大屏（展示形态）** | `/screen` | **现役**（e6aeb52 建成）：`ScreenLayout` 画布 + `ScreenView` + 9 个 `Scr*` 组件，契约 §14 `screen/snapshot` 供给 | 深海蓝科技风 | 会议室大屏、指挥调度中心、大厅展示 | 重"看"：宏观态势、三维院区、风险轮播、指标跑马灯 |
+| **指挥大屏（展示形态）** | `/screen` | **现役**（e6aeb52 建成）：`ScreenLayout` 画布 + `ScreenView` + 10 个 `Scr*` 组件，契约 §14 `screen/snapshot` 供给 | 深海蓝科技风 | 会议室大屏、指挥调度中心、大厅展示 | 重"看"：宏观态势、三维院区、风险轮播、指标跑马灯 |
 
-数据链路总览（唯一取数路径，详见 §8；两条已登记例外见 §8.1 末）：
+数据链路总览（唯一取数路径，详见 §8；三条已登记例外见 §8.1 末）：
 
 ```
 视图/卡片组件 onMounted|watch → useAsyncData(fetcher)（五态唯一入口）
   → src/api/{workbench,auth,screen}.ts 端点函数（getXxx(params)）
   → src/api/client.ts api<T>(key, params)
-  → src/mock/index.ts mockResolvers[key](params)
-  → src/mock/<域>.ts 契约形状数据
+     ├─ VITE_USE_MOCK≠'0'（默认）→ src/mock/index.ts mockResolvers[key](params) → src/mock/<域>.ts
+     └─ VITE_USE_MOCK='0' → vite proxy /api→:8080 → Go 后端 /api/v1/<key>（拆 ApiEnvelope）
 ```
 
 工程约束与原则：
@@ -46,9 +46,10 @@ src/
 ├── App.vue                         # 顶层 Router 容器（router-view 根挂载）
 ├── main.ts                         # 应用入口：注册 Router，加载 index.css 与 workbench.css
 ├── api/                            # 数据访问层
-│   ├── client.ts                   # api<T>(key, params) 统一取数入口：查 mockResolvers 注册表，
-│   │                               #   120ms 模拟延迟 + 深拷贝隔离；预留 VITE_USE_MOCK 开关位与包络拆解 TODO
-│   ├── types.ts                    # API 契约类型镜像（api-contract v2.0 全量 snake_case，522 行含 §14 屏型）
+│   ├── client.ts                   # api<T>(key, params) 统一取数入口（双轨）：默认查 mockResolvers
+│   │                               #   注册表（120ms 模拟延迟 + 深拷贝隔离）；VITE_USE_MOCK=0 时经
+│   │                               #   vite proxy 打 Go 后端 /api/v1/<key> 并拆 ApiEnvelope
+│   ├── types.ts                    # API 契约类型镜像（api-contract v2.0 全量 snake_case，527 行含 §14 屏型）
 │   ├── auth.ts                     # /auth/profile(?role=) + /hospital/profile 端点函数；getAuthProfile(role?) 透传 ?role=
 │   ├── workbench.ts                # 工作台 18 个端点函数（§3 首页 ×7 + §4~§13 业务页 ×11）
 │   ├── screen.ts                   # /screen/snapshot 端点函数
@@ -84,7 +85,7 @@ src/
 │   ├── workbench.css               # 工作台基元样式（.wb-*，取值全部 var(--wb-*)/var(--p-*)）
 │   └── screen.css                  # 大屏基元样式（取值全部 var(--scr-*)）
 ├── components/                     # 组件层
-│   ├── screen/                     # 大屏专属组件族（10 文件）
+│   ├── screen/                     # 大屏专属组件族（11 文件）
 │   │   ├── ScrPanel.vue            # [原语] 玻璃面板容器（--scr-panel 底/描边/阴影）
 │   │   ├── ScrChart.vue            # [原语] 大屏 ECharts 容器（dispose 配对）
 │   │   ├── scrTokens.ts            # [原语] readScrPalette()：运行时 getComputedStyle 读 --scr-*/--p-*
@@ -92,6 +93,7 @@ src/
 │   │   ├── ScrKpiStrip.vue         # KPI 跑马灯 4 项（含 spark 迷你图）
 │   │   ├── ScrDrgQuadrant.vue      # DRG 盈亏×CMI 四象限散点
 │   │   ├── ScrCampusMap.vue        # 院区楼宇态势（4 栋 anchor 定位+徽标）
+│   │   ├── ScrBuildingBars.vue     # 楼宇运行指标条（buildings.primary_metric 驱动，左列槽位）
 │   │   ├── ScrDeptRank.vue         # 科室效能榜
 │   │   ├── ScrAlertFeed.vue        # 告警跑马灯（纵向滚动）
 │   │   └── ScrTrendTabs.vue        # 7 日趋势页签小图组
@@ -180,11 +182,11 @@ src/
 | `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：HIS/EMR 数据源管理、指标预警阈值、用户与权限、5项系统偏好 |
 | `/workbench/:pathMatch(.*)*` | — | 重定向到 `/workbench` | 静态 | 工作台子域 404 兜底回落（仅覆盖 `/workbench/*`） |
 | `/screen`（父） | — | `layouts/ScreenLayout.vue` | 布局承载 | 大屏画布容器（viewport + 等比缩放 + `screen-adapt` provide） |
-| `/screen`（子） | `screen` | `views/screen/ScreenView.vue` | 同步 | 院长驾驶舱大屏：snapshot 单端点 + 9 个 Scr* 组件 |
+| `/screen`（子） | `screen` | `views/screen/ScreenView.vue` | 同步 | 院长驾驶舱大屏：snapshot 单端点 + 10 个 Scr* 组件 |
 
 ### 3.3 页面交互清单（点击地图）
 
-当前全工程**无下钻、无行级跳转、无路由参数**——交互仅来自分段器、Tab 与本地表单态。按代码实状清点：
+当前全工程**无下钻、无行级跳转、无路由参数**——交互仅来自分段器、Tab、本地表单态，以及首页卡片「更多 >」页级导航。按代码实状清点：
 
 | 区域 / 页面 | 交互元素 | 数据效果 |
 | :--- | :--- | :--- |
@@ -193,11 +195,12 @@ src/
 | 侧栏 `WorkbenchSidebar` | 品牌区 / 院训底纹 | 院名与英文名、座右铭消费 `hospital/profile` |
 | 首页 `WorkbenchHero` | 标语阶梯 | `hospital/profile.slogans/pillars` 驱动 |
 | 首页 `TrendChartCard` | 4 个趋势 Tab（门急诊人次 / 住院人次 / 手术台次 / 医疗收入） | 本地切换 `currentTab`，复用已取回的 `home/trends` 数据换序列 |
+| 首页 5 张数据卡 | `更多 >` router-link（页级导航） | Top10→`/medical`、关键指标→`/overview`、风险预警→`/quality`、工作进度→`/topics`、通知待办→`/overview` |
 | 综合概览 | `WbSeg` range（本月/本季/本年） | `watch` 触发 `getOverview(range)` 重取，参数生效 |
 | 医疗业务 | `WbSeg` bizTab（门急诊/住院/手术）+ range | `watch` 触发 `getMedical(tab, range)` 重取，参数生效 |
 | 运营管理 | `WbSeg` range | `getOperations(range)` 重取，参数生效 |
 | 人力资源 | `WbSeg` range | `getHr(range)` 重取，参数生效 |
-| 科研教学 | `WbSeg` range（本季/本年/近三年） | **仅 UI 态**：契约 §8.1 无 range 参数，无 `watch`，切换不取数 |
+| 科研教学 | `WbSeg` range（本季/本年） | **仅 UI 态**：契约 §8.1 无 range 参数，无 `watch`，切换不取数 |
 | 患者服务 | `WbSeg` range | **仅 UI 态**：契约 §9.1 无 range 参数，切换不取数 |
 | 质量与安全 | `WbSeg` range | **仅 UI 态**：契约 §10.1 无 range 参数，无 `watch`，切换不取数 |
 | 资产与后勤 | `WbSeg` range | **仅 UI 态**：契约 §11.1 无 range 参数，无 `watch`，切换不取数 |
@@ -287,7 +290,7 @@ src/
 | 阶梯层级 | token | 典型应用场景 |
 | :--- | :--- | :--- |
 | Hero 标语 | `--wb-fs-hero` 24px | 首页横幅核心口号 |
-| 核心指标大数 | `--wb-fs-num` 22px / `--scr-fs-num` 26px | KPI 数值、屏顶大数 |
+| 核心指标大数 | `--wb-fs-num` 22px / `--scr-fs-19` 19px | KPI 数值、屏顶大数 |
 | 页面大标题 | `--wb-fs-xl` 18px / `--scr-fs-title` 20px | 页标题、屏标题 |
 | 面板区块标题 | `--wb-fs-lg` 15px | 卡片头部标题 |
 | 正文/菜单/表单 | `--wb-fs-md` 13px / `--scr-fs-md` 13px | 表格、导航 |
@@ -419,19 +422,20 @@ const systemDate = useSystemDate()
 视图/卡片 onMounted|watch → useAsyncData(fetcher)（工作台域唯一入口）
   → api/{workbench,auth,screen}.ts 端点函数（如 getOverview(range)、getAuthProfile()、getScreenSnapshot()）
   → api/client.ts api<T>(key, params)
-  → mock/index.ts mockResolvers[key](params)   // key = 契约端点路径，如 'workbench/overview'
-  → mock/<域>.ts 返回契约形状数据
+     ├─ VITE_USE_MOCK≠'0'（默认）→ mock/index.ts mockResolvers[key](params)   // key = 契约端点路径，如 'workbench/overview'
+     │    → mock/<域>.ts 返回契约形状数据
+     └─ VITE_USE_MOCK='0' → vite proxy /api→:8080 → Go 后端 /api/v1/<key>（拆 ApiEnvelope）
 ```
 
 `client.ts` 行为要点：
-- `key` 未注册 → 抛 `Error("[api] 未注册的端点: <key>")`。
-- 每次调用固定 `120ms` 模拟延迟；返回值为深拷贝（隔离 mock 模块单例，防消费方原地修改污染后续请求）。
-- `api()` 直返 `data` 负载，**无响应包络拆解**；`ApiEnvelope<T>` 类型已在 `types.ts` 备好，接 http 层时启用（预留 `VITE_USE_MOCK` 开关位 TODO）。
+- mock 轨：`key` 未注册 → 抛 `Error("[api] 未注册的端点: <key>")`；每次调用固定 `120ms` 模拟延迟；返回值为深拷贝（隔离 mock 模块单例，防消费方原地修改污染后续请求）。
+- 真后端轨（`VITE_USE_MOCK=0`）：经 `fetch` 打 `/api/v1/<key>`（vite proxy → :8080），拆 `ApiEnvelope`——`code!==0` 抛带数值 `code`/`fields`/`trace_id` 的 Error，HTTP 层失败（无包络）抛 `[api] http N`。
+- `api()` 成功路径直返 `data` 负载，视图对数据来源无感。
 
 **已登记例外**（三条，不走 useAsyncData）：
 - `ScreenView` 整屏自管理 loading/error/data 三态（frontend-api §15 豁免登记；顶部红条手动重连）。
 - `WorkbenchHeader`/`WorkbenchSidebar`/`WorkbenchHero` 的 `auth/profile`、`hospital/profile`、`home/alerts` 计数取数：`onMounted` 内 `await` + `.catch(() => null/0)` 兜底展示——chrome 级数据失败静默降级，不进面板五态。
-- 各业务视图页头"数据截至"：`useSystemDate()` 消费 `auth/profile.system_date`（模块级共享单次请求，顶栏与 9 个页头复用），失败静默回退演示基准日 `2026-10-28`；同属 chrome 级降级。
+- 各业务视图页头"数据截至"：`useSystemDate()` 消费 `auth/profile.system_date`（模块级共享单次请求，9 个页头复用；顶栏 WorkbenchHeader 走自有 `getAuthProfile()` chrome 例外），失败静默回退演示基准日 `2026-10-28`；同属 chrome 级降级。
 
 ### 8.2 现有 12 页面数据区块清单
 
@@ -440,15 +444,15 @@ const systemDate = useSystemDate()
 | **首页** | `/workbench` | `workbench/home/*`（×7） | 5 张顶层 KPI 指标卡（门急诊/住院/手术/医疗总收入/在岗职工） | 业务趋势双折线图（门急诊人次/住院人次/手术台次/医疗收入 4 Tab 切换） | 科室业务量 TOP10 水平条形进度卡 | 底部运营关键指标 / 重点工作进度 / 风险预警 / 通知与待办四联卡片 |
 | **综合概览** | `/workbench/overview` | `workbench/overview` | 6 项全院核心指标条（门急诊/出院/手术/收入/床位/住院日） | 业务规模与收入双轴趋势图（门急诊柱 × 医疗收入折线） | 收入结构环形占比图（医疗/药品/耗材/检查化验 + 图例列表） | 科室服务量构成 TOP8 进度列表 + 实时在院动态列表 |
 | **医疗业务** | `/workbench/medical` | `workbench/medical` | 门急诊/住院/手术 3 Tab 动态联动指标条（各 6 项核心指标） | 近 12 个月规模趋势平滑面积折线图（随 Tab 切换人次/台数） | 业务特征分布图（门急诊分时高峰柱 / 住院重点病种柱 / 手术分级环形） | 科室医疗业务明细表（WbTable，按当前 Tab 口径排序展示） |
-| **运营管理** | `/workbench/operations` | `workbench/operations` | 6 项收支与费用指标条（医疗总收入/门诊/住院/结余率/次均费用） | 月度收支趋势双轴图（12 个月医疗收入/医疗成本双柱 × 收支结余率折线） | 费用控制监测（药耗比、次均费用等 4 项指标对标红线值进度条列表） | 科室运营指标表格（WbTable，收入/结余率/药占比/耗材占比/达标状态） |
+| **运营管理** | `/workbench/operations` | `workbench/operations` | 6 项收支与费用指标条（医疗总收入/门诊/住院/结余率/次均费用） | 月度收支趋势双轴图（医疗收入柱 × 医疗成本虚线 × 收支结余率折线右轴，近 12 个月） | 费用控制监测（药耗比、次均费用等 4 项指标对标红线值进度条列表） | 科室运营指标表格（WbTable，收入/结余率/药占比/耗材占比/达标状态） |
 | **人力资源** | `/workbench/hr` | `workbench/hr` | 6 项人力资源指标条（在岗职工/执业医师/护士/医护比/高职占比/人员经费） | 人员构成环形占比图（按岗位类别 + 结构明细列表） | 职称结构堆叠柱状图（categories 岗位轴分段梯队） | 重点科室人员配置表（WbTable，编制 vs 在岗、床人比、缺口预警） |
 | **科研教学** | `/workbench/research` | `workbench/research` | 6 项科教指标条（在研课题/新立项/科研经费/SCI论文/住培/继教率） | 近 5 年立项课题与科研经费双轴图（国家级/省部级堆叠柱 × 经费折线） | 论文分区构成柱状图（一区 Top~四区 / 中文核心） | 重点学科建设进展表（WbTable，学科级别/带头人/课题/经费/进展） |
 | **患者服务** | `/workbench/patient` | `workbench/patient` | 6 项患者服务指标条（门诊/住院满意度、投诉/表扬件数、候诊时长、网约率） | 满意度趋势近 6 个月双折线走势图（门诊 vs 住院） | 挂号渠道分布环形占比图（微信小程序/自助机/人工窗口等） | 投诉与表扬记录台账表（WbTable，日期/科室/类型/诉求/状态） |
-| **质量与安全** | `/workbench/quality` | `workbench/quality` | 6 项质量安全指标条（甲级病案率/院感率/危急值及时率/不良事件/切口感染/抗生素强度） | 院感发生率趋势平滑双折线图（院感发生率 + I类切口感染率） | 不良事件类型分布水平条形图（跌倒/用药/管路等按频次排序） | 医疗核心制度执行监测表（WbTable，8 项核心制度抽查合格率与环比） |
-| **资产与后勤** | `/workbench/assets` | `workbench/assets` | 6 项资产后勤指标条（固定资产总额/大型设备/开机率/库存周转/能耗/工单） | 月度能耗分项堆叠柱 + 合计折线（电/水/气，近 6 个月） | 物资库存预警列表（周转天数偏长品类与警戒级别标注） | 大型设备使用效益表（WbTable，CT/MRI/DSA 等机时/人次/收入/评级） |
-| **对比分析** | `/workbench/compare` | `workbench/compare` | 科室横向对比表（WbTable，业务量/收入/效率/质量 4 维度分段器切换，内嵌水平条形） | 与区域同级医院对标雷达图（6 维度综合评分：本院 vs 区域均值） | 核心指标对标明细表（WbTable，本院值/区域均值/差距差额） | —（本页无顶部 WbStatStrip 指标条，亦无柱状图） |
+| **质量与安全** | `/workbench/quality` | `workbench/quality` | 6 项质量安全指标条（甲级病案率/院感率/危急值及时率/不良事件/切口感染/抗生素强度） | 院感发生率趋势单折线 + markLine 目标控制线（`infection_trend.rates` 单序列，契约 §10.1） | 不良事件类型分布水平条形图（跌倒/用药/管路等按频次排序） | 医疗核心制度执行监测表（WbTable，8 项核心制度抽查合格率与环比） |
+| **资产与后勤** | `/workbench/assets` | `workbench/assets` | 6 项资产后勤指标条（固定资产总额/大型设备/开机率/库存周转/能耗/工单） | 月度能耗合计面积主线 + 电/水/气三条分项细线（近 6 个月） | 物资库存预警列表（周转天数偏长品类与警戒级别标注） | 大型设备使用效益表（WbTable，CT/MRI/DSA 等机时/人次/收入/评级） |
+| **对比分析** | `/workbench/compare` | `workbench/compare` | 科室横向对比表（WbTable，业务量/收入/效率/质量 4 维度分段器切换，内嵌水平条形） | 与区域同级医院对标雷达图（6 维度综合评分：本院 vs 区域均值） | 核心指标对标明细表（WbTable，本院值/区域均值/标杆值/差距差额） | —（本页无顶部 WbStatStrip 指标条，亦无柱状图） |
 | **专题分析** | `/workbench/topics` | `workbench/topics` | 4 类专题动态切换专属 5 项指标条（DRG / 医保 / 国考 / 门诊统筹） | 专题趋势与分布分析图（DRG入组率线图 / 医保支出线图 / 国考完成度柱图 / 门诊统筹人次线图） | 专题明细数据监测表（WbTable，重点病组DRG / 险种基金 / 国考核心指标 / 常见慢病统筹） | 4 类专题卡片导航选择器（DRG付费 / 医保基金 / 三级国考 / 门诊统筹） |
-| **系统设置** | `/workbench/settings` | `workbench/settings/config` | 数据源管理表格（WbTable，HIS/LIS/PACS/EMR/HRP 对接状态、延迟与同步时间） | 指标预警阈值配置表（WbTable，5 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
+| **系统设置** | `/workbench/settings` | `workbench/settings/config` | 数据源管理表格（WbTable，6 项系统对接状态——HIS/LIS/PACS/EMR/HRP/医保结算接口，含异常行） | 指标预警阈值配置表（WbTable，7 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
 | **工作台 chrome** | 布局件 | `auth/profile` · `hospital/profile` | 顶栏日期/角色称谓（auth）+ 铃铛未闭环计数（home/alerts） | 侧栏院名/英文名/座右铭（hospital） | Hero 标语阶梯（hospital.slogans/pillars） | — |
 | **大屏** | `/screen` | `screen/snapshot` | ScrHeader 时钟/态势/未闭环告警 + ScrKpiStrip 4 项 KPI | ScrDrgQuadrant 象限散点 + ScrCampusMap 四栋楼宇 | ScrDeptRank 效能榜 + ScrAlertFeed 告警跑马灯 | ScrTrendTabs 7 日趋势页签小图组 |
 
@@ -458,7 +462,7 @@ const systemDate = useSystemDate()
 2. **命名强行对齐契约**：Mock 数据对象的属性名称**必须全量使用 snake_case**，与 `docs/api-contract.md` 字段完全一致（如 `dept_name`、`bed_use_rate`、`case_cnt`）。禁止在视图与 mock 中使用私有或随意的驼峰命名。
 3. **注册表唯一入口**：每个端点在 `mock/index.ts` 的 `mockResolvers` 注册一行，`key` 必须与契约端点路径**字面一致**；新增端点缺注册即触发 `[api] 未注册的端点` 运行时错误。
 4. **四位一体改单**：新增/变更端点 = `api-contract.md`（先改契约）→ `types.ts` 类型 → `mock/<域>.ts` 数据 + `index.ts` 注册 → `api/workbench.ts` 端点函数，四层缺一即断链。
-5. **零成本对接后端**：接真实 http 层时只需替换 `client.ts` 内部实现（保留 `api<T>(key, params)` 签名），视图、端点函数、mock 注册表一行不改。
+5. **零成本对接后端（已兑现）**：`client.ts` 内 `VITE_USE_MOCK` 双轨开关已落地——`=0` 经 vite proxy 打 Go 后端 `/api/v1/<key>` 并拆 `ApiEnvelope`，视图、端点函数、mock 注册表一行未改。
 
 ---
 
@@ -507,7 +511,7 @@ npx vue-tsc -b && npm run build
 
 ## 10. 错误处理与反馈矩阵（Error Handling & Feedback）
 
-> **规范源**：`docs/error-codes.md` §4「前端统一处理矩阵」——接 http 层后由响应拦截器统一实现 code → 行为映射；本节约束的是**视图/组件层的渲染状态规范**。
+> **规范源**：`docs/error-codes.md` §4「前端统一处理矩阵」——真后端轨下由 `client.ts` 拆包络统一实现 code → 行为映射；本节约束的是**视图/组件层的渲染状态规范**。
 
 ### 10.1 五态规范
 
@@ -527,7 +531,7 @@ npx vue-tsc -b && npm run build
 - **反馈原语**：`WbSkeleton`（loading 占位）、`WbErrorPanel`（错误文案 + code/trace_id + 重试）、`WbEmpty`（空态）、`WbStaleTag`（stale 角标 + 重试），全部 `--wb-*` token 消费；`WbTable` 内置 rows=[] 空态行，`WbStatStrip` 内置 items=[] 空态。
 - **接线范围**：首页 7 卡片 + 11 业务视图全部改经 `useAsyncData`；页面/卡片 `data===null` 渲面板级 error/skeleton/empty，`stale` 时页头操作区或列表首行挂 `WbStaleTag`，列表区块空集合局部 `WbEmpty`。图表空数据沿用"画空坐标轴"（`?? []` 兜底）。
 - **全局兜底**：`main.ts` 挂 `app.config.errorHandler` 与 `window unhandledrejection`——console 留痕 + `preventDefault` 防裸崩，不吞错。
-- **接 http 层时**：拦截器按 `error-codes.md` §4 矩阵产出 `ApiError`，视图五态渲染零改动；`api()` 签名与 mock 行为不变。
+- **真后端轨下**：`client.ts` 拆包络按 `error-codes.md` §4 矩阵产出 `ApiError`（`code`/`fields`/`trace_id` 透传），视图五态渲染零改动；`api()` 签名与 mock 行为不变。
 
 ---
 
@@ -549,9 +553,9 @@ npx vue-tsc -b && npm run build
 ### 12.1 建成物
 - **布局/画布**：`src/layouts/ScreenLayout.vue` —— `.screen-layout` 作用域 + 1920×1080 画布 + 等比缩放适配（resize 监听配对清理）。
 - **视图**：`src/views/screen/ScreenView.vue` —— `getScreenSnapshot()` 取数，自管理 loading/error/data 三态（顶部 error-bar + 手动重连，§15 豁免 useAsyncData 登记）。
-- **组件族** `src/components/screen/`：`ScrHeader`（院名/时钟/态势/未闭环告警计数，`setInterval` 走秒卸载清理）、`ScrKpiStrip`、`ScrDrgQuadrant`、`ScrCampusMap`、`ScrDeptRank`、`ScrAlertFeed`、`ScrTrendTabs`；原语 `ScrPanel`/`ScrChart`/`scrTokens.ts`。
+- **组件族** `src/components/screen/`：`ScrHeader`（院名/时钟/态势/未闭环告警计数，`setInterval` 走秒卸载清理）、`ScrKpiStrip`、`ScrDrgQuadrant`、`ScrCampusMap`、`ScrBuildingBars`（楼宇运行指标条）、`ScrDeptRank`、`ScrAlertFeed`、`ScrTrendTabs`；原语 `ScrPanel`/`ScrChart`/`scrTokens.ts`。
 - **样式**：`src/styles/screen.css` 基元 + `--scr-*` 语义令牌（tokens.css `.screen-layout` 块）；ECharts 经 `scrTokens.readScrPalette()` 运行时取色。
-- **数据层**：`api/screen.ts::getScreenSnapshot()` + `mock/screen.ts` + `mockResolvers['screen/snapshot']`；锚点自洽（KPI.value=spark末点=badge、alert_open 合计=total_open、BASE_DATE=2026-10-28 周三）。
+- **数据层**：`api/screen.ts::getScreenSnapshot()` + `mock/screen.ts` + `mockResolvers['screen/snapshot']`；锚点自洽（`KPI.value=spark末点` 全量成立；badge 锚定仅限门急诊—门诊楼口径，其余 KPI 非楼级锚定——外科楼 `96% 负荷` 为楼级口径；alert_open 合计=total_open、BASE_DATE=2026-10-28 周三）。
 
 ### 12.2 视觉基准与偏离说明
 - **基准**：`archive/smart-hospital-cockpit/`（只读参考，未并入代码）。
@@ -567,9 +571,10 @@ npx vue-tsc -b && npm run build
 ## 13. 演进路线（Evolution Roadmap）
 
 ### 13.1 已完成（落地事实）
-- **契约类型镜像**：`src/api/types.ts`（522 行）逐节镜像 `api-contract.md` v2.0（含 §14 屏型），全量 snake_case。
+- **契约类型镜像**：`src/api/types.ts`（527 行）逐节镜像 `api-contract.md` v2.0（含 §14 屏型），全量 snake_case。
 - **端点函数层**：`api/workbench.ts` 18 + `api/auth.ts` 2 + `api/screen.ts` 1，**21/21 契约端点全接入**。
 - **mock 解析层**：`api/client.ts` + `mock/` 15 文件，`index.ts` 注册表 21 key 全量注册。
+- **http 层（双轨）**：`VITE_USE_MOCK=0` 经 vite proxy 接 Go 后端 `/api/v1/<key>`，包络拆解与错误码映射已按 `error-codes.md` §4 落地（HTTP 客户端=原生 fetch，无新依赖，白名单未突破）。
 - **视图迁移**：11 业务视图 + 首页 7 卡 + `/screen` 全屏，组件内契约形状数据块清零。
 - **五态反馈**：`useAsyncData` + 4 反馈原语 + `main.ts` 全局兜底（§10.2）。
 - **大屏建成**：e6aeb52，见 §12。
@@ -580,7 +585,6 @@ npx vue-tsc -b && npm run build
 - **路由缺口**：根级无 catch-all，未知路径渲染空白（§3.1；`/screen` 本身已注册）。
 
 ### 13.3 P2 演进项
-- **http 层**：真实后端接入时在 `client.ts` 预留开关位实现包络拆解与错误码映射（`error-codes.md` §4）；HTTP 客户端选型（Axios 或原生 fetch 封装）属白名单外决策，动工前先确认。
 - **状态管理层（Store Layer）**：引入 Pinia，按业务域建立 `useAuthStore`、`useWorkbenchStore`、`useAlertStore`。**目标形态为 组件 → store → api 单向流**；当前"组件直连 api"为过渡形态，store 落地后页面改为调 Action 取数（时钟偏移亦归 store，AGENTS §2-6）。
 - **设置页持久化**：`settings/config` 现为本地展示（开关可点击翻转但无写接口）；契约演进增写端点后接。
 - **从静态 Mock 迈向仿真联动**：依据 `docs/simulation-plan.md`，对接后端的 Virtual Clock 虚拟时钟与场景注入器，支持动态警报与快进演算演示。

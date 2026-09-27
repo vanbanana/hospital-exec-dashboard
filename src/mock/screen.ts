@@ -67,10 +67,11 @@ export const screenSnapshot: ScreenSnapshotResp = {
       { dept_id: 3, name: '肿瘤科', category: 'med', cmi: 1.24, profit: -34.6, case_cnt: 810, quadrant: 1 },
       { dept_id: 4, name: '神经外科', category: 'surg', cmi: 1.68, profit: -12.8, case_cnt: 294, quadrant: 1 },
       { dept_id: 5, name: '儿科', category: 'med', cmi: 0.68, profit: 28.4, case_cnt: 707, quadrant: 4 },
-      // 神经内科/普通外科按 §13.1 冻结表订正（§14.1 注10）：cmi/profit/入组病例原值偏离已修
-      { dept_id: 6, name: '神经内科', category: 'med', cmi: 0.94, profit: 38.2, case_cnt: 885, quadrant: 4 },
+      // 神经内科/普通外科按 §13.1 冻结表订正（§14.1 注10）：cmi/profit/入组病例原值偏离已修；
+      // dept_id 以 dim.department 注册表同源（§14.1 注11）：呼吸=6、神内=8、妇产=9
+      { dept_id: 8, name: '神经内科', category: 'med', cmi: 0.94, profit: 38.2, case_cnt: 885, quadrant: 4 },
       { dept_id: 7, name: '普通外科', category: 'surg', cmi: 1.18, profit: 98.2, case_cnt: 1005, quadrant: 2 },
-      { dept_id: 8, name: '妇产科', category: 'surg', cmi: 0.78, profit: -18.5, case_cnt: 804, quadrant: 3 },
+      { dept_id: 9, name: '妇产科', category: 'surg', cmi: 0.78, profit: -18.5, case_cnt: 804, quadrant: 3 },
     ],
   },
   // anchor = 渲染后图像矩形内 % 坐标（§14.1 注7，当前底图校准值）；primary_metric 按注8 逐楼下发展示元数据
@@ -119,13 +120,13 @@ export const screenSnapshot: ScreenSnapshotResp = {
   dept_ranking: [
     { rank: 1, dept_id: 1, name: '骨科', category: 'surg', cmi: 1.36, surg_cnt: 280, alos: 8.6, profit: 124.6, eff_score: 94.2 },
     { rank: 2, dept_id: 2, name: '心血管内科', category: 'med', cmi: 1.42, surg_cnt: 240, alos: 9.2, profit: 86.4, eff_score: 92.8 },
-    // 神经内科/普通外科 cmi/profit 与 §13.1 冻结表互洽（§14.1 注10）
-    { rank: 3, dept_id: 6, name: '神经内科', category: 'med', cmi: 0.94, surg_cnt: 96, alos: 9.8, profit: 38.2, eff_score: 89.5 },
+    // 神经内科/普通外科 cmi/profit 与 §13.1 冻结表互洽（§14.1 注10）；dept_id 同 dim.department 注册表（注11）
+    { rank: 3, dept_id: 8, name: '神经内科', category: 'med', cmi: 0.94, surg_cnt: 96, alos: 9.8, profit: 38.2, eff_score: 89.5 },
     { rank: 4, dept_id: 7, name: '普通外科', category: 'surg', cmi: 1.18, surg_cnt: 210, alos: 7.4, profit: 98.2, eff_score: 87.3 },
     { rank: 5, dept_id: 5, name: '儿科', category: 'med', cmi: 0.68, surg_cnt: 0, alos: 4.8, profit: 28.4, eff_score: 82.1 },
     { rank: 6, dept_id: 4, name: '神经外科', category: 'surg', cmi: 1.68, surg_cnt: 156, alos: 12.6, profit: -12.8, eff_score: 78.2 },
     { rank: 7, dept_id: 3, name: '肿瘤科', category: 'med', cmi: 1.24, surg_cnt: 88, alos: 11.2, profit: -34.6, eff_score: 76.4 },
-    { rank: 8, dept_id: 8, name: '妇产科', category: 'surg', cmi: 0.78, surg_cnt: 165, alos: 5.2, profit: -18.5, eff_score: 74.9 },
+    { rank: 8, dept_id: 9, name: '妇产科', category: 'surg', cmi: 0.78, surg_cnt: 165, alos: 5.2, profit: -18.5, eff_score: 74.9 },
   ],
   alerts: {
     total_open: 5,

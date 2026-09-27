@@ -152,7 +152,7 @@
 
 - `src/api/auth.ts`——`getAuthProfile(role?)` 透传 `?role=`。
 - `src/components/workbench/WorkbenchHeader.vue`——头像、`user.title`、日期行（`system_date`+`weekday`）、铃铛告警角标（复用 `workbench/home/alerts` 计数）；头像区点击展开角色下拉（消费 `available_roles` 的 `name`/`scope`），选中即经 `?role=` 重取切换上下文。
-- 各业务视图 `WbPageHead`——`system_date` 经 `useSystemDate()`（`src/api/useSystemDate.ts`，模块级共享单次请求）渲"数据截至"后缀；chrome 级取数，失败静默回退演示基准日 `2026-10-28`，不进页面五态。
+- 9 个业务视图 `WbPageHead`——`system_date` 经 `useSystemDate()`（`src/api/useSystemDate.ts`，模块级共享单次请求）渲"数据截至"后缀；chrome 级取数，失败静默回退演示基准日 `2026-10-28`，不进页面五态。
 - 取回未渲：`user.id`、`user.username`、`user.real_name`、`user.dept_name`（演示期 UI 无落位，登记备查）。
 
 **空态与错误态**

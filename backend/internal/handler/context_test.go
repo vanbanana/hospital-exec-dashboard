@@ -193,12 +193,15 @@ func TestAuthProfileDeptLeader(t *testing.T) {
 	}
 }
 
-func TestAuthProfileEmptyRoleDefaultsPresident(t *testing.T) {
+// 契约 §1.2:出席即须合法——?role= 显式空串按非法参数 10001(缺席才取默认 president)
+func TestAuthProfileEmptyRoleReturns10001(t *testing.T) {
 	r := contextRouter(t)
 	status, b := get(t, r, "/api/v1/auth/profile?role=")
-	assertOK(t, status, b)
-	if d := decodeAuth(t, b); d.User.Username != "president" {
-		t.Fatalf("username=%q want president", d.User.Username)
+	if status != http.StatusBadRequest {
+		t.Fatalf("HTTP status=%d want 400", status)
+	}
+	if b.Code != 10001 {
+		t.Fatalf("code=%v want 10001", b.Code)
 	}
 }
 

@@ -51,7 +51,7 @@ for f in seed/*.sql;       do psql -d hospital_edss -v ON_ERROR_STOP=1 -f "$f"; 
 
 - **幂等**：所有种子可重复执行（ON CONFLICT DO NOTHING + 键域 DELETE 先导 + identity `setval` 后移）。
 - **确定性**：零 `random()`/零 `now()`——伪随机一律 `md5(主键)` 派生，全库可复现。
-- **锚点**（详见 `docs/database-schema.md` §勾稽）：BASE_DATE=2026-10-28；在院 1,846 / 床用 92.1% / 月出院 8,110 / ALOS 6.8 / 月门急诊 123,443 / 月医疗收入 14,800 万（住院 71%·门诊 25%·其他 4%）。
+- **锚点**（详见 `docs/database-schema.md` §勾稽）：BASE_DATE=2026-10-28；在院 1,846 / 床用 92.1% / 月出院 8,109 / ALOS 6.8 / 月门急诊 123,443 / 月医疗收入 14,800 万（住院 71%·门诊 25%·其他 4%）。
 - **费用真源**：`dwd.charge_day`（门诊次均≈300 元 / 住院次均≈13,000 元）；`outpatient_hourly.fee_total` 逐日归一到 charge_day。
 - `backend/` 下 SQL 与 `/tmp/modeling/schema/` lane 源文件一一对应；改数据请改 lane 源再装配，勿直接改本目录。
 
@@ -80,4 +80,4 @@ go vet ./... && go test ./... && go build ./...
 
 - 契约端点:`/api/v1/` + 契约路径(`auth/profile`、`workbench/**`、`screen/snapshot`),`/health` 根挂
 - 前端切换:`vite.config` 已代理 `/api`→`:8080`;`VITE_USE_MOCK=0 npm run dev` 即真链路
-- 断言脚本:`/tmp/backend-orch/e{1..4}-check.sh`(`PORT=808N bash …`),newman 集合 `collections/e{1..4}.json`
+- 断言脚本:基准目录 `/tmp/backend-orch/`(编排产物,非本仓库)——`e{1,2,4}-check.sh` 在顶层、`e3-check.sh` 在 `collections/` 子目录(`PORT=808N bash …`);newman 集合 `collections/e{1..4}.json`
