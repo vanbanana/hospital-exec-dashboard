@@ -394,6 +394,26 @@ func TestWriteTodoList(t *testing.T) {
 	}
 }
 
+// TestWriteTodoExpiredNoSweep 过期工单绕过列表直写——惰性清扫只在 R07 读侧,
+// stored open+deadline<now 的单直接 accept/report 必须按 deadline 判逾期 33104 拒
+// (契约 §15.5:expired 禁变更);否则直写可把过期单改成 doing
+func TestWriteTodoExpiredNoSweep(t *testing.T) {
+	r, tx := writeTx(t)
+	var staleID int64
+	if err := tx.Raw(`INSERT INTO ads.todo_order
+		(alert_id,alert_occurred_at,title,assignee_id,dispatcher_id,deadline,created_at,updated_at)
+		VALUES(96,'2026-10-22 08:05:00+08','绕过列表的过期单',806,1,'2026-10-25 00:00:00+08','2026-10-22 09:00:00+08','2026-10-22 09:00:00+08')
+		RETURNING id`).Scan(&staleID).Error; err != nil {
+		t.Fatalf("造过期单: %v", err)
+	}
+	// 不走 GET /todos(不触发读侧清扫),直接 accept → 409/33104{current_status:expired}
+	status, b := postJSON(t, r, fmt.Sprintf("/api/v1/todos/%d/status", staleID), `{"action":"accept"}`)
+	assertCode(t, status, http.StatusConflict, b, 33104)
+	if d := dataMap(t, b); d["current_status"] != "expired" {
+		t.Fatalf("current_status=%v want expired", d)
+	}
+}
+
 func TestWriteTodoListFilters(t *testing.T) {
 	r, _ := writeTx(t)
 	// status 过滤

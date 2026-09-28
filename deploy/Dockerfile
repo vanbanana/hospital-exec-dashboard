@@ -44,6 +44,8 @@ ENV npm_config_registry=$NPM_REGISTRY npm_config_replace_registry_host=always
 RUN npm ci
 COPY index.html vite.config.ts tsconfig.json ./
 COPY src/ ./src/
+# public/ 原样进 dist 根(头像等静态资产)——漏拷则 /assets/workbench/* 在镜像内 404
+COPY public/ ./public/
 # VITE_USE_MOCK 为 build-time 注入:0=dist 走真链路(client.ts 同源 /api/v1/*)
 ARG VITE_USE_MOCK=0
 ENV VITE_USE_MOCK=$VITE_USE_MOCK

@@ -474,9 +474,10 @@ func (r *WriteRepo) TodoTransit(ctx context.Context, op Operator, todoID int64, 
 			TodoStatus      string
 			AlertID         int64
 			AlertOccurredAt time.Time
+			Deadline        time.Time
 			AssigneeDeptID  int64
 		}
-		q := tx.Raw(`SELECT t.id,t.todo_status,t.alert_id,t.alert_occurred_at,s.dept_id AS assignee_dept_id
+		q := tx.Raw(`SELECT t.id,t.todo_status,t.alert_id,t.alert_occurred_at,t.deadline,s.dept_id AS assignee_dept_id
 			FROM ads.todo_order t JOIN dim.staff s ON s.id=t.assignee_id
 			WHERE t.id=$1 FOR UPDATE OF t`, todoID).Scan(&row)
 		if q.Error != nil {
@@ -484,6 +485,12 @@ func (r *WriteRepo) TodoTransit(ctx context.Context, op Operator, todoID int64, 
 		}
 		if q.RowsAffected == 0 {
 			return ErrTodoNotFound
+		}
+		// 写侧同判过期:R07 惰性清扫只挂在列表读,stored open|doing 且 deadline<now 的
+		// 工单可能被绕过列表直写——按 deadline 语义判逾期即拒(契约 §15.5 33104:
+		// expired 禁变更);存态仍由列表清扫落库,此处不写(写必随 33104 回滚,无意义)
+		if (row.TodoStatus == "open" || row.TodoStatus == "doing") && !row.Deadline.After(now) {
+			return &StatusConflict{Current: "expired"}
 		}
 		// dept_leader 仅可办本科室单:sys.user.dept_id 比对承办人 staff.dept_id(§15.5 20005)
 		if op.Role == "dept_leader" && (op.DeptID == nil || *op.DeptID != row.AssigneeDeptID) {
