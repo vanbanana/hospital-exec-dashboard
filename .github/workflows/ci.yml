@@ -1,0 +1,98 @@
+# CI 权威门禁——docs/acceptance.md §1 的自动化形态:push/PR→main 必跑,三 job 独立并行。
+#   frontend : vue-tsc → test:unit(vitest run,script 由测试 lane 提供) → build
+#   backend  : postgres:16 service 灌迁移+种子 → vet+build+test -race。
+#              测试为实库集成测试,DSN 定位见 backend/internal/handler/*_test.go:
+#              DATABASE_URL=读库(hospital_edss)/DATABASE_URL_W=写域库(hospital_edss_w),不可达则 Skip
+#   mechanical: time.Now/as any/@ts-ignore 豁免核对,清单照 acceptance.md §1 逐字实现
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx vue-tsc -b
+      # vitest run;script 不在本 lane 白名单内,缺失时本步非零退出即门禁拦截
+      - run: npm run test:unit
+      - run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # CI service 容器内临时口令,随 job 销毁,非仓库密钥
+          POSTGRES_DB: hospital_edss
+          TZ: Asia/Shanghai # 对齐 deploy/docker-compose.yml db 服务,会话时区双保险
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d hospital_edss"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hospital_edss?sslmode=disable
+      DATABASE_URL_W: postgres://postgres:postgres@localhost:5432/hospital_edss_w?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod # 跟随 go.mod(当前 1.25.x),满足 ≥1.22
+          cache-dependency-path: backend/go.sum
+      - name: vet + build
+        run: cd backend && go vet ./... && go build ./...
+      - name: 灌库(迁移+幂等种子,读库与写域库各一遍)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          command -v createdb >/dev/null || sudo apt-get install -y postgresql-client
+          cd backend
+          # POSTGRES_DB 已建空库 hospital_edss;migrate -seed=迁移+种子,README "全新库流程" 同序
+          go run ./cmd/migrate -seed
+          # 写域测试库独立建库重灌同一套迁移/种子,不用 createdb -T 模板克隆——
+          # 克隆要求源库零活动连接,种子大批量 INSERT 触发的 autovacuum 会话会偶发占库致克隆失败;
+          # 种子确定性(md5 派生零 random/now)保证两库等价
+          createdb -h localhost -U postgres hospital_edss_w
+          DATABASE_URL="$DATABASE_URL_W" go run ./cmd/migrate -seed
+      - name: test(实库集成;ubuntu 有 gcc,-race 可用)
+        run: cd backend && go test -count=1 -race ./...
+
+  mechanical:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: time.Now/as any/@ts-ignore 豁免核对
+        run: |
+          # 豁免清单(acceptance.md §1,仅豁免 time.Now,按文件收口):
+          #   envelope.go 包络 ts · requestlog.go 延迟计时 · write_alert.go failData ts ·
+          #   cmd/migrate/main.go 迁移耗时统计 · cmd/loadbench/main.go 压测延迟/时长计时 ·
+          #   clock.go 文档串(注释字样,非调用)
+          # as any / @ts-ignore 无任何豁免——管道有输出即违例
+          if grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ backend/ \
+            | grep -vE '^backend/(internal/envelope/envelope|internal/middleware/requestlog|internal/handler/write_alert|cmd/migrate/main|cmd/loadbench/main|internal/clock/clock)\.go:[0-9]+:.*time\.Now'; then
+            echo "::error::机械自查命中非豁免项(见上方命中行),豁免清单见 docs/acceptance.md §1"
+            exit 1
+          fi
+          echo "PASS: 机械自查命中项全部落在豁免清单内(或无命中)"

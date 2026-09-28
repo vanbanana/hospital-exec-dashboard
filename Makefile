@@ -6,7 +6,7 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev dev-api backend build vet test migrate migrate-status baseline seed up down logs
+.PHONY: help dev dev-api backend build vet test migrate migrate-status baseline seed up down logs ci ci-mech
 
 help: ## 列出全部目标
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-16s %s\n", $$1, $$2}'
@@ -30,6 +30,20 @@ vet: ## go vet ./...
 
 test: ## go test ./...
 	cd backend && go test ./...
+
+# ---- CI 门禁(与 .github/workflows/ci.yml 同一串,CI=权威门禁)----
+ci: ## CI 门禁本地复跑:前端 vue-tsc/test:unit/build + 后端 vet/build/test(-race) + 机械自查
+	npx vue-tsc -b
+	npm run test:unit
+	npm run build
+	cd backend && go vet ./... && go build ./... && go test -count=1 -race ./...
+	@$(MAKE) --no-print-directory ci-mech
+
+ci-mech: ## 机械自查:time.Now/as any/@ts-ignore 豁免核对(清单同 acceptance.md §1)
+	@if grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ backend/ \
+	  | grep -vE '^backend/(internal/envelope/envelope|internal/middleware/requestlog|internal/handler/write_alert|cmd/migrate/main|cmd/loadbench/main|internal/clock/clock)\.go:[0-9]+:.*time\.Now'; \
+	then echo "FAIL: 机械自查命中非豁免项(见上),豁免清单见 docs/acceptance.md §1"; exit 1; \
+	else echo "PASS: 命中项全部落在豁免清单内(或无命中)"; fi
 
 # ---- 迁移/种子(旗标语义见 backend/README.md)----
 migrate: ## apply 未应用迁移

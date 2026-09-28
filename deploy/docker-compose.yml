@@ -32,6 +32,10 @@ services:
       DB_MAX_LIFETIME_MIN: ${DB_MAX_LIFETIME_MIN:-30}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SIM_ENABLED: ${SIM_ENABLED:-1}
+      # 生产两闸(P1):DEMO_ROLE_SWITCH=0 关演示角色切换(契约 §2.1 演进注);
+      # AUTH_COOKIE_SECURE=1 须配 HTTPS 入口(nginx 443 block),http 部署保持默认空
+      DEMO_ROLE_SWITCH: ${DEMO_ROLE_SWITCH:-1}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-}
       # nginx 反代经 compose 内网转发——放开 docker 网段使 XFF 生效,否则 audit ip 记成容器桥地址
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12}
       SEED_ON_BOOT: ${SEED_ON_BOOT:-1}

@@ -41,6 +41,7 @@ env（`internal/config` 启动期 fail-fast，全有默认值，演示环境零�
 | `DB_MAX_LIFETIME_MIN` | `30` | 连接最大存活（分钟） |
 | `LOG_LEVEL` | `info` | slog 级别：`debug\|info\|warn\|error` |
 | `SIM_ENABLED` | `1` | `0`=/sim/* 路由不注册（命中 NoRoute → 10003） |
+| `DEMO_ROLE_SWITCH` | `1` | `0`=生产形态：`?role=` 演示切换关闭（读侧忽略/写侧异名 `20004`），`available_roles` 收敛会话自身一档（契约 §2.1 演进注；`router.Build` 经 `config.DemoRoleSwitchOn()` 直读 env，main 装配缝待接 Deps） |
 | `AUTH_COOKIE_SECURE` | （空） | `1`=`edss_sid` Cookie 追加 `Secure`（HTTPS 部署置位） |
 | `TRUSTED_PROXY_CIDRS` | `127.0.0.1,::1` | XFF 可信代理 CIDR（逗号分隔）；反代异机/异容器部署须放开代理网段，否则 `audit_log`/`user_session` 的 ip 记成代理地址；置空字符串 = 不信任何代理 |
 
@@ -175,6 +176,29 @@ make down      # 停服(pgdata 卷保留)
 - **锚点**（详见 `docs/database-schema.md` §勾稽）：BASE_DATE=2026-10-28；在院 1,846 / 床用 92.1% / 月出院 8,109 / ALOS 6.8 / 月门急诊 123,443 / 月医疗收入 14,800 万（住院 71%·门诊 25%·其他 4%）。
 - **费用真源**：`dwd.charge_day`（门诊次均≈300 元 / 住院次均≈13,000 元）；`outpatient_hourly.fee_total` 逐日归一到 charge_day。
 - `backend/` 下 SQL 与 `/tmp/modeling/schema/` lane 源文件一一对应；改数据请改 lane 源再装配，勿直接改本目录。
+
+## 测试与压测
+
+**测试库拓扑**（`internal/handler/*_test.go` 惯例）：
+
+| 库 | env | 用途 |
+| :--- | :--- | :--- |
+| `hospital_edss` | `DATABASE_URL` | 只读用例基座（断言种子锚点，绝不写） |
+| `hospital_edss_w` | `DATABASE_URL_W` | 写用例克隆库——tx 回滚用例零残留；并发用例（`conc_test.go`）真实提交、入场归一+defer 清场 |
+
+- 重建克隆库：`bash scripts/clone_test_db.sh`（`SRC_DB`/`DST_DB` env 可覆写；克隆期源库须无活动连接，先停 server）。
+- 跑法：`go test -count=1 ./...`；竞态全量 `go test -race ./internal/...`；PG 不可达时用例 `Skip` 不Fail（CI 须先备两库）。
+- 机械自查仍适用：**测试文件同样不许出现 `time.Now`**——等异步副作用用"有界次数 + `time.Sleep`"轮询 DB 态（见 `conc_test.go` 续期用例）。
+
+**压测基线**（`cmd/loadbench`，纯 stdlib）：
+
+```bash
+go run ./cmd/loadbench -c 32 -d 15 -base http://localhost:8080
+```
+
+- 负载：worker 奇偶分流 `GET /api/v1/screen/snapshot`（重读端点）与 `GET /health`（下限参照），均免会话；keep-alive 连接池 `-c*2`。
+- 输出：每端点 + TOTAL 的 `n / rps / p50ms / p95ms / p99ms / maxms / err%`；错误样本不计延迟分位。
+- `cmd/loadbench/main.go` 的 `time.Now` 属运维层延迟计时（`requestlog.go` 同类），机械自查豁免清单需收录该文件。
 
 ## 断言脚本
 

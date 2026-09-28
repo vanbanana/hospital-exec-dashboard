@@ -134,6 +134,7 @@
   > **字段注**：`dept_id: null` 表示院级领导视角。在数据库存储中院级哨兵键使用 `0`，在 API 契约层统一对外序列化为 `null`。`user.role` 值域 = `sys.user` 角色全集（`sys.dict(role_type)` 注册：admin/president/ops_director/dept_leader/viewer），**不限演示三角色**——演示切换下拉仅暴露 `available_roles` 三档。
   > **演进注（P3 认证）**：本端点由会话中间件保护，无有效会话 → `20001`。`role` 参数演示期保留——出席时返回对应演示账号上下文（不校验会话身份，纯演示切换）；**缺席时返回当前会话用户**（原"缺省 president"语义调整为"会话用户"）。
   > **读写不对称备案**：读侧 `?role=` 开放（profile 仅回显上下文，无越权写面），写侧异名切换已按 §15 头部闸收敛至 `admin`/`president` 会话——读宽写窄为有意分层，非遗漏。
+  > **演进注（生产形态）**：`?role=` 演示切换与 `available_roles` 名录由后端 `DEMO_ROLE_SWITCH` env 控制（默认 `1`=演示态；生产置 `0`）。关闭后：`available_roles` 收敛为仅含会话角色自身一档、`?role=` 异名值按忽略处理（等效自回显），写侧异名一律 `20004`。前端按 `available_roles.length > 1` 显隐切换下拉即可零改动降级。
 - **可返回错误码**：`10001` (INVALID_PARAM), `20001` (UNAUTHORIZED)
 
 ### 2.2 GET /hospital/profile

@@ -58,11 +58,25 @@ type hospitalProfileResp struct {
 	Pillars     []string `json:"pillars"`
 }
 
+// demoSwitchOn DEMO_ROLE_SWITCH 请求级开关——router.Build 中间件按 env 注入
+// (见 router.go prodModeCtx);直挂测试/装配缺席默认演示态(契约默认 1)——
+// 宁可漏闸不可误锁演示主路径;auth.go Login 同读本键
+func demoSwitchOn(c *gin.Context) bool {
+	v, ok := c.Get("demo_role_switch")
+	if !ok {
+		return true
+	}
+	b, ok := v.(bool)
+	return ok && b
+}
+
 // AuthProfile GET /api/v1/auth/profile(契约 §2.1 演进注):?role= 出席=纯演示切换
-// (不校验会话身份);缺席=当前会话用户(原"默认 president"语义已调整);会话缺失兜底 20001
+// (不校验会话身份);缺席=当前会话用户(原"默认 president"语义已调整);会话缺失兜底 20001。
+// DEMO_ROLE_SWITCH=0(生产形态):?role= 失切换力——异名值按忽略处理(等效自回显),
+// available_roles 收敛为仅含会话角色自身一档(契约 §2.1 演进注·生产形态)
 func (h *Context) AuthProfile(c *gin.Context) {
 	var username string
-	if v, present := c.GetQuery("role"); present { // 出席即须合法:?role= 空串→10001
+	if v, present := c.GetQuery("role"); present && demoSwitchOn(c) { // 出席即须合法:?role= 空串→10001
 		switch v {
 		case "president", "ops_director", "dept_leader":
 			username = v
@@ -85,7 +99,7 @@ func (h *Context) AuthProfile(c *gin.Context) {
 		envelope.FailInternal(c, err)
 		return
 	}
-	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u)
+	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u, demoSwitchOn(c))
 	if err != nil {
 		envelope.FailInternal(c, err)
 		return
@@ -94,12 +108,8 @@ func (h *Context) AuthProfile(c *gin.Context) {
 }
 
 // buildAuthProfileResp §2.1 同形 data 组装(user + available_roles + system_date + weekday)
-// ——AuthProfile 与 Login(§2.3 响应注)共用
-func buildAuthProfileResp(ctx context.Context, db *gorm.DB, clk *clock.Source, u *repo.ContextUser) (*authProfileResp, error) {
-	demos, err := repo.ListDemoUsers(ctx, db)
-	if err != nil {
-		return nil, err
-	}
+// ——AuthProfile 与 Login(§2.3 响应注)共用;demoSwitch=false 时名录收敛自身一档
+func buildAuthProfileResp(ctx context.Context, db *gorm.DB, clk *clock.Source, u *repo.ContextUser, demoSwitch bool) (*authProfileResp, error) {
 	today, err := clk.Today(ctx)
 	if err != nil {
 		return nil, err
@@ -116,10 +126,24 @@ func buildAuthProfileResp(ctx context.Context, db *gorm.DB, clk *clock.Source, u
 			Avatar:   u.Avatar,
 			Role:     u.Role,
 		},
-		AvailableRoles: make([]roleOption, 0, len(demos)),
-		SystemDate:     today.Format("2006-01-02"),
-		Weekday:        clock.WeekdayCN(today),
+		SystemDate: today.Format("2006-01-02"),
+		Weekday:    clock.WeekdayCN(today),
 	}
+	if !demoSwitch {
+		// 生产形态:available_roles 仅含会话角色自身一档(契约 §2.1 演进注);
+		// role 键同演示态取 username——前端 length>1 判显隐,本档恒不满足
+		resp.AvailableRoles = []roleOption{{
+			Role:  u.Username,
+			Name:  u.JobTitle + " (" + u.RealName + ")",
+			Scope: scopeLabel(u.ScopeType, u.ScopeVal),
+		}}
+		return resp, nil
+	}
+	demos, err := repo.ListDemoUsers(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	resp.AvailableRoles = make([]roleOption, 0, len(demos))
 	for _, d := range demos {
 		resp.AvailableRoles = append(resp.AvailableRoles, roleOption{
 			// role 键须可回喂 ?role= → 取 username(?role= 按 username 定位用户)

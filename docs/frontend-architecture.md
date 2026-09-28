@@ -583,3 +583,11 @@ npx vue-tsc -b && npm run build
 - **状态管理层（Store Layer）**：引入 Pinia，按业务域建立 `useAuthStore`、`useWorkbenchStore`、`useAlertStore`。**目标形态为 组件 → store → api 单向流**；当前"组件直连 api"为过渡形态，store 落地后页面改为调 Action 取数（时钟偏移亦归 store，AGENTS §2-6）。
 - ~~设置页持久化~~：已落地（R15/R16 写端点，后端 PG 持久，见 §8.4）。
 - **仿真联动**：后端 sim 控制面已落地（契约 §16，操作手册 `docs/sim-runbook.md`）；前端仍无 UI 挂载位——启用时按契约演进接前端入口。
+
+---
+
+## 14. 测试约定（Testing）
+
+- **单测**：vitest + jsdom + @vue/test-utils，配置 `vitest.config.ts`（alias `@`→`src`，只收 `tests/unit/**/*.spec.ts`）；命令 `npm run test:unit`。对数据层（client/useAsyncData/session/useSystemDate）与组件行为（WbToast owner 占位、ScrCampusMap 阈值）挂回归网，stub fetch/mock module，不打真后端。
+- **e2e**：playwright（chromium only），配置 `playwright.config.ts`（`tests/e2e/`，webServer 起 `npm run dev` 复用 :8080 真后端）；命令 `npm run test:e2e`，浏览器 `npx playwright install chromium`。
+- tests/ 不进 `vue-tsc` 构建域（tsconfig include 仅 `src/`）；门禁仍按 AGENTS §5。

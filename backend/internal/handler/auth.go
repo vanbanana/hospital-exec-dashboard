@@ -134,7 +134,8 @@ func (h *Auth) Login(c *gin.Context) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("edss_sid", token, 43200, "/", "", h.secure, true)
 
-	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u.ToContextUser())
+	// DEMO_ROLE_SWITCH=0 时登录响应的 available_roles 同样收敛自身一档(§2.1 演进注同形要求)
+	resp, err := buildAuthProfileResp(ctx, h.db, h.clk, u.ToContextUser(), demoSwitchOn(c))
 	if err != nil {
 		envelope.FailInternal(c, err)
 		return

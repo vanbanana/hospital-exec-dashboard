@@ -6,6 +6,9 @@ dist/
 backend/edss
 backend/*.exe
 coverage.out
+test-results/
+coverage/
+playwright-report/
 .vscode/
 .idea/
 .DS_Store

@@ -1,0 +1,24 @@
+# edssprod 冷启动隔离栈——叠加基座使用,与 dev 栈(5432/8080/5173)及并行 lane(8090-8092)共存:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.edssprod.yml up -d --build
+# top-level name 钉死 project:容器/网络/卷全部 edssprod_* 前缀,不碰默认 project 名下资源
+name: edssprod
+
+services:
+  db:
+    ports:
+      # 实测期仅本机透出,便于 psql 直连核验;基座"不 publish"的对外语义不变
+      - "127.0.0.1:5433:5432"
+
+  backend:
+    # !override 整表替换基座 ports——序列默认合并,不标会连基座的 :8080 透出一起带上撞 dev
+    ports: !override
+      - "127.0.0.1:8095:8080"
+
+  web:
+    ports: !override
+      - "8093:80"    # http 实测入口;8090-8092 已被并行 lane 占用
+      - "8443:443"   # https 实测入口(自签,certs 卷挂载)
+    volumes:
+      # 源相对 project 目录(=deploy/)解析:先跑 certs/gen-selfsigned.sh;
+      # 缺席时镜像内兜底自签生效(见 deploy/Dockerfile web target),nginx 不会拒起
+      - ./certs:/etc/nginx/certs:ro

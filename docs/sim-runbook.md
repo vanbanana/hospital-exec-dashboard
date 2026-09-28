@@ -13,6 +13,8 @@ SIM_ENABLED=0 go run ./cmd/server   # 生产形态:/sim/* 全部 404+10003
 
 `/sim/*` 路由注册与否只取决于 `SIM_ENABLED` env(config.go fail-fast)。**会话闸**（§2.3 已落地）：全部端点（含 GET）限 `admin` 会话——无会话 → `20001`，非 admin 角色 → `20004`。
 
+> **生产形态配套**：`SIM_ENABLED=0` 之外，生产部署还应置 `DEMO_ROLE_SWITCH=0`（契约 §2.1 演进注）——关闭 `?role=` 演示切换：`available_roles` 收敛为会话自身一档、读侧异名忽略、写侧异名 `20004`。两项无关联动、`default "1"`；清单见 `docs/production-deploy.md`。
+
 ## 2. 时钟模型(必读)
 
 - `sim.clock.virtual_now` 是全库唯一"现在"(`internal/clock`),页面 `system_date`/`server_time`、各 `本月/近30日` 窗口都随它走。

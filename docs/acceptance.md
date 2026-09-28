@@ -1,22 +1,26 @@
-# 验证与验收基线 — EDSS（v2.1）
+# 验证与验收基线 — EDSS（v2.2）
 
-> 版本：v2.1（后端门禁生效 + 机械检查路径修正 + P3 验收项恢复）  
+> 版本：v2.2（CI 流水线门禁生效：`.github/workflows/ci.yml` 为权威门禁，本地 `make ci` 复跑同一串）  
 > 回答一个问题：**怎么证明这一版做完了？**
 
 ---
 
 ## 1. 门禁（不许跳过）
 
+**权威门禁 = CI**：`.github/workflows/ci.yml` 在 push/PR→main 自动执行三 job——`frontend`（vue-tsc → test:unit → build）、`backend`（postgres:16 service 灌迁移+种子 → vet+build+test -race）、`mechanical`（机械自查豁免核对）。下方命令串是各 job 的人工可读规格；本地复跑同一串用 `make ci`。
+
 ```bash
 # 前端
-npx vue-tsc -b && npm run build
+npx vue-tsc -b && npm run test:unit && npm run build
 
-# 后端（在 backend/ 目录跑）
-cd backend && go vet ./... && go build ./... && go test -count=1 ./...
+# 后端（在 backend/ 目录跑；实库集成测试——DATABASE_URL=读库、DATABASE_URL_W=写域克隆库，
+# 库不可达则测试 Skip，本地跑注意别把"全跳过"当绿；CI 以灌库步骤硬失败兜底）
+cd backend && go vet ./... && go build ./... && go test -count=1 -race ./...
 
 # 机械自查（time.Now 豁免清单=传输/运维层墙钟:envelope.go 包络 ts、requestlog.go 延迟计时、
-# write_alert.go failData ts(包络冻结故本地实现)、cmd/migrate/main.go 迁移耗时统计;
-# clock.go 注释里的"time.Now"字样为文档串,非调用——除此五处命中即违例）
+# write_alert.go failData ts(包络冻结故本地实现)、cmd/migrate/main.go 迁移耗时统计、
+# cmd/loadbench/main.go 压测延迟/时长计时;clock.go 注释里的"time.Now"字样为文档串,
+# 非调用——除此六处命中即违例）
 grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ backend/ 2>/dev/null
 
 # 页面自验：无头截图后人工/半自动看图

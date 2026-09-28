@@ -18,7 +18,9 @@ FROM alpine:3.20 AS backend
 # tzdata+TZ 双必备:pgx 把 timestamptz 扫进 time.Local,alpine 默认 UTC——
 # deadline/system_date/weekday/occurred_at 等 Go 侧日历与格式推导会漂 -8h;
 # 与 db 服务 TZ/simLoc 同钉东八区
-RUN apk add --no-cache ca-certificates wget tzdata && adduser -D edss
+ARG APK_MIRROR=mirrors.aliyun.com
+RUN sed -i "s|dl-cdn.alpinelinux.org|$APK_MIRROR|g" /etc/apk/repositories \
+ && apk add --no-cache ca-certificates wget tzdata && adduser -D edss
 ENV TZ=Asia/Shanghai
 COPY --from=be-build /out/edss /out/edss-migrate /usr/local/bin/
 # migrate 的 -dir/-seeddir 默认相对 cwd,镜像内固定在 /app 下
@@ -35,6 +37,10 @@ CMD ["edss"]
 FROM node:20-alpine AS fe-build
 WORKDIR /src
 COPY package.json package-lock.json ./
+# npmjs.org 直连不可达同 GOPROXY 口径:registry 默认 npmmirror,replace-registry-host=always
+# 覆盖 lockfile 内已固化的 registry.npmjs.org resolved URL(否则 npm ci 仍打原站)
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=$NPM_REGISTRY npm_config_replace_registry_host=always
 RUN npm ci
 COPY index.html vite.config.ts tsconfig.json ./
 COPY src/ ./src/
@@ -44,6 +50,14 @@ ENV VITE_USE_MOCK=$VITE_USE_MOCK
 RUN npm run build
 
 FROM nginx:1.27-alpine AS web
+# 兜底自签:nginx.conf 443 block 常驻引 /etc/nginx/certs/edss.{crt,key}——文件缺席 nginx 拒起,
+# 故镜像内置一份占位自签;部署真证书经 compose 卷(deploy/certs)挂载覆盖
+ARG APK_MIRROR=mirrors.aliyun.com
+RUN sed -i "s|dl-cdn.alpinelinux.org|$APK_MIRROR|g" /etc/apk/repositories \
+ && apk add --no-cache openssl && mkdir -p /etc/nginx/certs \
+ && openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+      -keyout /etc/nginx/certs/edss.key -out /etc/nginx/certs/edss.crt \
+      -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=fe-build /src/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 80 443
