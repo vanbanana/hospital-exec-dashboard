@@ -111,6 +111,20 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
   transform: translateX(50%);
 }
 
+/* 右挂 pin 的 hover 弹层同步右挂:左缘对齐锚点(B 组实测 pop 左缘 x386 压在左列右缘 x446 之下) */
+.campus-pin.card-right .pin-pop {
+  transform: translate(0, 4px);
+}
+.campus-pin.card-right:hover .pin-pop {
+  transform: translate(0, 0);
+}
+.campus-pin.card-right.pop-below .pin-pop {
+  transform: translate(0, -4px);
+}
+.campus-pin.card-right.pop-below:hover .pin-pop {
+  transform: translate(0, 0);
+}
+
 .pin-card {
   display: flex;
   align-items: center;

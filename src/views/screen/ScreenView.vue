@@ -32,6 +32,9 @@
             <ScrAlertFeed :list="snap?.alerts?.list" :total="snap?.alerts?.total_open" />
           </div>
         </div>
+
+        <!-- §3.3 旧数据标 stale:轮询失败但有旧快照时挂角标,不静默冻结(B 组实测断网零反馈) -->
+        <div v-if="stale" class="scr-stale-tag">数据更新中断 · 展示最近快照</div>
       </template>
     </div>
   </div>
@@ -55,6 +58,8 @@ const snap = ref<ScreenSnapshotResp>()
 const loading = ref(true)
 // 错误态保留 code/trace_id（error-codes §1 包络形状），不再只存 message 字符串
 const error = ref<ApiError | null>(null)
+// stale=有旧数据但最新一拍取数失败(§3.3);首屏失败走 error 整屏,两者互斥
+const stale = ref(false)
 
 async function load() {
   loading.value = true
@@ -78,8 +83,10 @@ async function refresh() {
   try {
     snap.value = await getScreenSnapshot()
     error.value = null
+    stale.value = false
   } catch (e) {
     if (!snap.value) error.value = toApiError(e)
+    else stale.value = true
   } finally {
     inflight = false
   }
@@ -147,5 +154,22 @@ onUnmounted(() => window.clearInterval(timer))
 
 .retry-btn:hover {
   background: rgb(from var(--p-blue-600) r g b / 0.35);
+}
+
+/* stale 角标:琥珀警示,挂 KPI ribbon 右下(不遮左列/底排面板) */
+.scr-stale-tag {
+  position: absolute;
+  top: calc(var(--scr-overlay-pad) + var(--scr-ribbon-h) + 8px);
+  right: var(--scr-overlay-pad);
+  z-index: var(--scr-z-ribbon);
+  padding: var(--scr-space-2) var(--scr-space-5);
+  background: rgb(from var(--p-amber-600) r g b / 0.18);
+  border: 1px solid rgb(from var(--p-amber-500) r g b / 0.45);
+  border-radius: var(--scr-radius-card);
+  color: var(--scr-warn);
+  font-size: var(--scr-fs-sm);
+  letter-spacing: var(--scr-ls-md);
+  backdrop-filter: blur(var(--scr-blur-pop));
+  pointer-events: none;
 }
 </style>
