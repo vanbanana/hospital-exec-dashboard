@@ -2,7 +2,7 @@
 
 > **版本**：v2.0（双形态基线，替代 v1.1）  
 > **制定日期**：2026-09-26  
-> **基线状态**：面向"工作台优先（/workbench 12 视图）+ 科技大屏（/screen 辅助态势）"双形态架构。前端集中 `src/mock` + `src/api` 统一接口层已就位；后端（Go 单体）已落地 39 端点（读 21 + auth 2 + 写 8 + sim 5，另有 infra 3 根挂不入契约面），默认 mock 轨、`VITE_USE_MOCK=0` 走真后端双轨运行。  
+> **基线状态**：面向"工作台优先（/workbench 12 视图）+ 科技大屏（/screen 辅助态势）"双形态架构。前端 `src/api` 统一接口层单轨打真后端；后端（Go 单体）已落地 39 端点（读 21 + auth 2 + 写 8 + sim 5，另有 infra 3 根挂不入契约面）。`src/mock/` 已整层摘除——无假数据兜底，缺席/失败走五态空错态。  
 > **演进纪律不变**：字段只增不删不改名、枚举只增不改语义；新需求先改本契约再写代码。
 
 ---
@@ -11,7 +11,7 @@
 
 ### 0.1 为什么升级到 v2.0？（范围裁决理由）
 1. **形态重心转移**：原 `api-contract v1.1` 完全围绕“单一大屏（/screen）+ 五级下钻弹窗（L1~L5）”展开；但真实产品实践表明，院长与管理部门 90% 的日常决策发生于 **PC 浅色工作台**（高信息密度、多维交叉报表、全业务域监控），大屏更偏向指挥中心与会议汇报。系统已正式演进为**“/workbench 浅色工作台（12页为主）+ /screen 科技大屏（为辅）”**的双形态架构。
-2. **落地阶段匹配**：前端 12 个工作台视图（`src/views/workbench/*.vue`）已全部经 `src/api/` 端点函数 + `src/mock/` 注册表按本契约取数；大屏视图（`/screen`）已按 `archive/smart-hospital-cockpit/` 视觉基准建成，旧过渡稿已删除。v2.0 契约持续约束两侧实现。
+2. **落地阶段匹配**：前端 12 个工作台视图（`src/views/workbench/*.vue`）已全部经 `src/api/` 端点函数按本契约取真后端数据；大屏视图（`/screen`）已按 `archive/smart-hospital-cockpit/` 视觉基准建成，旧过渡稿已删除。v2.0 契约持续约束两侧实现。
 3. **认证与交互务实降级**：在纯演示与前端解耦阶段，强制要求 JWT 双 Token 轮换、黑名单拦截会产生大量非核心工程阻塞。v2.0 将认证降级为**“免密/可选角色切换”**的轻量模式，前端可通过下拉框切换院长、运营主任、科主任三种身份。
 
 ### 0.2 与原 v1.1 契约的关系（继承、重构与预留）
@@ -44,8 +44,8 @@
 - `code`：业务状态码。`0` 表示成功；非 0 参照既有错误码规范。列表为空时仍返回 `code=0` 且 `data.list=[]`。
 - `message`：人类可读的提示文案（中文）。
 - `data`：实际业务负载。失败时为 `null` 或参数校验明细。
-- `trace_id`：链路追踪 ID（Mock 阶段可由前端随机生成）。
-- `ts`：服务端或 Mock 响应时间戳（Unix 秒）。
+- `trace_id`：链路追踪 ID（服务端生成；前端本地构造的错误以 `local-N` 前缀区分）。
+- `ts`：服务端响应时间戳（Unix 秒）。
 
 ### 1.2 列表与分页包络
 查询列表统一包含分页结构：
@@ -1290,10 +1290,10 @@
   > 5. `dept_ranking.eff_score` 为展示示意值（归一公式见 §10 注），API 出参以服务端按当前分布实算为准；`rank` 序与 `cmi/profit` 事实列一致即可。
   > 6. **屏值事实化原则**：`kpis[].value/prev_value/spark`、`buildings[].badge/metrics`、趋势 `dates/series` 等屏显数值一律由当前事实层（dwd/dws）按基准日实算得出，契约 JSON 中的字面量为**形态示例**，服务端出参允许 ±10% 采样容差；判定依据为"同一时刻 KPI 值 = spark 末点 = 楼宇徽标 = 事实层当日值"的内部一致性，而非与示例字面逐一相等。
   > 7. `buildings[].anchor` 为**渲染后图像矩形**内的百分比坐标（x/y ∈ 0–100，相对院区底图可见区域，非容器盒）；示例值为当前底图校准值，换底图需随图重校。
-  > 8. `buildings[].primary_metric` 为楼宇主指标的**展示元数据**（`key` 指向 `metrics` 内键、`label` 中文名、`unit` 展示单位、`max` 归一量程上限）；契约缺该字段时前端不得自造展示口径（演示期 mock 必发）。
+  > 8. `buildings[].primary_metric` 为楼宇主指标的**展示元数据**（`key` 指向 `metrics` 内键、`label` 中文名、`unit` 展示单位、`max` 归一量程上限）；契约缺该字段时前端不得自造展示口径（该字段必发）。
   > 9. `drg_quadrant.period_label` 为 `period` 的可读展示文案（如 `d30`→`近30日`）；`status.level` 枚举 `normal|busy|alert`。
   > 10. `dept_ranking`/`drg_quadrant.points` 中科室的 `cmi/profit` 事实列必须与 §13.1 冻结表一致（如 神经内科 cmi=0.94/profit=+38.2、普通外科 cmi=1.18/profit=+98.2），扩排行亦不得偏离冻结值。
-  > 11. `dept_id`/`building_code` 等 id 语义以 `dim.department`/`dim.building` 注册表为准，mock 与 backend 须同源；示例中的 id 字面为形态示例。
+  > 11. `dept_id`/`building_code` 等 id 语义以 `dim.department`/`dim.building` 注册表为准，前后端须同源；示例中的 id 字面为形态示例。
   > 12. `alerts.list` 为打开态告警**全集**（`alert_status ∈ pending|processing`，`occurred_at` 倒序，无截断）；`alerts.total_open = len(list)`——与 `status.alert_open` 三档合计是同一打开集的两个查询面，恒相等。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
@@ -1536,26 +1536,21 @@
 
 ---
 
-## 17. 前端 Mock 实施指引（Next Action）
+## 17. 前端实施现状（单轨——mock 层已摘除）
 
-在前端工程中落地 v2.0 契约的推荐目录组织：
+前端工程目录组织（当前态）：
 ```
 src/
 ├── api/                   # API 请求定义（TypeScript）
 │   ├── types.ts           # 镜像本契约中的所有接口类型（已就位）
-│   ├── client.ts          # 统一解析层：mock 注册表查取，VITE_USE_MOCK 开关位预留 http 切换（已就位）
+│   ├── client.ts          # 统一取数层：经 vite proxy / nginx 打 /api/v1/<key>，拆包络（已就位；无 mock 轨）
 │   ├── auth.ts            # /auth/*, /hospital/*（已就位）
 │   ├── workbench.ts       # /workbench/*（已就位）
 │   └── screen.ts          # /screen/snapshot（已就位）
-├── mock/                  # 本地 Mock 数据集（可随时被真实 HTTP 拦截替换）
-│   ├── index.ts           # mockResolvers 注册表：key=契约端点路径（已就位）
-│   ├── home.ts overview.ts medical.ts operations.ts hr.ts research.ts
-│   ├── patient.ts quality.ts assets.ts compare.ts topics.ts settings.ts
-│   └── screen.ts          # 大屏快照 mock（已就位）
 ```
 
 **实施要诀**：
 1. **表格列定义服务端化**：`table.*.columns` 由后端契约统一返回，供前端 `WbTable` 原语直接渲染；视图组件抽离数据层时，可全面移除本地硬编码的 `cols` 定义。
 2. **角色切换支持**：`user.dept_id`、`available_roles` 等字段专为演示期角色无缝切换（院长/运营主任/科主任）预留，前端通过全局状态驱动页面视角联动。
 3. **视觉提示解耦**：`icon`（Lucide 图标名）与 `tone`（语义色彩枚举）为演示期展示提示字段，前端依据统一样式系统（`src/styles/workbench.css`）映射对应样式，彻底消除散落的十六进制硬编码。
-4. **平滑演进路线**：组件中通过 `onMounted` 调用 `api.getOverview()` 等标准化函数赋值，将来无论是纯前端静态演示、接入轻量 Mock 服务、还是上线正式 Go 单体后端，前端视图组件均无需修改一行业务渲染逻辑！
+4. **无假数据兜底**：端点失败/字段缺失一律走错误态或空态；视图组件中不得预置编造的 KPI/列表/时刻。

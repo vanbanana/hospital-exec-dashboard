@@ -1,8 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** 默认 mock 数据源；置 '0' 经 vite proxy 打 Go 后端 /api/v1（契约 §16 切换位） */
-  readonly VITE_USE_MOCK?: string
+  // 无应用级 env:数据一律经 vite proxy / nginx 打真后端 /api/v1(单轨)
 }
 
 interface ImportMeta {

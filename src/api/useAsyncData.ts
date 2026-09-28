@@ -4,7 +4,7 @@ import { ref, type Ref } from 'vue'
 
 /**
  * 统一错误形状 — 对齐 error-codes §1 失败包络（code/message/trace_id）。
- * mock 期由 toApiError 归一化产出；接 http 层后由响应拦截器按 §4 矩阵产出同一形状。
+ * 真轨 err 带服务端 trace_id 则透传；本地构造/传输层失败才落 local- 序号。
  */
 export class ApiError extends Error {
   readonly code: number
@@ -18,16 +18,21 @@ export class ApiError extends Error {
   }
 }
 
-// mock 期无服务端 trace_id —— 本地递增序号替代，local- 前缀标明非服务端来源
+// 无服务端 trace_id 的本地错误（传输层失败、无码异常）——递增序号替代，local- 前缀标明非服务端来源
 let localTraceSeq = 0
 
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
   const message = err instanceof Error ? err.message : String(err)
-  // 业务码透传：http 期拦截器同样按失败包络 code 直通(error-codes §4);无码才落 10000 兜底
+  // 业务码透传：client.ts 按失败包络 code 直通(error-codes §4);无码才落 10000 兜底
   const code =
     typeof (err as { code?: unknown })?.code === 'number' ? (err as { code: number }).code : 10000
-  return new ApiError(code, message || '系统繁忙，请稍后重试', `local-${++localTraceSeq}`)
+  const srvTrace = (err as { trace_id?: unknown })?.trace_id
+  return new ApiError(
+    code,
+    message || '系统繁忙，请稍后重试',
+    typeof srvTrace === 'string' && srvTrace ? srvTrace : `local-${++localTraceSeq}`,
+  )
 }
 
 export interface AsyncData<T> {

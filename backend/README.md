@@ -102,7 +102,7 @@ dev 形态（本机）：
 
 | 端口 | 用途 | 必开 | 备注 |
 | :--- | :--- | :--- | :--- |
-| 5173 | vite dev 唯一 canonical（mock 与真链路同端口） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
+| 5173 | vite dev 唯一 canonical（proxy /api→:8080） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
 | 8080 | Go API | 真链路时 | `PORT` env |
 | 5432 | 本地 PG | 真链路时 | brew postgresql@15/16 |
 | — | vite proxy `/api`→`localhost:8080` | — | target 硬编码于 `vite.config.ts` |

@@ -1,11 +1,11 @@
-// 统一取数层 — api<T>(key, params, opts?):VITE_USE_MOCK=1(默认)走 src/mock 注册表,
-// =0 时经 vite proxy 打 Go 后端 /api/v1/<key>,拆 ApiEnvelope 包络(error-codes §1/§4)
-// 写路径:method 非 GET 时 body JSON 上送、mock 轨按 'METHOD:key' 复合键查 resolver(frontend-architecture §8.4)
-import type { MockParams } from '../mock'
+// 统一取数层 — api<T>(key, params, opts?) 经 vite proxy / nginx 打 Go 后端
+// /api/v1/<key>,拆 ApiEnvelope 包络(error-codes §1/§4)。
+// 写路径:method 非 GET 时 body JSON 上送(frontend-architecture §8.4)。
+// 无 mock 轨:任何端点一律打真后端,失败走错误码/五态反馈,不回落假数据
 import type { ApiEnvelope } from './types'
 
-const MOCK_LATENCY_MS = 120
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== '0'
+// api() 查询参数形状:契约参数全为字符串;undefined 键省略不进 qs
+export type ApiParams = Record<string, string | undefined>
 
 export interface ApiOpts {
   method?: 'GET' | 'POST' | 'PUT'
@@ -31,68 +31,13 @@ export function setOperatorRole(role: string) {
   operatorRole = role
 }
 
-/** 写端点模式匹配:注册键 'METHOD:a/{p}/b' 对调用键 'METHOD:a/1/b' 分段比对,{p} 段捕获字面量回填 params */
-function matchMockResolver(
-  resolvers: Record<string, (params: MockParams, body?: unknown) => unknown>,
-  callKey: string,
-  params: MockParams,
-) {
-  const method = callKey.slice(0, callKey.indexOf(':'))
-  for (const regKey of Object.keys(resolvers)) {
-    if (!regKey.startsWith(`${method}:`)) continue
-    const patSegs = regKey.slice(method.length + 1).split('/')
-    const callSegs = callKey.slice(method.length + 1).split('/')
-    if (patSegs.length !== callSegs.length) continue
-    const captured: MockParams = {}
-    let ok = true
-    for (let i = 0; i < patSegs.length; i++) {
-      const pat = patSegs[i]
-      const m = /^\{(.+)\}$/.exec(pat)
-      if (m) captured[m[1]] = callSegs[i]
-      else if (pat !== callSegs[i]) {
-        ok = false
-        break
-      }
-    }
-    if (ok) {
-      Object.assign(params, captured)
-      return resolvers[regKey]
-    }
-  }
-  return undefined
-}
-
 /**
  * 统一取数入口。key = 契约端点路径(如 'workbench/overview'),写端点 key 含字面路径参数(如 'alerts/12/ack')。
- * 真后端路径下:HTTP 层失败或非 0 业务码均抛带数值 code 的 Error,
+ * HTTP 层失败或非 0 业务码均抛带数值 code 的 Error,
  * 由 useAsyncData.toApiError 透传到五态反馈(非 0 码无 fields 时落 10000)。
  */
-export async function api<T>(key: string, params: MockParams = {}, opts: ApiOpts = {}): Promise<T> {
+export async function api<T>(key: string, params: ApiParams = {}, opts: ApiOpts = {}): Promise<T> {
   const method = opts.method ?? 'GET'
-
-  if (USE_MOCK) {
-    // 动态导入注册表:VITE_USE_MOCK=0 真轨构建时本分支被 DCE 剔除,mock 模块不进产物
-    const { mockResolvers } = await import('../mock')
-    // GET 原样按 key 精确匹配;写调用按 'METHOD:key' 复合键,先精确再模式匹配({id} 段回填 params)
-    const callKey = method === 'GET' ? key : `${method}:${key}`
-    const resolve =
-      mockResolvers[callKey] ?? (method === 'GET' ? undefined : matchMockResolver(mockResolvers, callKey, params))
-    if (!resolve) throw new Error(`[api] 未注册的端点: ${callKey}`)
-    await new Promise((r) => setTimeout(r, MOCK_LATENCY_MS))
-    try {
-      // 深拷贝隔离 mock 模块单例,防止消费方原地修改污染后续请求
-      return JSON.parse(JSON.stringify(resolve(params, opts.body))) as T
-    } catch (e) {
-      // 会话失效与真轨同一拦截路径(error-codes §4):清会话+跳 /login;
-      // auth/* 键豁免——守卫以 profile 20001 判未登录,拦截会致 /login?redirect= 套娃
-      const code = (e as { code?: unknown }).code
-      if ((code === 20001 || code === 20002 || code === 20003) && !key.startsWith('auth/')) {
-        unauthorizedHandler?.()
-        location.assign(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)
-      }
-      throw e
-    }
-  }
 
   const qs = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {

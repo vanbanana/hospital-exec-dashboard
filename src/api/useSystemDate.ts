@@ -2,8 +2,9 @@
 import { ref } from 'vue'
 import { currentProfile } from './session'
 
-// 演示基准日兜底(api-contract §14.1 注1 BASE_DATE);profile 到位即覆盖
-const systemDate = ref('2026-10-28')
+// 唯一事实源 = profile.system_date(后端时钟推出);profile 未到位前为空串——
+// 不预填演示日期:空数据期页头显示"数据截至 ",好过闪现一个不存在的基准日
+const systemDate = ref('')
 let booted = false
 
 /** 9 视图页头 + 其他消费位共享同一 Promise;经 currentProfile 会话缓存,不与 Header/守卫重复拉取 */
@@ -15,7 +16,7 @@ export function useSystemDate() {
         systemDate.value = p.system_date
       })
       .catch(() => {
-        /* chrome 级装饰位:失败保持基准日兜底,不进反馈矩阵 */
+        /* chrome 级装饰位:失败保持空串(守卫已把未登录者挡在 /login),不进反馈矩阵 */
       })
   }
   return systemDate

@@ -1,6 +1,6 @@
 # XX市人民医院 · 院长查询与决策支持系统（EDSS）
 
-**双形态院长决策系统**：`/workbench` 浅色工作台（主，日常管理用）+ `/screen` 深色演示大屏（展示用）。无真实医院环境，**双轨数据供给**：默认契约 mock；`VITE_USE_MOCK=0` 时经 vite proxy 接 Go 真后端（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）。`docs/api-contract.md` 为数据契约，换数据源契约与页面不动。
+**双形态院长决策系统**：`/workbench` 浅色工作台（主，日常管理用）+ `/screen` 深色演示大屏（展示用）。无真实医院环境，数据由种子库+仿真时钟供给：**前端单轨经 vite proxy/nginx 打 Go 真后端**（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3），无 mock 层、无假数据兜底。`docs/api-contract.md` 为数据契约，换数据源契约与页面不动。
 
 ## 快速开始
 

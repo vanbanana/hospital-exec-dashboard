@@ -1,7 +1,7 @@
 # 总体架构设计 — 院长查询与决策支持系统（EDSS）
 
-> 版本：v2.1（后端落地翻页——双轨数据供给；v2.0 = 双形态改版基线，替代 v1.1 大屏单一形态基线）
-> **核心约束：本项目无真实医院环境，全部数据为模拟口径（契约 mock 或种子库）。`api-contract.md` 是数据契约——前端只依赖契约形状，不区分数据来自 mock 还是真实后端。**
+> 版本：v2.2（前端假数据清零——真后端单轨；v2.1 = 后端落地双轨期；v2.0 = 双形态改版基线，替代 v1.1 大屏单一形态基线）
+> **核心约束：本项目无真实医院环境，全部业务数据为模拟口径（种子库 + 仿真时钟）。`api-contract.md` 是数据契约——前端单轨打真后端，无任何假数据兜底（`src/mock/` 已摘除）。**
 
 ---
 
@@ -14,7 +14,7 @@
 | **工作台** | `/workbench/*`（主，`/` 重定向至此） | 浅色医疗专业 Web 管理台：筛选、对比、明细、督办、报表 | 院长/处长/科主任日常办公，近距离高密度 |
 | **大屏** | `/screen`（已建成，e6aeb52） | 深色科技风演示屏：3D 院区、告警跑马灯、宏观 KPI；视觉基准 `archive/smart-hospital-cockpit/` | 运营中心/会议室/演示，远距离低交互 |
 
-两形态**同一工程、同一数据契约、同一 mock/api 层**，仅表现层不同。顶栏预留模式切换入口。
+两形态**同一工程、同一数据契约、同一 api 层**，仅表现层不同。顶栏预留模式切换入口。
 
 ## 1. 技术栈裁剪决策（对照实际 package.json）
 
@@ -40,9 +40,8 @@
   ├─ /workbench        工作台：WorkbenchLayout(侧栏+头部) + 12 个 view
   └─ /screen           大屏：ScreenLayout + ScreenView + Scr* 组件族（已建成；视觉基准 archive/smart-hospital-cockpit）
 
-数据供给（双轨，client.ts 内 VITE_USE_MOCK 切换）：
-  视图组件 ── src/api/*(端点函数) ── client.ts ──┬─ 默认：src/mock/*(注册表,契约形状)
-                                                └─ VITE_USE_MOCK=0：vite proxy /api→:8080
+数据供给（单轨——`src/mock/` 已摘除，无假数据兜底）：
+  视图组件 ── src/api/*(端点函数) ── client.ts ── vite proxy /api→:8080（生产 nginx 同路径反代）
                                                     Go 后端 /api/v1/<key> → PG hospital_edss
 ```
 
@@ -70,7 +69,7 @@ compose 编排 `db → backend（edss-migrate 迁移+种子 → edss）→ web`�
 | 期 | 内容 | 状态 |
 | :- | :--- | :--- |
 | P0 | 工作台 12 页 v0 参考实现（agy 复刻+审查产出）+ 设计体系（`--wb-*` token + Wb 原语） | ✅ 已落地 |
-| P0.5 | **前端规范化重写**：按 frontend-architecture v2.0 整改 v0 代码；抽 `src/mock/` 集中 mock（字段对齐契约） | ✅ 已落地 |
+| P0.5 | **前端规范化重写**：按 frontend-architecture v2.0 整改 v0 代码；数据曾集中 `src/mock/`（已于本轮摘除，切真后端单轨） | ✅ 已落地 |
 | P0.6 | **规范验收与令牌统一**：设计令牌（tokens.css）+ 文档先行机制 + /screen 按 cockpit 基准重建 | ✅ 已落地（e6aeb52） |
 | P1 | store 层落地（组件→store→api）；督办/预警写操作闭环 | ◐ 组件直连 api 过渡态；写闭环已随 P3-EW 落地 |
 | P2 | 最小后端跑通契约端点；督办/预警写操作闭环 | ✅ 已完成（读侧 21 端点 + 写侧 8 端点真 SQL） |
@@ -85,8 +84,8 @@ compose 编排 `db → backend（edss-migrate 迁移+种子 → edss）→ web`�
 
 ## 6. 部署
 
-- 当前：`npm run dev`（:5173）本地开发预览；真链路 `VITE_USE_MOCK=0`（需 `backend/` Go 服务 :8080 + PG hospital_edss，见 `backend/README.md`）
-- 演示：`npm run build` + 静态托管即可（mock 轨纯前端无依赖）
+- 当前：`npm run dev`（:5173）本地开发预览（需 `backend/` Go 服务 :8080 + PG hospital_edss，见 `backend/README.md`）；无 mock 轨，前端独立启动将全错误态
+- 演示：`deploy/` docker-compose 三件套（web nginx 反代 /api→backend）；纯静态托管无数据可出
 - 后端生产部署（已落地）：`deploy/` 三件套 docker-compose（db+backend+web，无 redis），跑法见 `backend/README.md`
 
 **端口归一（P3 登记）**：
@@ -95,7 +94,7 @@ dev 形态（本机）：
 
 | 端口 | 用途 | 必开 | 备注 |
 | :--- | :--- | :--- | :--- |
-| 5173 | vite dev 唯一 canonical（mock 与真链路同端口） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
+| 5173 | vite dev 唯一 canonical（proxy /api→:8080） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
 | 8080 | Go API | 真链路时 | `PORT` env |
 | 5432 | 本地 PG | 真链路时 | brew postgresql@15/16 |
 | — | vite proxy `/api`→`localhost:8080` | — | target 硬编码于 `vite.config.ts` |

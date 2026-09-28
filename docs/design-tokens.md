@@ -246,7 +246,7 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
 - `1px` 细线、`100%`/`50%` 比例、`0`/`auto`/`inherit`、CSS 动画关键帧内 opacity 0↔1
 - `z-index`/`opacity`/`font-weight`/`line-height`/`letter-spacing`/`transition` 仅允许取 token（覆盖维，档已收编于各域 token 块）
 - `font-family` 直用 `--p-font-base`/`--p-font-number`（字体族原色即语义，无 L1 别名）
-- mock 数据文件中的数值（非样式）；图表 JS `fontSize` 仅允许取各域出口常量（wb:`chartPresets.wbChartFs`，scr:`scrTokens` fs 槽）
+- 数据层文件中的业务数值（非样式）；图表 JS `fontSize` 仅允许取各域出口常量（wb:`chartPresets.wbChartFs`，scr:`scrTokens` fs 槽）
 - ECharts option 内的数据可视参数（`margin`/`grid` 内边距、`borderWidth`、`symbolSize`、悬停/极值 `opacity`）属图表出口实现细节，不归覆盖维——含在 `chartPresets`/`scrTokens` 出口或视图 option 内均可
 
 ## 8. 验收门禁

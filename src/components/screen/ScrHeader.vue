@@ -51,9 +51,7 @@ import { Maximize } from 'lucide-vue-next'
 import type { ScreenStatus } from '../../api/types'
 import { getHospitalProfile } from '../../api/auth'
 
-/* frontend-api §15：server_time 缺失时屏显时钟回退演示基准日 */
-const BASE_FALLBACK = '2026-10-28T08:30:00+08:00'
-
+/* server_time 缺失时屏显时钟保持 --:--:-- 占位（无假时刻兜底） */
 const props = defineProps<{
   status?: ScreenStatus
   serverTime?: string
@@ -88,10 +86,10 @@ const adaptTitle = computed(() =>
   adapt?.adaptMode.value === 'fill' ? '全屏智能铺满（无黑边），点击切换' : '等比居中（16:9 标准），点击切换'
 )
 
-/* 院名/英文副标走 hospital/profile（契约 §2.2），失败回退兜底文案——大屏不阻断；
-   兜底值属品牌文案（frontend-api §15 豁免登记 C20），非契约字段 */
+/* 院名/英文副标走 hospital/profile（契约 §2.2）；院名兜底=部署品牌常量(与种子一致)，
+   英文副标不兜底编造值——未到位置空，大屏不阻断 */
 const hospitalName = ref('XX市人民医院')
-const englishName = ref('HOSPITAL EXECUTIVE COMMAND CENTER')
+const englishName = ref('')
 onMounted(() => {
   getHospitalProfile()
     .then((d) => {
@@ -116,6 +114,11 @@ const parseWallClock = (s: string): number | null => {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const tick = () => {
+  // server_time 未到位(baseMs=0)时保持占位——不落任何编造时刻
+  if (!baseMs) {
+    clock.value = { time: '--:--:--', date: '', weekday: '' }
+    return
+  }
   const now = new Date(baseMs + Date.now() - mountMs)
   clock.value = {
     time: `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`,
@@ -127,7 +130,7 @@ const tick = () => {
 watch(
   () => props.serverTime,
   (v) => {
-    baseMs = parseWallClock(v || BASE_FALLBACK) ?? Date.UTC(2026, 9, 28, 0, 30, 0)
+    baseMs = (v ? parseWallClock(v) : null) ?? 0
     mountMs = Date.now()
     tick()
   },

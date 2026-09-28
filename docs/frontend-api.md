@@ -18,7 +18,7 @@
 | :--- | :--- |
 | `docs/api-contract.md` | **定字段**——端点、字段名、枚举、单位、示例负载、契约演进。全系统冻结契约（权威） |
 | `docs/error-codes.md` | **定包络**——响应包络、错误码注册表、HTTP 映射、前端统一处理矩阵 |
-| **本文档** | **定用法**——每个端点前端怎么调、参数怎么传、响应字段怎么用、空态/错误态怎么渲染、mock key 与消费位置 |
+| **本文档** | **定用法**——每个端点前端怎么调、参数怎么传、响应字段怎么用、空态/错误态怎么渲染、端点 key 与消费位置 |
 
 **字段级冲突裁决**：本文字段表与契约示例不一致时，**一律以契约为准**，并立即停下回报（同 AGENTS.md §0：文档矛盾不自行裁决）。
 
@@ -26,16 +26,16 @@
 
 1. **改接口 = 先改本文档**：任何前端代码的取数改动（换端点、换字段、换空态行为）之前，必须先改本文档对应节；契约层新增端点/字段走契约演进流程（先改 `api-contract.md`）。
 2. 字段名一律 **snake_case**，逐字符照抄契约，不得自创别名；发现契约字段与本文冲突 → 回报，不改名。
-3. 每个端点一节，固定栏目顺序：**端点+方法 → 请求参数表 → 响应字段表 → 前端消费位置 → 空态与错误态 → mock key**。新增端点按同模板补节。
+3. 每个端点一节，固定栏目顺序：**端点+方法 → 请求参数表 → 响应字段表 → 前端消费位置 → 空态与错误态 → 端点 key**。新增端点按同模板补节。
 4. 状态变化（如未接入端点完成接入、预留端点启用）须同步更新 §16 覆盖总表。
 
-### 0.3 当前接入形态（mock / 真后端双轨）
+### 0.3 当前接入形态（真后端单轨）
 
 - 统一取数入口：`api<T>(key, params)`（`src/api/client.ts`），`key` = 契约端点路径去掉前导 `/`（如 `'workbench/overview'`）。
 - 工作台端点均有薄封装函数（`src/api/workbench.ts`），视图**不直接调 `api()`**，经封装函数取数。
-- **双轨切换**：`VITE_USE_MOCK`(默认 `1`) 走 `src/mock/` 注册表（120 ms 延迟 + 深拷贝）；`=0` 时 `api()` 经 vite proxy(`/api` → `localhost:8080`)打 **Go 后端** `/api/v1/<key>`，拆 `ApiEnvelope` 包络——`code!==0` 抛带数值 `code`/`fields`/`trace_id` 的 Error，`useAsyncData.toApiError` 透传到五态；HTTP 层失败（无包络）抛 `[api] http N`。视图层对来源无感。
-- **Mock 参数校验**（仅 mock 轨）：带参 resolver 对枚举外取值抛 `Error{ code: 10001 }`（`src/mock/index.ts` 内 `ENUM_DOMAIN`/`assertParams`）；必填缺席与空串同样抛 10001——真后端轨下同一语义由 Gin handler 下发（HTTP400 + `data.fields`）。
-- **Go 后端运行**（详见 `backend/README.md`）：`brew services start postgresql@15` → `cd backend && go run ./cmd/server`（默认 DSN `postgres://localhost/hospital_edss?sslmode=disable`，端口 `PORT`）；前端 `VITE_USE_MOCK=0 npm run dev`。
+- **唯一数据轨**：`api()` 经 vite proxy（`/api` → `localhost:8080`；生产由 nginx 同路径反代）打 **Go 后端** `/api/v1/<key>`，拆 `ApiEnvelope` 包络——`code!==0` 抛带数值 `code`/`fields`/`trace_id` 的 Error，`useAsyncData.toApiError` 透传到五态；HTTP 层失败（无包络）抛 `[api] http N`。**无 mock 轨**：任何端点失败/缺席一律走错误态或空态，不回落假数据。
+- **参数校验**：枚举外取值/必填缺席/空串由 Gin handler 下发 `10001`（HTTP400 + `data.fields`），前端透传五态。
+- **Go 后端运行**（详见 `backend/README.md`）：`brew services start postgresql@15` → `cd backend && go run ./cmd/server`（默认 DSN `postgres://localhost/hospital_edss?sslmode=disable`，端口 `PORT`）；前端 `npm run dev`。
 
 ---
 
@@ -92,7 +92,7 @@
 
 ### 1.5 演示基准日
 
-`BASE_DATE = 2026-10-28`（周三工作日）。所有 mock 数据锚定该日：KPI/月累计锚定 10 月，`occurred_at`/`sync`/`login` 等时间字段均不晚于基准日，`server_time = 2026-10-28T08:30:00+08:00`。前端文案涉及"今日/本月"一律按基准日解释。
+`BASE_DATE = 2026-10-28`（周三工作日）。**种子库数据**锚定该日（`sim.clock.virtual_now` 初值）：KPI/月累计锚定 10 月，`occurred_at`/`sync`/`login` 等时间字段均不晚于虚拟时钟，`server_time` 由后端时钟下发。前端文案涉及"今日/本月"一律按后端 `system_date` 解释。
 
 ### 1.6 空态/错误态总纲（各节只写端点差异）
 
@@ -113,7 +113,7 @@
 
 ### 1.7 写路径与会话约定（P3 契约演进，已随 auth/write epic 落码）
 
-**写端点调用形**：`api()` 扩展签名 `api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body?: unknown })`——GET 调用签名不变；写调用 `body` 经 `JSON.stringify` + `Content-Type: application/json` 上送，响应走同一包络拆解。mock 轨以 `method:key` 复合键注册写端点 resolver（路径参数 `{id}`/`{code}` 回填 `params`）。
+**写端点调用形**：`api()` 扩展签名 `api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body?: unknown })`——GET 调用签名不变；写调用 `body` 经 `JSON.stringify` + `Content-Type: application/json` 上送，响应走同一包络拆解。路径参数（`{id}`/`{code}`）直接拼进 `key` 字面量。
 
 **会话携带**：契约 §2.3 会话凭证为 HttpOnly Cookie `edss_sid`——`fetch` 显式 `credentials:'same-origin'`；登录成功响应即带全量上下文（同 §2.1 `data`），免二次拉取 `auth/profile`。
 
@@ -130,7 +130,7 @@
 ## 2. 认证与上下文域 `/auth` & `/hospital`
 
 > 契约 §2。演示级认证：`?role=` 直接切上下文；P3 契约增补会话登录（§2.3–2.4，Cookie `edss_sid`），已落码——`?role=` 保留为演示切换参数（契约 §2.1 演进注）。
-> **当前状态：§2.1–§2.4 四端点均已注册 mock 并接入视图**（§2.3/§2.4 随 P3 auth epic 落码）。接入顺序：先注册 mock key 再改视图。
+> **当前状态：§2.1–§2.4 四端点真后端已落地并接入视图**（§2.3/§2.4 随 P3 auth epic 落码）。
 
 ### 2.1 `GET /auth/profile`
 
@@ -172,10 +172,10 @@
 **空态与错误态**
 
 - `data=null` / `code=20001`：真链路在 `/login` 启用后按 §1.7 跳登录页；启用前维持头部降级为只读默认身份展示。
-- `role` 非法 → `code=10001`：resolver 抛错走五态错误路径（演示期可演练非法参数分支）。
+- `role` 非法 → `code=10001`：后端下发业务码，走五态错误路径。
 - 可返回错误码：`10001`、`20001`。
 
-**mock key**：`auth/profile`（resolver 按 `role` 返回对应角色档案）
+**端点 key**：`auth/profile`（真后端 `/api/v1/auth/profile`）
 
 ### 2.2 `GET /hospital/profile`
 
@@ -204,7 +204,7 @@
 - 字段缺失/`data=null`：品牌区回退现有硬编码文案，不留白。
 - 可返回错误码：`10001`。
 
-**mock key**：`hospital/profile`
+**端点 key**：`hospital/profile`（真后端 `/api/v1/hospital/profile`）
 
 ### 2.3 `POST /auth/login`（已随 P3 auth epic 落码）
 
@@ -232,7 +232,7 @@
 - `code=20104` → 锁定提示 + 15min 倒计时展示。
 - 可返回错误码：`10001`、`10006`、`20101`、`20102`、`20104`。
 
-**mock key**：`auth/login`（`POST:` 复合键；resolver 校验演示账号口令 → 置会话旗标；无旗标时 `auth/profile` resolver 抛 `code=20001` 演练未登录态）
+**端点 key**：`auth/login`（真后端 `/api/v1/auth/login`）（POST；真后端校验口令、置 `edss_sid` Cookie；无会话 `auth/profile` 返 `20001`）
 
 ### 2.4 `POST /auth/logout`（已随 P3 auth epic 落码）
 
@@ -250,7 +250,7 @@
 
 - 幂等成功，无业务码；`10000` 走统一错误提示。
 
-**mock key**：`auth/logout`（`POST:` 复合键；清会话旗标）
+**端点 key**：`auth/logout`（真后端 `/api/v1/auth/logout`）（POST；真后端吊销会话、清 Cookie）
 
 ---
 
@@ -289,7 +289,7 @@
 - `icon`/`tone` 缺省：按 `key` 兜底映射。
 - 可返回错误码：`10001` → 卡片区错误态 + 重试。
 
-**mock key**：`workbench/home/kpis`
+**端点 key**：`workbench/home/kpis`（真后端 `/api/v1/workbench/home/kpis`）
 
 ### 3.2 `GET /workbench/home/trends`
 
@@ -314,7 +314,7 @@
 - `series` 缺某指标键或数组为空：该 Tab 画空坐标轴，其余 Tab 正常。
 - 可返回错误码：`10001` → 图位错误态 + 重试。
 
-**mock key**：`workbench/home/trends`
+**端点 key**：`workbench/home/trends`（真后端 `/api/v1/workbench/home/trends`）
 
 ### 3.3 `GET /workbench/home/top10`
 
@@ -340,7 +340,7 @@
 - `list=[]`：排行区空态。
 - 可返回错误码：`10001` → 卡片区错误态 + 重试。
 
-**mock key**：`workbench/home/top10`
+**端点 key**：`workbench/home/top10`（真后端 `/api/v1/workbench/home/top10`）
 
 ### 3.4 `GET /workbench/home/indicators`
 
@@ -369,7 +369,7 @@
 - `list=[]`：指标卡空态。
 - 可返回错误码：`10001` → 卡片区错误态 + 重试。
 
-**mock key**：`workbench/home/indicators`
+**端点 key**：`workbench/home/indicators`（真后端 `/api/v1/workbench/home/indicators`）
 
 ### 3.5 `GET /workbench/home/progress`
 
@@ -394,7 +394,7 @@
 - `list=[]`：进度卡空态。
 - 可返回错误码：`10001` → 卡片区错误态 + 重试。
 
-**mock key**：`workbench/home/progress`
+**端点 key**：`workbench/home/progress`（真后端 `/api/v1/workbench/home/progress`）
 
 ### 3.6 `GET /workbench/home/alerts`
 
@@ -420,7 +420,7 @@
 - `list=[]`：预警卡渲"暂无预警"空态。
 - 可返回错误码：`10001` → 卡片区错误态 + 重试。
 
-**mock key**：`workbench/home/alerts`
+**端点 key**：`workbench/home/alerts`（真后端 `/api/v1/workbench/home/alerts`）
 
 ### 3.7 `GET /workbench/home/notices`
 
@@ -445,7 +445,7 @@
 - `list=[]`：通知卡空态。
 - 可返回错误码：`10001` → 卡片区错误态 + 重试。
 
-**mock key**：`workbench/home/notices`
+**端点 key**：`workbench/home/notices`（真后端 `/api/v1/workbench/home/notices`）
 
 ---
 
@@ -493,7 +493,7 @@
 - `stats=[]`：指标条空态；`scale_revenue_trend`/子结构为 null：对应图画空坐标；`dept_share_top8.list=[]`/`live_inpatient=[]`：区块空态。
 - `range` 非法 → `10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/overview`
+**端点 key**：`workbench/overview`（真后端 `/api/v1/workbench/overview`）
 
 ---
 
@@ -549,7 +549,7 @@
 - `stats=[]`/`table.rows=[]`/`distribution.values=[]`：对应区块空态（表格空表、分布图空坐标）。
 - `tab`/`range` 非法 → `10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/medical`
+**端点 key**：`workbench/medical`（真后端 `/api/v1/workbench/medical`）
 
 ---
 
@@ -593,7 +593,7 @@
 - `cost_controls=[]`：控费进度条区空态；`dept_table.rows=[]`：空表。
 - `range` 非法 → `10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/operations`
+**端点 key**：`workbench/operations`（真后端 `/api/v1/workbench/operations`）
 
 ---
 
@@ -632,7 +632,7 @@
 - `structure.list=[]`：环图空态；`titles.series=[]`：矩阵图空坐标；`dept_staffing.rows=[]`：空表。
 - `range` 非法 → `10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/hr`
+**端点 key**：`workbench/hr`（真后端 `/api/v1/workbench/hr`）
 
 ---
 
@@ -670,7 +670,7 @@
 - 各图序列为空：空坐标；`disciplines.rows=[]`：空表。
 - 可返回错误码：`10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/research`
+**端点 key**：`workbench/research`（真后端 `/api/v1/workbench/research`）
 
 ---
 
@@ -707,7 +707,7 @@
 - 图序列为空：空坐标。
 - 可返回错误码：`10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/patient`
+**端点 key**：`workbench/patient`（真后端 `/api/v1/workbench/patient`）
 
 ---
 
@@ -744,7 +744,7 @@
 - `infection_trend.rates=[]`：趋势空坐标（target 线仍可画）；`rules_compliance.rows=[]`：空表。
 - 可返回错误码：`10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/quality`
+**端点 key**：`workbench/quality`（真后端 `/api/v1/workbench/quality`）
 
 ---
 
@@ -783,7 +783,7 @@
 - `stock_alerts=[]`：库存预警区渲"无预警"空态；`large_equipments.rows=[]`：空表。
 - 可返回错误码：`10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/assets`
+**端点 key**：`workbench/assets`（真后端 `/api/v1/workbench/assets`）
 
 ---
 
@@ -835,7 +835,7 @@
 - `radar.series=[]`/`table.rows=[]`：雷达空坐标/空表；`benchmarks=[]`：对标区空态。
 - `dim`/`range` 非法 → `10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/compare`
+**端点 key**：`workbench/compare`（真后端 `/api/v1/workbench/compare`）
 
 ---
 
@@ -889,7 +889,7 @@
 - `chart.values=[]`：主图空坐标；`table.rows=[]`：空表。
 - `topic`/`range` 非法 → `10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/topics`
+**端点 key**：`workbench/topics`（真后端 `/api/v1/workbench/topics`）
 
 ---
 
@@ -930,10 +930,10 @@
 
 **空态与错误态**
 
-- 任一列表为空：对应区块空态；`preferences` 缺失：偏好开关区按本地默认值渲染（本地默认与 mock 一致：`alert_sound`/`unit_abbreviation`/`privacy_mask`=true，`default_range`=`本月`）。偏好/阈值开关均可本地翻转，无写接口不落库。
+- 任一列表为空：对应区块空态；`preferences` 缺失：偏好开关区按本地默认值渲染（`alert_sound`/`unit_abbreviation`/`privacy_mask`=true，`default_range`=`本月`）。
 - 可返回错误码：`10001` → 页级错误态 + 重试。
 
-**mock key**：`workbench/settings/config`
+**端点 key**：`workbench/settings/config`（真后端 `/api/v1/workbench/settings/config`）
 
 ---
 
@@ -1018,17 +1018,17 @@
 **空态与错误态**
 
 - 子块缺失（如 `buildings=[]`）：对应屏区空态，不阻断整屏。
-- `server_time` 缺失：屏显时钟回退 BASE_DATE 本地格式化。
+- `server_time` 缺失：屏显时钟保持 `--:--:--` 占位，不落编造时刻。
 - HTTP 5xx/断网：大屏进"断线重试"态——顶部红条 + 手动「重新连接」按钮（当前实现；`error-codes §4` 的自动重连倒计时为远期规格）。
 - 可返回错误码：`10001`。
 
-**mock key**：`screen/snapshot`（已注册，`mock/index.ts`）
+**端点 key**：`screen/snapshot`（真后端 `/api/v1/screen/snapshot`）
 
 ---
 
 ## 16. 端点覆盖总表
 
-| 端点 | mock key | 消费视图/组件 | 状态 |
+| 端点 | key | 消费视图/组件 | 状态 |
 | :--- | :--- | :--- | :--- |
 | `GET /auth/profile` | `auth/profile` | `WorkbenchHeader.vue`（含角色切换下拉）+ 各业务页页头 `useSystemDate` | ✅ 已接入 |
 | `GET /hospital/profile` | `hospital/profile` | `WorkbenchSidebar.vue` · `WorkbenchHero.vue` | ✅ 已接入 |

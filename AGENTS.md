@@ -9,7 +9,7 @@
 - **工作台 `/workbench`（主形态）**：浅色医疗专业风格的 Web 管理台，侧栏 11 个业务页 + 首页。院长/主任日常用，重"管"——筛选、下钻、督办、报表。
 - **大屏 `/screen`（展示形态）**：深色科技风演示大屏，已按 `archive/smart-hospital-cockpit/` 视觉基准 + 契约 §14 建成（`ScreenLayout` + `ScreenView` + `Scr*` 组件族）。重"看"——宏观态势、告警跑马灯。
 
-**双轨数据供给：默认契约 mock + `VITE_USE_MOCK=0` 经 vite proxy 接 Go 真后端（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，换数据源契约与页面不动。
+**数据供给单轨：前端经 `client.ts` → vite proxy/nginx 打 Go 真后端 `/api/v1/<key>`（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）——`src/mock/` 已整层摘除，禁止任何假数据兜底；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，换数据源契约与页面不动。
 
 ### 0.1 设计资产定位（重要，别搞反）
 
@@ -27,9 +27,9 @@
 | :--- | :--- | :--- |
 | 1 | `docs/api-contract.md` | 端点、字段名、枚举、单位、null、权限——代码里只出现契约内的端点与字段 |
 | 2 | `docs/error-codes.md` | 响应包络、错误码、HTTP 映射 |
-| 3 | `docs/frontend-architecture.md` | 路由、布局、设计系统（token/原语）、设计红线、mock 数据纪律 |
+| 3 | `docs/frontend-architecture.md` | 路由、布局、设计系统（token/原语）、设计红线、数据纪律 |
 | 4 | `docs/architecture.md` | 技术栈白名单、系统拓扑、分期路线 |
-| 5 | `docs/simulation-plan.md` | 数据供给分层（mock→契约层→仿真）、演示 runbook |
+| 5 | `docs/simulation-plan.md` | 数据供给分层（组件内→契约层→仿真）、演示 runbook |
 | 6 | `docs/acceptance.md` | 验收门禁 |
 | 7 | `docs/database-schema.md` | 库表设计（**已实施**：58 表 hospital_edss；演进按"只加列/表/索引"纪律） |
 | 8 | `docs/frontend-api.md` | 前端接口使用文档：每端点怎么调、字段怎么用、空错态怎么渲染 |
@@ -44,7 +44,7 @@
 3. **技术栈白名单制**：只用 `architecture.md §1` 打勾的栈；白名单外的库引入前先问用户。当前已装：`vue3 + ts + vite + vue-router@4 + echarts + lucide-vue-next`；**未装** pinia/element-plus——需要时先确认再装；axios 已定不引入（api 层用原生 fetch）。
 4. **文件边界**：`archive/`（全部历史设计参考资产）只读；大屏唯一视觉基准为 `archive/smart-hospital-cockpit/`（旧 `src/components/` 大屏过渡稿已删除，勿再以任何历史稿为基准）。/screen 已建成，迭代按 `frontend-architecture.md` §12 与契约演进流程进行。
 5. **密钥只写进 `.env`**（已在 `.gitignore`）。
-6. **数据纪律**：视图数据一律经 `src/api/` 端点函数 → `client.ts`（双轨：默认 `src/mock/` 注册表；`VITE_USE_MOCK=0` 走真后端 `/api/v1/<key>`）；字段名对齐契约 snake_case，禁止视图内散落不可对回契约的字段。目标形态 组件→store→api（Pinia），当前组件直连 api 为过渡态。
+6. **数据纪律**：视图数据一律经 `src/api/` 端点函数 → `client.ts` → 真后端 `/api/v1/<key>`（**单轨，无 mock**）；字段名对齐契约 snake_case，禁止视图内散落不可对回契约的字段、禁止任何假数据兜底（缺数据走五态空/错态）。目标形态 组件→store→api（Pinia），当前组件直连 api 为过渡态。
 7. **commit**：每条信息说明"为什么"；`git status` 里每个文件都能对回用户指令。
 8. **agy 产物原则**：AI 复刻 agent（agy/pixel 类）的产出是参考素材，代码工程性不保证——合并前按本文件标准审查，能用的用，不达标的重写。
 
@@ -55,14 +55,14 @@
 注释写**不读代码就想不到的"为什么"**：业务规则出处、契约节号、非显然取舍。
 
 - 正确示例：`// 院级汇总用 dept_id=0 哨兵键，见 database-schema §dws`
-- 函数名已表达的内容不写注释；`TODO` 带责任人和依据：`// TODO(devin): 接 api 层后替换 mock，见 api-contract §3`
+- 函数名已表达的内容不写注释；`TODO` 带责任人和依据：`// TODO(devin): P2 接 SSE，见 simulation-plan §7`
 - 判断标准：注释全删后代码依然自解释 = 命名合格
 
 ### 3.2 完成定义（汇报照此格式）
 
 "做完" = 五项全过：
 
-1. 功能返回契约形状的**真实/契约化数据**（mock 期 = 契约形状的 mock）
+1. 功能返回契约形状的**真实数据**（真后端响应；禁假数据兜底）
 2. 实际验证过渲染/响应（截图 / curl / 测试）
 3. 空数据、null 字段、分页末页、非法参数——各试过一次（有权限体系后加无权限角色）
 4. 重跑了相关既有检查
@@ -78,7 +78,7 @@
 | 字段缺失/类型不符 | 修类型定义或数据源，两侧对齐契约 |
 | env/配置缺失 | 启动 fail-fast，打印缺失项名 |
 | 未知错误码 | 兜底错误提示 + trace_id |
-| 接口未实现 | mock 数据标记来源；接真接口时删除到 grep 不到 |
+| 接口未实现 | 路由/区块不可达或显式"未接入"态；不造假数据 |
 | 图表数据为空 | 画空坐标或空态组件，不报错不白屏 |
 
 ### 3.4 改前端（工作台）
@@ -119,7 +119,7 @@
 ### 前端（Vue3 + TS + Vite + VueRouter + ECharts + lucide）
 
 - `src/api/types.ts` 照抄契约 snake_case 字段名
-- 数据流单向：组件 → store → api 模块 → http（**当前为 mock 直读，见 §2.6**）
+- 数据流单向：组件 → store → api 模块 → http（当前组件直连 api 封装函数）
 - 轮询/定时器：`onUnmounted` 里清理；ECharts 卸载时 `dispose()`（`WbChart` 已封装，优先复用）
 - 金额/比率渲染先读单位声明
 - count-up 等动效只在值真实变化时触发
