@@ -1405,7 +1405,7 @@
   ```json
   { "id": 7, "todo_status": "done", "alert_id": 12, "alert_status": "done" }
   ```
-- **可返回错误码**：`10001`、`10002`（action 非法/`result_note` 缺）、`20005`（`dept_leader` 仅可办本科室工单——以 `sys.user.dept_id` 比对承办人 `dim.staff.dept_id`）、`33101`（工单不存在）、`33104`（`done`/`expired` 禁变更，`data.current_status` 回传）
+- **可返回错误码**：`10001`、`10002`（action 非法/`result_note` 缺）、`20005`（`dept_leader` 仅可办本科室工单——以 `sys.user.dept_id` 比对承办人 `dim.staff.dept_id`）、`33101`（工单不存在）、`33104`（`done`/`expired` 禁变更，`data.current_status` 回传；逾期判定按 `deadline < virtual_now` 语义——stored `open|doing` 但已过期的单，绕过 R07 列表清扫的直写同样按 `expired` 拒）
 - **语义注**：`report` 为双表单事务——工单 `done`（`result_note` 必填落库）+ 源告警 `alert_status='done'`（`done_at` 回填）；审计 `todo_status`（`detail` 记 from→to）。
 - **写后读一致性**：`home/alerts` 计数、`screen` 告警块实时派生 `alert_status IN ('pending','processing')`——ack/dispatch 不政变开数（仍在打开集），close/todo done 后自动减一；工单读面即本端点，**不回流** `home/progress`（`ads.work_item` 为行政重点工作域，不同物）。
 
