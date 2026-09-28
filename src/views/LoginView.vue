@@ -111,7 +111,7 @@ const onSubmit = async () => {
 </script>
 
 <style scoped>
-/* .auth-layout：design-tokens §6 R8 登录页 L1 作用域，直接消费 --wb-*（tokens.css 已登记） */
+/* .auth-layout：登录页布局类，直接消费 :root 上的 --wb-*（design-tokens R8：L1 一律挂 :root） */
 .auth-layout {
   min-height: 100vh;
   display: flex;

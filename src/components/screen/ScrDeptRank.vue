@@ -82,6 +82,12 @@ defineProps<{ list?: DeptRankItem[] }>()
   text-align: right;
 }
 
+/* 末列"效能分"曾被容器右缘裁 ~18px：收窄单元格内边距(space-5→4),表格内宽回落到容器内 */
+.rank-table th,
+.rank-table td {
+  padding-inline: var(--scr-space-4);
+}
+
 .dept-name {
   color: var(--scr-text-1);
   font-weight: var(--scr-fw-medium);

@@ -1,8 +1,8 @@
 /* ========================================================================
    Workbench（浅色工作台）共享基元
    作用域限定在 .workbench-layout 内，不影响 /screen 深色大屏
-   令牌全部经 tokens.css 消费（--wb-* 定义于 .workbench-layout，
-   --p-* 定义于 :root）；基元内不出现字面设计值
+   令牌全部经 tokens.css 消费（--wb-* 挂 :root——Teleport 元素逃出布局作用域
+   会丢 var() 值，见 design-tokens R8；--p-* 同为 :root）；基元内不出现字面设计值
    ======================================================================== */
 
 .workbench-layout {
@@ -42,6 +42,8 @@
   display: flex;
   align-items: baseline;
   gap: var(--wb-space-1);
+  flex-shrink: 0;
+  white-space: nowrap; /* 短标题不被右侧副标挤折(科研页实测) */
 }
 
 .wb-panel-title::before {
@@ -58,6 +60,8 @@
   font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   font-weight: var(--wb-fw-normal);
+  min-width: 0; /* flex 下可缩:长副标自身折行,不挤压 nowrap 标题 */
+  text-align: right;
 }
 
 .wb-panel-body {
@@ -113,6 +117,9 @@
 .wb-stat-label {
   font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
+  white-space: nowrap; /* 窄视口(≈1105px)下中文标签折断难读;溢出由 .wb-stat 截断兜底 */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wb-stat-value {
@@ -122,6 +129,7 @@
   font-family: var(--p-font-number);
   font-variant-numeric: tabular-nums;
   line-height: var(--wb-lh-compact);
+  white-space: nowrap; /* 数值与单位同行,单位不落行 */
 }
 .wb-stat-value .wb-stat-unit {
   font-size: var(--wb-fs-sm);
@@ -136,6 +144,8 @@
   display: flex;
   align-items: center;
   gap: var(--wb-space-1);
+  white-space: nowrap; /* "较上月 +x%" 一行说清,窄视口不折 */
+  overflow: hidden;
 }
 .wb-stat-delta .lbl {
   color: var(--wb-text-3);

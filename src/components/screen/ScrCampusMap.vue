@@ -9,7 +9,7 @@
         v-for="b in buildings ?? []"
         :key="b.code"
         class="campus-pin"
-        :class="{ 'pop-below': needsPopBelow(b) }"
+        :class="{ 'pop-below': needsPopBelow(b), 'card-right': needsCardRight(b) }"
         :style="{ left: `${b.anchor.x}%`, top: `${b.anchor.y}%` }"
       >
         <div class="pin-card" :class="{ 'is-alert': b.status === 'alert' }">
@@ -44,6 +44,10 @@ defineProps<{ buildings?: ScreenBuilding[] }>()
 /* B12：anchor.y（图像%）小于阈值时弹层翻到 pin 下方，防顶裁 */
 const POP_FLIP_Y = 21
 const needsPopBelow = (b: ScreenBuilding) => b.anchor.y < POP_FLIP_Y
+
+/* 左列浮层右缘≈24%:锚点过左时 pin 卡右挂(锚点仍压楼宇,卡体左缘=锚点),防被左列压裁 */
+const CARD_FLIP_X = 27
+const needsCardRight = (b: ScreenBuilding) => b.anchor.x < CARD_FLIP_X
 
 /* 楼宇图标位（A8 对齐 REF pin 形态；未知 code 落 Building2） */
 const iconOf = (code: string): Component => {
@@ -100,6 +104,11 @@ const metricUnit = (k: string | number) => METRIC_UNITS[k] ?? ''
 
 .campus-pin:hover {
   transform: translate(-50%, -108%) scale(1.06); /* REF 上浮 8% + 放大 */
+}
+
+/* 左缘锚点卡片右挂:pin 体仍锚定楼宇点,卡体平移半宽使左缘=锚点(门诊楼避让左列浮层) */
+.campus-pin.card-right .pin-card {
+  transform: translateX(50%);
 }
 
 .pin-card {

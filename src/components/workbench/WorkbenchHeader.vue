@@ -21,8 +21,8 @@
           />
         </div>
 
-        <!-- Notification Bell：角标 = 风险预警条数（复用 home/alerts），无数据隐藏徽标 -->
-        <div class="notice-badge-wrapper">
+        <!-- Notification Bell：角标 = 风险预警条数（复用 home/alerts），点击落预警承载页（质量与安全），无数据隐藏徽标 -->
+        <div class="notice-badge-wrapper" @click="$router.push('/workbench/quality')">
           <Bell class="bell-icon" :size="19" />
           <span v-if="alertCount > 0" class="badge-dot">{{ alertCount }}</span>
         </div>
@@ -103,7 +103,8 @@ const onLogout = () => {
 }
 
 // 头像降级：data=null/接口失败时回退默认身份展示（frontend-api §2.1 空态）
-const fallbackAvatar = new URL('../../assets/workbench/director_avatar.png', import.meta.url).href
+// public/ 静态资产:契约 user.avatar 返回同源字面路径 /assets/...,dev 直供、build 拷贝入 dist——双环境同路径
+const fallbackAvatar = '/assets/workbench/director_avatar.png'
 
 // 角色菜单开合:弹层期间挂 document 点外侧 + Esc 关闭(同 RiskAlertsCard 派发弹层模式),收起即卸
 function onDocClick(e: MouseEvent) {
@@ -165,6 +166,7 @@ const dateText = computed(() => {
   color: var(--wb-navy);
   letter-spacing: var(--wb-ls-lg);
   margin: 0;
+  white-space: nowrap; /* 窄视口折行比挤压更难看,标题不可断 */
 }
 
 .title-divider {
@@ -179,6 +181,7 @@ const dateText = computed(() => {
   color: var(--wb-text-2);
   font-weight: var(--wb-fw-normal);
   letter-spacing: var(--wb-ls-md);
+  white-space: nowrap;
 }
 
 .header-right {
@@ -204,6 +207,11 @@ const dateText = computed(() => {
   align-items: center;
   padding-inline: var(--wb-space-3);
   gap: var(--wb-space-2);
+}
+/* 搜索无契约端点支撑(模板注释),禁用态显性化:降透明 + 禁手型 */
+.search-box:has(.search-input:disabled) {
+  opacity: var(--wb-opacity-muted);
+  cursor: not-allowed;
 }
 
 .search-icon {
@@ -284,7 +292,8 @@ const dateText = computed(() => {
   border: 1px solid var(--wb-border);
   border-radius: var(--wb-radius-card);
   box-shadow: var(--wb-shadow-hover);
-  z-index: var(--wb-z-raised);
+  /* 浮层档:须盖过 Hero 书法字/标语(z-sticky=2)等页面内容,raised 档不够 */
+  z-index: var(--wb-z-dropdown);
   padding: var(--wb-space-1);
 }
 
@@ -298,6 +307,7 @@ const dateText = computed(() => {
   font-size: var(--wb-fs-sm);
   color: var(--wb-text-1);
   cursor: pointer;
+  white-space: nowrap; /* 长项(运营办主任(刘远明) 全院运营/质控)不折行,菜单按内容撑宽 */
 }
 
 .role-item:hover {
@@ -341,6 +351,7 @@ const dateText = computed(() => {
   font-size: var(--wb-fs-md);
   font-weight: var(--wb-fw-semibold);
   color: var(--wb-text-1);
+  white-space: nowrap; /* 职称(骨科主任等)不换行 */
 }
 
 .dropdown-icon {

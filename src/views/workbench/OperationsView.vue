@@ -221,6 +221,8 @@ const revOption = computed<EChartsOption>(() => {
   height: 8px;
   background: var(--wb-bar-track);
   border-radius: var(--wb-radius-tag);
+  /* 超标项 fill/mark 可 >100%:裁剪到轨道边界,防冲出卡片(超标语义已由红色表达) */
+  overflow: hidden;
 }
 
 .ctrl-fill {

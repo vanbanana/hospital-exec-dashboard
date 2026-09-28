@@ -472,8 +472,8 @@ onUnmounted(() => window.removeEventListener('keydown', onEsc))
   position: fixed;
   inset: 0;
   background: rgb(from var(--p-slate-800) r g b / 32%);
-  /* 盖过 sticky 页头:无 overlay 层 token,取 --wb-z-sticky 上浮一层 */
-  z-index: calc(var(--wb-z-sticky) + 1);
+  /* 弹层档:盖过 sticky 页头与 dropdown(令牌阶梯 modal=4) */
+  z-index: var(--wb-z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

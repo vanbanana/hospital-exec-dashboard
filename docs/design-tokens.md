@@ -8,7 +8,7 @@
 
 ```
 L0 原色层 primitive  :root      --p-*   只有"值",不带用途语义,双形态共用
-L1 语义层 semantic   按形态作用域 --wb-* / --scr-*（+登录页 .auth-layout 复用 --wb-*，R8）  绑定"用途",指向原色层
+L1 语义层 semantic   :root 统一定义，前缀即形态隔离 --wb-* / --scr-*（R8 演进：Teleport 元素逃出布局作用域丢失全部 var()，L1 一律挂 :root）  绑定"用途",指向原色层
 L2 组件层 component  (可选)      --{cmp}-*  组件内部件,指向语义层
 ```
 
@@ -19,7 +19,7 @@ L2 组件层 component  (可选)      --{cmp}-*  组件内部件,指向语义层
 ## 2. 文件布局
 
 ```
-src/styles/tokens.css   L0 原色层 :root{--p-*} + L1 语义层 .workbench-layout{--wb-*}/.screen-layout{--scr-*}
+src/styles/tokens.css   L0 原色层 + L1 语义层同挂 :root（--p-*/--wb-*/--scr-* 前缀隔离，R8 演进）
 src/styles/index.css    全局 reset(无业务取值)
 src/styles/workbench.css 仅保留"基元组件样式"(.wb-panel/.wb-table/...),取值全部 var(--wb-*)
 src/styles/screen.css   大屏基元样式,取值全部 var(--scr-*)
@@ -62,12 +62,12 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
 
 新增原色规则：与既有原色 ΔE 肉眼不可分辨（同色族差一档）→ 归并到最近档，不新增；确实为新色族 → 在本表登记并经 review。
 
-## 4. L1 语义层 — 工作台（`.workbench-layout`，既有 `--wb-*` 全保留为别名）
+## 4. L1 语义层 — 工作台（`:root`，既有 `--wb-*` 全保留为别名）
 
 保留现有 24 个 token（值不变，改引用原色层重写），并按盘点补齐：
 
 ```css
-.workbench-layout {
+:root {
   /* —— 既有(值不变,内部改为 var(--p-*)) —— */
   --wb-bg / --wb-surface / --wb-sidebar-bg / --wb-hover-bg
   --wb-border / --wb-hairline / --wb-input-border
@@ -116,15 +116,16 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
   /* —— 布局度量 —— */
   --wb-sidebar-w:204px; --wb-header-h:64px; --wb-scrollbar-w:6px;
   /* —— 杂项 —— */
-  --wb-opacity-muted:0.6; --wb-opacity-dimmed:0.7; --wb-z-raised:1; --wb-z-sticky:2;
+  --wb-opacity-muted:0.6; --wb-opacity-dimmed:0.7;
+  --wb-z-raised:1; --wb-z-sticky:2; --wb-z-dropdown:3; --wb-z-modal:4; --wb-z-toast:5;
   --wb-dur-fast:0.15s; --wb-dur-normal:0.2s;
 }
 ```
 
-## 5. L1 语义层 — 大屏（`.screen-layout`，视觉基准 archive/smart-hospital-cockpit）
+## 5. L1 语义层 — 大屏（`:root`，视觉基准 archive/smart-hospital-cockpit）
 
 ```css
-.screen-layout {
+:root {
   --scr-bg:var(--p-ink-950);
   --scr-panel:linear-gradient(135deg, rgba(16,26,48,.95), rgba(11,18,34,.96));
              /* REF tech-panel 玻璃底(复合渐变,色基 ink-800/900 间中插,无原色档) */
@@ -236,7 +237,7 @@ src/components/screen/scrTokens.ts        scr 图表出口:运行时 getComputed
 | R5 图表同源 | ECharts 配色/字号只允许经各域**单一出口**取色：wb 侧 `chartPresets.ts`（静态表，字面值必须行内注释标注对应 token 名，值与 token 同步）；scr 侧 `scrTokens.ts::readScrPalette()`（运行时 getComputedStyle 读 --scr-*/--p-*）。script 内 hex map（toneStyle/cardStyle/TITLE_COLORS）与 inline rgba 字面量全部消灭 |
 | R6 死 token 清零 | 无消费方的 token 立即删除。**消费方认定**：运行时 var() 引用，或图表单一出口（chartPresets/scrTokens）对照表行内注释挂名——后者 token 定位为"语义锚"，允许无运行时 var 引用（`--wb-chart-*` 族即此类） |
 | R7 别名言明 | 同值双名必须注释互指（--wb-up↔--wb-red） |
-| R8 作用域登记 | L1 形态作用域合法集 = `.workbench-layout`（`--wb-*`）/ `.screen-layout`（`--scr-*`）/ `.auth-layout`（登录页 L1 块，**复用 `--wb-*` 名称与取值**——登录表单直接消费 `var(--wb-*)`，不新增 token；P3 auth 预案，随 `LoginView` 落地时登记于 tokens.css） |
+| R8 作用域登记 | L1 token 一律挂 `:root`——前缀（`--wb-*`/`--scr-*`）即形态隔离；`<Teleport to="body">` 元素（弹层/Toast）逃出 `.workbench-layout` DOM 子树会丢全部 var() 值（V3 实测：派发弹层透明、Toast 不渲染），故不允许把 L1 限定在布局容器选择器上。登录页（`.auth-layout`）不加 L1 块、直接消费 `:root` 上的 `--wb-*` |
 
 ## 7. 白名单（豁免字面量）
 

@@ -1,7 +1,8 @@
 /* ========================================================================
    设计令牌（docs/design-tokens.md §3/§4/§5 落地）
    L0 原色层 :root --p-*（只有值，不带用途语义，双形态共用）
-   L1 语义层 .workbench-layout --wb-* / .screen-layout --scr-*（绑定用途，指向原色层）
+   L1 语义层 :root --wb-* / --scr-*（前缀即形态隔离；Teleport 元素逃出布局作用域会丢
+   全部 var() 值——V3 实测派发弹层透明/Toast 缺失，故 L1 不挂布局容器，见 design-tokens R8）
    字面设计值唯一出处；其余 .css/.vue/.ts 一律 var() 消费
    ======================================================================== */
 
@@ -87,8 +88,8 @@
   --p-font-number: "Rajdhani", "DIN Alternate", "Helvetica Neue", "Arial", sans-serif;
 }
 
-/* ---------- L1 语义层 — 工作台（.workbench-layout / .auth-layout，R8 登录页复用 --wb-* 零新增） ---------- */
-.workbench-layout, .auth-layout {
+/* ---------- L1 语义层 — 工作台 --wb-*（:root；登录页 .auth-layout 直接消费，R8 演进） ---------- */
+:root {
   /* —— 既有 token（值不变，改为 var(--p-*) 引用） —— */
   /* 浅灰蓝底色族无对应原色档，按 design-tokens §4 先例在 L1 登记字面 */
   --wb-bg: #f0f5fc;                /* 页面主背景（浅灰蓝） */
@@ -211,12 +212,15 @@
   --wb-opacity-dimmed: 0.7;
   --wb-z-raised: 1;
   --wb-z-sticky: 2;
+  --wb-z-dropdown: 3;
+  --wb-z-modal: 4;
+  --wb-z-toast: 5;
   --wb-dur-fast: 0.15s;
   --wb-dur-normal: 0.2s;
 }
 
-/* ---------- L1 语义层 — 大屏（.screen-layout，视觉基准 archive/smart-hospital-cockpit） ---------- */
-.screen-layout {
+/* ---------- L1 语义层 — 大屏 --scr-*（:root；视觉基准 archive/smart-hospital-cockpit） ---------- */
+:root {
   --scr-bg: var(--p-ink-950);
   /* REF tech-panel 玻璃底（复合渐变，色基 ink-800/900 间中插，无原色档） */
   --scr-panel: linear-gradient(135deg, rgba(16, 26, 48, 0.95), rgba(11, 18, 34, 0.96));

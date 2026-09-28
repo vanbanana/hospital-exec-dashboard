@@ -64,7 +64,7 @@ src/
 ├── styles/                         # 样式系统
 │   ├── index.css                   # 全局 reset + body 基座（引入 tokens.css、盒模型重置、字体与 overflow）
 │   ├── tokens.css                  # ★ 设计令牌唯一出处（design-tokens.md）：L0 原色 --p-*(:root)
-│   │                               #   + L1 语义 --wb-*(.workbench-layout) / --scr-*(.screen-layout)
+│   │                               #   + L1 语义 --wb-* / --scr-*（同挂 :root，前缀隔离，design-tokens R8）
 │   ├── workbench.css               # 工作台基元样式（.wb-*，取值全部 var(--wb-*)/var(--p-*)）
 │   └── screen.css                  # 大屏基元样式（取值全部 var(--scr-*)）
 ├── components/                     # 组件层
@@ -103,7 +103,7 @@ src/
 │       ├── RiskAlertsCard.vue      # 首页风险预警等级卡
 │       └── NoticesTodosCard.vue    # 首页通知与待办事项卡
 ├── views/                          # 页面视图层
-│   ├── LoginView.vue               # /login 登录页（用户名/口令 → auth/login，`.auth-layout` 令牌作用域）
+│   ├── LoginView.vue               # /login 登录页（用户名/口令 → auth/login，`.auth-layout` 布局类（token 直消费 :root 的 --wb-*））
 │   ├── screen/
 │   │   └── ScreenView.vue          # /screen 大屏视图（snapshot 取数 + 自管理三态，§15 豁免登记）
 │   └── workbench/                  # 工作台 12 个业务页面
@@ -167,7 +167,7 @@ src/
 | `/workbench/topics` | `wb-topics` | `views/workbench/TopicsView.vue` | 懒加载 | 专题分析：DRG病组入组与CMI、医保基金监管、公立医院国考、门诊统筹专项 |
 | `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：HIS/EMR 数据源管理、指标预警阈值、用户与权限、5项系统偏好 |
 | `/workbench/:pathMatch(.*)*` | — | 重定向到 `/workbench` | 静态 | 工作台子域 404 兜底回落（仅覆盖 `/workbench/*`） |
-| `/login` | `login` | `views/LoginView.vue` | 懒加载 | 登录页（已随 P3 落码）：用户名/口令表单 → `POST /auth/login`（契约 §2.3）；`meta.public` 守卫豁免；`.auth-layout` 令牌作用域（design-tokens §6 R8） |
+| `/login` | `login` | `views/LoginView.vue` | 懒加载 | 登录页（已随 P3 落码）：用户名/口令表单 → `POST /auth/login`（契约 §2.3）；`meta.public` 守卫豁免；`.auth-layout` 布局类（token 直消费 :root 的 --wb-*）（design-tokens §6 R8） |
 | `/screen`（父） | — | `layouts/ScreenLayout.vue` | 布局承载 | 大屏画布容器（viewport + 等比缩放 + `screen-adapt` provide） |
 | `/screen`（子） | `screen` | `views/screen/ScreenView.vue` | 同步 | 院长驾驶舱大屏：snapshot 单端点 + 10 个 Scr* 组件 |
 
@@ -236,7 +236,7 @@ src/
 
 ## 5. 设计系统规范（Design System）
 
-设计系统主入口为 `src/styles/tokens.css`（唯一令牌出处，`docs/design-tokens.md` **已生效**，见 §11）：L0 原色 `--p-*` 定义于 `:root`，L1 语义 `--wb-*`/`--scr-*` 分别挂在 `.workbench-layout`/`.screen-layout` 作用域；`workbench.css`/`screen.css` 仅含基元样式（取值一律 `var()`），公共 UI 原语用 `.wb-*`、大屏用 `.scr-*`/`Scr*` 前缀隔离。
+设计系统主入口为 `src/styles/tokens.css`（唯一令牌出处，`docs/design-tokens.md` **已生效**，见 §11）：L0 原色 `--p-*` 定义于 `:root`，L1 语义 `--wb-*`/`--scr-*` 同挂 `:root`（前缀即形态隔离——Teleport 元素逃出布局作用域会丢 var()，见 design-tokens R8 演进）；`workbench.css`/`screen.css` 仅含基元样式（取值一律 `var()`），公共 UI 原语用 `.wb-*`、大屏用 `.scr-*`/`Scr*` 前缀隔离。
 
 ### 5.1 Token 清单速查（**登记总表以 `design-tokens.md` §3-§5 为唯一权威**；本节为消费速查）
 
@@ -254,7 +254,7 @@ src/
 --wb-rank-1..3                              /* 奖牌色 */
 --wb-radius-{card,inner,tag,sm,pill} / --wb-gap / --wb-pad-{x,y}  /* 几何 */
 --wb-fs-{2xs..hero} / --wb-fw-{normal..bold} / --wb-lh-{solid..loose} / --wb-ls-{sm..2xl} /* 排版 */
---wb-space-1..5 / --wb-opacity-{muted,dimmed} / --wb-z-{raised,sticky} / --wb-dur-{fast,normal} /* 覆盖维 */
+--wb-space-1..5 / --wb-opacity-{muted,dimmed} / --wb-z-{raised,sticky,dropdown,modal,toast} / --wb-dur-{fast,normal} /* 覆盖维 */
 --wb-sidebar-w / --wb-header-h / --wb-scrollbar-w               /* 布局度量 */
 ```
 
@@ -536,7 +536,7 @@ npx vue-tsc -b && npm run build
 > **治理专文**：`docs/design-tokens.md`（**已生效**）。分层模型/命名法/治理规则 R1-R7/白名单/门禁命令以专文为准；本文 §5 清单仅作速查。
 
 已落地要点：
-1. **统一出处**：`src/styles/tokens.css` = L0 原色 `--p-*`(:root) + L1 语义 `--wb-*(.workbench-layout)`/`--scr-*(.screen-layout)`；`variables.css` 已删除。
+1. **统一出处**：`src/styles/tokens.css` = L0 原色 `--p-*`(:root) + L1 语义 `--wb-*`/`--scr-*`（同挂 :root，前缀即形态隔离）；`variables.css` 已删除。
 2. **收敛成果**：r0 审计 570 散落声明点全量收编——tokens.css 外色值/字号/间距/圆角字面量 0 命中（美术稿白名单除外）。
 3. **图表同源**：wb=`chartPresets.ts` 静态表（行内注释标 token）、scr=`scrTokens.ts::readScrPalette()` 运行时读取。
 
@@ -550,7 +550,7 @@ npx vue-tsc -b && npm run build
 - **布局/画布**：`src/layouts/ScreenLayout.vue` —— `.screen-layout` 作用域 + 1920×1080 画布 + 等比缩放适配（resize 监听配对清理）。
 - **视图**：`src/views/screen/ScreenView.vue` —— `getScreenSnapshot()` 取数，自管理 loading/error/data 三态（顶部 error-bar + 手动重连，§15 豁免 useAsyncData 登记）。
 - **组件族** `src/components/screen/`：`ScrHeader`（院名/时钟/态势/未闭环告警计数，`setInterval` 走秒卸载清理）、`ScrKpiStrip`、`ScrDrgQuadrant`、`ScrCampusMap`、`ScrBuildingBars`（楼宇运行指标条）、`ScrDeptRank`、`ScrAlertFeed`、`ScrTrendTabs`；原语 `ScrPanel`/`ScrChart`/`scrTokens.ts`。
-- **样式**：`src/styles/screen.css` 基元 + `--scr-*` 语义令牌（tokens.css `.screen-layout` 块）；ECharts 经 `scrTokens.readScrPalette()` 运行时取色。
+- **样式**：`src/styles/screen.css` 基元 + `--scr-*` 语义令牌（tokens.css :root 块）；ECharts 经 `scrTokens.readScrPalette()` 运行时取色。
 - **数据层**：`api/screen.ts::getScreenSnapshot()` 单轨打 `screen/snapshot`；锚点自洽（`KPI.value=spark末点` 全量成立；badge 锚定仅限门急诊—门诊楼口径，其余 KPI 非楼级锚定；alert_open 合计=total_open）。
 
 ### 12.2 视觉基准与偏离说明
