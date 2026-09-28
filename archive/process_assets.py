@@ -1,3 +1,6 @@
+# 历史资产留档（非工程代码）：早期大屏视觉稿的边缘融合工具——把生图资产按
+# smootherstep 羽化蒙版融进 #0b1325 深蓝底，供 archive/smart-hospital-cockpit/
+# 参考工程的 public/assets 出图。脚本内路径为当时 Windows 本机路径，不可直接运行。
 import os
 from PIL import Image
 import numpy as np

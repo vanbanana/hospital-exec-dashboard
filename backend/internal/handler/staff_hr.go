@@ -19,7 +19,7 @@ var deptStaffingWhitelist = []string{"ZZYXK", "JZK", "EK", "XNK", "GK", "HXWZK",
 // Hr §7.1 GET /workbench/hr——全字段时点/比率口径,range 三值返回同一快照
 // (契约 §7.1 无随 range 累计的业务量字段;mock/hr.ts 恒等语义注释同源)
 func (h *StaffHandler) Hr(c *gin.Context) {
-	switch c.DefaultQuery("range", "本月") {
+	switch c.DefaultQuery("range", "本年") {
 	case "本月", "本季", "本年":
 	default:
 		envelope.InvalidArg(c, "range", "取值仅限 本月/本季/本年")
@@ -28,28 +28,28 @@ func (h *StaffHandler) Hr(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.r.Today(ctx)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 
 	stats, err := h.hrStats(ctx, today)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	structure, err := h.hrStructure(ctx)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	titles, err := h.hrTitles(ctx)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	staffing, err := h.hrDeptStaffing(ctx)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 

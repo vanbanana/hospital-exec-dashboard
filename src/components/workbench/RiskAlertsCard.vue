@@ -224,13 +224,14 @@ async function submitDispatch() {
       // 表单内联错(error-codes §4):逐字段红标,不弹全局消息
       for (const [k, v] of Object.entries(err.fields)) dspErr[k] = v
     } else {
-      if (err.code === 33002) {
-        processingIds.add(alert.id)
+      if (err.code === 33002 || err.code === 20005) {
+        // error-codes §4:33002 状态冲突/20005 角色不足同属冲突级 → warning + 局部刷新
+        if (err.code === 33002) processingIds.add(alert.id)
         reload()
         dspBanner.value = err.message
         toast.warning(err.message)
       } else {
-        // error-codes §4:33002 状态冲突走 warning,其余(33001/33102/33103/10000)走 error
+        // 其余(33001/33102/33103/10000)走 error
         dspBanner.value = err.message
         toast.error(err.message)
       }

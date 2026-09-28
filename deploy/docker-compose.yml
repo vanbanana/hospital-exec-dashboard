@@ -35,8 +35,9 @@ services:
       # nginx 反代经 compose 内网转发——放开 docker 网段使 XFF 生效,否则 audit ip 记成容器桥地址
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12}
       SEED_ON_BOOT: ${SEED_ON_BOOT:-1}
-    # $$ 防 compose 插值——扩张在容器内 sh 发生;SEED_ON_BOOT 置非空(约定 1)时 migrate 追加 -seed
-    command: sh -c 'edss-migrate $${SEED_ON_BOOT:+-seed} && exec edss'
+    # $$ 防 compose 插值——判等在容器内 sh 发生;SEED_ON_BOOT=1 显式判等才灌种子,
+    # 原 ${VAR:+-seed} 对任意非空值(含显式 =0)都为真,关停种子灌库关不掉
+    command: sh -c 'if [ "$$SEED_ON_BOOT" = "1" ]; then edss-migrate -seed; else edss-migrate; fi && exec edss'
     depends_on:
       db:
         condition: service_healthy

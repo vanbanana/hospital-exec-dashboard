@@ -25,21 +25,24 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 - **仿真器只写 `dwd`+`sim`**，禁直写 dws/ads；dws/ads 由派生流水线独占写入——这是"切真实 ETL 后大屏不死"的关键。
 - **依赖方向不可逆**：`sys → dim → dwd → dws → ads`（sim 旁挂末位）。种子相位装配见 §5。
 
-## 2. 表总目录（57 表 × lane × 粒度 × 种子规模）
+## 2. 表总目录（58 表 × lane × 粒度 × 种子规模）
 
 > 行数列为 lane 种子实测/规格值（BASE_DATE=2026-10-28，窗口 2025-01-01~2026-12-31），已按当前库实测校核一轮；"—"=空表/缓建。
 
-### sys（7 表 · L1 sys-org）
+### sys（8 表 · L1 sys-org + 0910 后挂）
 
 | 表 | 粒度 | 种子行数 | 服务面 |
 | :-- | :-- | :-- | :-- |
 | sys.dict | dict_type×key | 310（69 类） | 全枚举值域 |
 | sys.metric_def | 一指标一行 | 141（L1 91+L8hr 18+L8pat 32） | metric_code FK 正本、api_key/unit/direction |
 | sys.user | 一账号一行 | 7（dept_id 回填 3） | 登录/角色/水印 |
+| sys.user_session | 一会话一行 | 0（运行期产生） | `edss_sid` 会话凭证、RBAC 角色源 |
 | sys.notice | 一通知一行 | 5 | 工作台消息 |
 | sys.data_source | 一来源一行 | 6 | ETL 登记 |
 | sys.user_pref | 用户×键 | 5 | 个性化 |
 | sys.audit_log | 事件行 | 0（框架） | 审计 |
+
+> `sys.user_session`（0910 后挂迁移）：`pk_user_session(id)`、`uq_user_session_token(token_hash)`、`fk_user_session_user(user_id→sys.user.id, ON DELETE CASCADE)`；索引 `idx_user_session_expires(expires_at)`、`idx_user_session_user(user_id)`；列含 `created_at/expires_at/revoked_at/ip(inet)/user_agent`。同文件附演示账号口令重置 UPDATE（既有库修复件，全新库零命中）。
 
 ### dim（12 表 · L2 dim-public + L8 补 2）
 
@@ -168,7 +171,7 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 
 ## 5. 迁移与种子装配
 
-### 5.1 迁移（`backend/migrations/`，12 文件，域级合并）
+### 5.1 迁移（`backend/migrations/`，13 文件，域级合并）
 
 | 序号段 | 文件 | 内容 |
 | :-- | :-- | :-- |
@@ -181,8 +184,9 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 | `0400`/`0410` | `0400_ads_workbench.sql` / `0410_ads_screen_alert.sql` | ads 8 表（含 todo_order 空表预案） |
 | `0500` | `0500_sim.sql` | sim 3 表（末批，env 可跳） |
 | `0900` | `0900_sys_user_dept_fk.sql` | `sys.user.dept_id→dim.department(id)` 延迟 FK（RESTRICT，须在 dim 后） |
+| `0910` | `0910_sys_user_session.sql` | `sys.user_session` 会话表（PK/UQ/FK/索引见 §2 sys 注）+ 演示账号口令重置 UPDATE（既有库修复件） |
 
-命名 `NNNN_<schema>_<域>.sql` 全局单调；一文件一域（多对象合并，非一文件一对象）；dict 行与 CHECK 同文件。**迁移仅首装执行**（非幂等重跑；57 张 CREATE TABLE 中仅部分带 `IF NOT EXISTS`）；幂等声明适用范围 = 种子（见 §3 种子行与 §5.2）。
+命名 `NNNN_<schema>_<域>.sql` 全局单调；一文件一域（多对象合并，非一文件一对象）；dict 行与 CHECK 同文件。**迁移仅首装执行**（非幂等重跑；58 张 CREATE TABLE 中仅部分带 `IF NOT EXISTS`）；幂等声明适用范围 = 种子（见 §3 种子行与 §5.2）。
 
 ### 5.2 种子装配（`backend/seed/`，正本=`seed-manifest.md`）
 

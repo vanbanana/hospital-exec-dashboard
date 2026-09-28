@@ -2,7 +2,7 @@
 
 > **版本**：v2.0（双形态基线，替代 v1.1）  
 > **制定日期**：2026-09-26  
-> **基线状态**：面向"工作台优先（/workbench 12 视图）+ 科技大屏（/screen 辅助态势）"双形态架构。当前处于前端组件内 mock 向集中 `src/mock` + `src/api` 统一接口层演进阶段，后端（Go 单体）为远期目标态。  
+> **基线状态**：面向"工作台优先（/workbench 12 视图）+ 科技大屏（/screen 辅助态势）"双形态架构。前端集中 `src/mock` + `src/api` 统一接口层已就位；后端（Go 单体）已落地 39 端点（读 21 + auth 2 + 写 8 + sim 5，另有 infra 3 根挂不入契约面），默认 mock 轨、`VITE_USE_MOCK=0` 走真后端双轨运行。  
 > **演进纪律不变**：字段只增不删不改名、枚举只增不改语义；新需求先改本契约再写代码。
 
 ---
@@ -11,7 +11,7 @@
 
 ### 0.1 为什么升级到 v2.0？（范围裁决理由）
 1. **形态重心转移**：原 `api-contract v1.1` 完全围绕“单一大屏（/screen）+ 五级下钻弹窗（L1~L5）”展开；但真实产品实践表明，院长与管理部门 90% 的日常决策发生于 **PC 浅色工作台**（高信息密度、多维交叉报表、全业务域监控），大屏更偏向指挥中心与会议汇报。系统已正式演进为**“/workbench 浅色工作台（12页为主）+ /screen 科技大屏（为辅）”**的双形态架构。
-2. **落地阶段匹配**：前端 12 个工作台视图（`src/views/workbench/*.vue`）已全部经 `src/api/` 端点函数 + `src/mock/` 注册表按本契约取数；大屏视图（`/screen`）正在按 `archive/smart-hospital-cockpit/` 视觉基准重建，旧过渡稿已删除。v2.0 契约持续约束两侧实现。
+2. **落地阶段匹配**：前端 12 个工作台视图（`src/views/workbench/*.vue`）已全部经 `src/api/` 端点函数 + `src/mock/` 注册表按本契约取数；大屏视图（`/screen`）已按 `archive/smart-hospital-cockpit/` 视觉基准建成，旧过渡稿已删除。v2.0 契约持续约束两侧实现。
 3. **认证与交互务实降级**：在纯演示与前端解耦阶段，强制要求 JWT 双 Token 轮换、黑名单拦截会产生大量非核心工程阻塞。v2.0 将认证降级为**“免密/可选角色切换”**的轻量模式，前端可通过下拉框切换院长、运营主任、科主任三种身份。
 
 ### 0.2 与原 v1.1 契约的关系（继承、重构与预留）
@@ -131,7 +131,7 @@
     "weekday": "星期三"
   }
   ```
-  > **字段注**：`dept_id: null` 表示院级领导视角。在数据库存储中院级哨兵键使用 `0`，在 API 契约层统一对外序列化为 `null`。
+  > **字段注**：`dept_id: null` 表示院级领导视角。在数据库存储中院级哨兵键使用 `0`，在 API 契约层统一对外序列化为 `null`。`user.role` 值域 = `sys.user` 角色全集（`sys.dict(role_type)` 注册：admin/president/ops_director/dept_leader/viewer），**不限演示三角色**——演示切换下拉仅暴露 `available_roles` 三档。
   > **演进注（P3 认证）**：本端点由会话中间件保护，无有效会话 → `20001`。`role` 参数演示期保留——出席时返回对应演示账号上下文（不校验会话身份，纯演示切换）；**缺席时返回当前会话用户**（原"缺省 president"语义调整为"会话用户"）。
   > **读写不对称备案**：读侧 `?role=` 开放（profile 仅回显上下文，无越权写面），写侧异名切换已按 §15 头部闸收敛至 `admin`/`president` 会话——读宽写窄为有意分层，非遗漏。
 - **可返回错误码**：`10001` (INVALID_PARAM), `20001` (UNAUTHORIZED)
@@ -618,7 +618,7 @@
 对应页面：`src/views/workbench/HrView.vue`。
 
 ### 7.1 GET /workbench/hr
-- **Query 参数**：`range` = `本月` | `本季` | `本年`
+- **Query 参数**：`range` = `本月` | `本季` | `本年`（默认 `本年`）
 - **Response `data`**：
   ```json
   {
@@ -1294,13 +1294,14 @@
   > 9. `drg_quadrant.period_label` 为 `period` 的可读展示文案（如 `d30`→`近30日`）；`status.level` 枚举 `normal|busy|alert`。
   > 10. `dept_ranking`/`drg_quadrant.points` 中科室的 `cmi/profit` 事实列必须与 §13.1 冻结表一致（如 神经内科 cmi=0.94/profit=+38.2、普通外科 cmi=1.18/profit=+98.2），扩排行亦不得偏离冻结值。
   > 11. `dept_id`/`building_code` 等 id 语义以 `dim.department`/`dim.building` 注册表为准，mock 与 backend 须同源；示例中的 id 字面为形态示例。
+  > 12. `alerts.list` 为打开态告警**全集**（`alert_status ∈ pending|processing`，`occurred_at` 倒序，无截断）；`alerts.total_open = len(list)`——与 `status.alert_open` 三档合计是同一打开集的两个查询面，恒相等。
 - **可返回错误码**：`10001` (INVALID_PARAM)
 
 ---
 
 ## 15. 远期预留端点清单（Reserved Endpoints Checklist）
 
-以下端点源自 v1.1 深度决策架构设计，属于**“远期真实业务演进与后端落地项”**。在当前前端 Mock/API 解耦阶段，前端不发起真实调用，保留此清单以备未来后端开发与深层穿透扩展：
+以下端点源自 v1.1 深度决策架构设计。**落地状态（P3 批已翻页）**：R04–R08、R10、R15、R16 已双端落地（前端 `src/api/` + 后端 `register_write.go`；R11 会话登录已展开为 §2.3 正式节并落地）；R01–R03、R09、R12、R13 仍为预留——前端不发起调用，启用须先走契约演进：
 
 > **操作人传输约定（演示期）**：本清单写端点（R04–R08、R15、R16）的操作人解析序——`?role=<username>` 出席时按 §2.1 演示切换注处理（须为合法演示账号，非法 → `10001`），**缺席取当前会话用户**（会话机制 §2.3 已落地：任何已认证账号直按 username 定位，不再限演示账号白名单）。**越权演示切换闸**：`?role=` 与会话用户不一致时，会话角色须为 `admin`/`president`，其余 → `20005`（前端 `ROLE_SWITCH_ALLOW` 同域；同值自指 `?role=本人` 放行，避免演示账号常传参自锁）。写入 `ack_by`/`dispatcher_id`/`sys.audit_log` 等操作人列；演示切换与会话用户不一致时，`audit_log.detail.session_user` 同记实际登录账号（行为可还原"谁登的、以谁名义办的"）。端点角色矩阵另校验 `20001`/`20004`/`20005`。
 
@@ -1454,7 +1455,7 @@
 
 ## 16. 仿真控制面 /sim/*（P3 档 A）
 
-仿真时钟与演示控制的契约面。**环境门控**：仅 `SIM_ENABLED` 开启时注册路由；关闭（生产形态）时 `/sim/*` 一律未注册 → `NoRoute` → `10003`（error-codes §3 35xxx 段注）。操作人校验（admin 限定）待会话机制（§2.3）落地后生效，本期不解析 `?role=`。
+仿真时钟与演示控制的契约面。**环境门控**：仅 `SIM_ENABLED` 开启时注册路由；关闭（生产形态）时 `/sim/*` 一律未注册 → `NoRoute` → `10003`（error-codes §3 35xxx 段注）。**操作人校验已生效**：全端点限 `admin` 会话——无有效会话 → `20001`，非 admin 角色 → `20004`（RBAC 中间件矩阵，见 `backend/internal/middleware/rbac.go`）。
 
 统一前缀 `/api/v1/sim`，包络同 §1。`virtual_now`/`updated_at`/`started_at` 等时刻字段按 §1.4 ISO 8601 字符串；`weekday` 中文星期；**ads 快照层（today_kpi/campus_status/alert/dept_rank）跨日后维持"最近派生切面"冻结语义**（档 A 不触发派生重跑）。
 
@@ -1481,7 +1482,7 @@
 
   | 字段 | 类型 | 必填 | 说明 |
   | :--- | :--- | :--- | :--- |
-  | `minutes` | int | 是 | `≥1`；且 `virtual_now + minutes` 不越 `seed_end + 1 天`，越界 → `35002` |
+  | `minutes` | int | 是 | `≥1` 且 ≤`43200`（单次上限护栏，=30 天/次）；且 `virtual_now + minutes` 不越 `seed_end + 1 天`，越界 → `35002` |
 - **Response `data`**：
   ```json
   {
@@ -1493,7 +1494,7 @@
   }
   ```
 - **语义注**：单事务 `SELECT…FOR UPDATE` 行锁 → 界校验 → `UPDATE sim.clock` → `INSERT sim.job_log('SimTick')`；并发 tick 由行锁串行，`job_log` 存在 `running` 行 → `35003`。`paused` 不阻塞手动 tick（其为 auto-runner 标志）。
-- **可返回错误码**：`10001`（minutes 缺/非整/`<1`）、`10006`、`35002`（越上界）、`35003`（批次进行中）、`10000`
+- **可返回错误码**：`10001`（minutes 缺/非整/`<1`/`>43200`）、`10006`、`35002`（越上界）、`35003`（批次进行中）、`10000`
 
 ### 16.3 POST /sim/reset
 - **说明**：时钟复位至 `base_date 09:00`（`speed=1, paused=false`）。**幂等**。
@@ -1520,7 +1521,7 @@
 
 ### 16.5 POST /sim/clock — 时钟定点跳转
 - **说明**：直接设定虚拟时钟（演示剧本"切回晨会起点"等定点需求）；与 tick 同为非幂等。
-- **Request JSON**（全部可选，至少一项）：
+- **Request JSON**（全部可选，至少一项；未知键静默忽略——不计入"至少一项"也不报非法）：
 
   | 字段 | 类型 | 说明 |
   | :--- | :--- | :--- |

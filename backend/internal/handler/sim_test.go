@@ -10,17 +10,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
 )
 
 // 实库断言锚点:sim.clock BASE_DATE=2026-10-28 09:00+08 周三;
 // sim.profile 当前无 seed_end 键 → 回退 MAX(dwd.charge_day.date)=2026-12-31。
-// 共享库纪律:凡改时钟的用例入口先复位 + defer 复位——其他 epic 断言依赖 system_date=2026-10-28。
+// 库边界:写用例(tick/reset/set/jobs 自供行)走 DATABASE_URL_W 克隆库,纪律同 write_test.go;
+// 纯读用例留共享库。入口复位 + defer 复位保留——克隆库不重建周期内自身也须零残留。
 
-func simRouter(t *testing.T) *gin.Engine {
+func simRouter(t *testing.T, db *gorm.DB) *gin.Engine {
 	t.Helper()
-	db := testDB(t)
 	h := NewSim(db, clock.New(db))
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -47,12 +48,16 @@ func post(t *testing.T, r *gin.Engine, path string, body io.Reader) (int, envelo
 	return w.Code, b
 }
 
-func resetSimClock(t *testing.T) {
+// 复位=时钟归种子 + job_log 清回 SeedLoader 单行(用例产物不留给下一跑)
+func resetSimClock(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if err := testDB(t).Exec(
+	if err := db.Exec(
 		`UPDATE sim.clock SET virtual_now='2026-10-28 09:00:00+08', speed=1, paused=false WHERE id=1`,
 	).Error; err != nil {
 		t.Fatalf("sim.clock 复位: %v", err)
+	}
+	if err := db.Exec(`DELETE FROM sim.job_log WHERE job <> 'SeedLoader'`).Error; err != nil {
+		t.Fatalf("sim.job_log 清场: %v", err)
 	}
 }
 
@@ -85,10 +90,10 @@ type simJobsData struct {
 }
 
 // 最近一条指定作业台账行(断言 job_log 新增)
-func lastJob(t *testing.T, job string) simJobItem {
+func lastJob(t *testing.T, db *gorm.DB, job string) simJobItem {
 	t.Helper()
 	var row simJobItem
-	tx := testDB(t).Raw(`SELECT id, job, virtual_date::text, started_at::text, finished_at::text,
+	tx := db.Raw(`SELECT id, job, virtual_date::text, started_at::text, finished_at::text,
 		rows_cnt, job_status, err FROM sim.job_log WHERE job=? ORDER BY id DESC LIMIT 1`, job).Scan(&row)
 	if tx.Error != nil || tx.RowsAffected == 0 {
 		t.Fatalf("job_log 缺 %s 行: err=%v rows=%d", job, tx.Error, tx.RowsAffected)
@@ -97,7 +102,7 @@ func lastJob(t *testing.T, job string) simJobItem {
 }
 
 func TestSimClockGet(t *testing.T) {
-	r := simRouter(t)
+	r := simRouter(t, testDB(t)) // 纯读:共享库
 	status, b := get(t, r, "/api/v1/sim/clock")
 	assertOK(t, status, b)
 
@@ -127,9 +132,10 @@ func TestSimClockGet(t *testing.T) {
 }
 
 func TestSimTickAdvance(t *testing.T) {
-	resetSimClock(t) // 入口归一:跨用例/跨 epic 脏时钟不依赖执行序
-	defer resetSimClock(t)
-	r := simRouter(t)
+	db := writeTestDB(t)
+	resetSimClock(t, db) // 入口归一:跨用例脏时钟/台账不依赖执行序
+	defer resetSimClock(t, db)
+	r := simRouter(t, db)
 
 	status, b := post(t, r, "/api/v1/sim/tick", strings.NewReader(`{"minutes":60}`))
 	assertOK(t, status, b)
@@ -150,7 +156,7 @@ func TestSimTickAdvance(t *testing.T) {
 	if d.AdvancedMinutes != 60 || d.CrossedDay || d.JobID <= 0 {
 		t.Fatalf("advanced=%d crossed=%v job_id=%d", d.AdvancedMinutes, d.CrossedDay, d.JobID)
 	}
-	j := lastJob(t, "SimTick")
+	j := lastJob(t, db, "SimTick")
 	if j.ID != d.JobID || j.VirtualDate != "2026-10-28" || j.JobStatus != "success" || j.RowsCnt != 60 {
 		t.Fatalf("job_log SimTick 行不符: %+v", j)
 	}
@@ -158,8 +164,9 @@ func TestSimTickAdvance(t *testing.T) {
 
 // 契约 §16.2:minutes 缺/非整/<1/>43200 → 400/10001;空 body/非法 JSON → 10006
 func TestSimTickBad(t *testing.T) {
-	defer resetSimClock(t) // {"minutes":60} 正常路径外的用例均不写库,保险起见仍复位
-	r := simRouter(t)
+	db := writeTestDB(t)
+	defer resetSimClock(t, db) // {"minutes":60} 正常路径外的用例均不写库,保险起见仍复位
+	r := simRouter(t, db)
 
 	for _, body := range []string{`{}`, `{"minutes":0}`, `{"minutes":-5}`, `{"minutes":43201}`, `{"minutes":"x"}`, `{"minutes":1.5}`} {
 		status, b := post(t, r, "/api/v1/sim/tick", strings.NewReader(body))
@@ -187,9 +194,10 @@ func TestSimTickBad(t *testing.T) {
 
 // 越界构造:先定点跳到 seed_end 当夜,再 tick 越 2027-01-01 上界 → 35002(契约 §16.2)
 func TestSimTickBound(t *testing.T) {
-	resetSimClock(t)
-	defer resetSimClock(t)
-	r := simRouter(t)
+	db := writeTestDB(t)
+	resetSimClock(t, db)
+	defer resetSimClock(t, db)
+	r := simRouter(t, db)
 
 	status, b := post(t, r, "/api/v1/sim/clock", strings.NewReader(`{"virtual_now":"2026-12-31T23:30:00+08:00"}`))
 	assertOK(t, status, b)
@@ -201,9 +209,10 @@ func TestSimTickBound(t *testing.T) {
 }
 
 func TestSimReset(t *testing.T) {
-	resetSimClock(t)
-	defer resetSimClock(t)
-	r := simRouter(t)
+	db := writeTestDB(t)
+	resetSimClock(t, db)
+	defer resetSimClock(t, db)
+	r := simRouter(t, db)
 
 	if status, b := post(t, r, "/api/v1/sim/tick", strings.NewReader(`{"minutes":120}`)); status != http.StatusOK || b.Code != 0 {
 		t.Fatalf("前置 tick: status=%d code=%d", status, b.Code)
@@ -222,7 +231,7 @@ func TestSimReset(t *testing.T) {
 	if d.Scope != "clock" || d.VirtualNow != "2026-10-28T09:00:00+08:00" || d.JobID <= 0 {
 		t.Fatalf("reset 响应不符: %+v", d)
 	}
-	j := lastJob(t, "SimReset")
+	j := lastJob(t, db, "SimReset")
 	if j.ID != d.JobID || j.VirtualDate != "2026-10-28" || j.JobStatus != "success" {
 		t.Fatalf("job_log SimReset 行不符: %+v", j)
 	}
@@ -234,8 +243,9 @@ func TestSimReset(t *testing.T) {
 
 // 契约 §16.3:scope=full 未开放 → 35002;其他值 → 10001
 func TestSimResetScopeFull(t *testing.T) {
-	defer resetSimClock(t)
-	r := simRouter(t)
+	db := writeTestDB(t)
+	defer resetSimClock(t, db)
+	r := simRouter(t, db)
 
 	status, b := post(t, r, "/api/v1/sim/reset", strings.NewReader(`{"scope":"full"}`))
 	if status != http.StatusBadRequest || b.Code != 35002 {
@@ -248,9 +258,10 @@ func TestSimResetScopeFull(t *testing.T) {
 }
 
 func TestSimJobs(t *testing.T) {
-	resetSimClock(t)
-	defer resetSimClock(t)
-	r := simRouter(t)
+	db := writeTestDB(t)
+	resetSimClock(t, db)
+	defer resetSimClock(t, db)
+	r := simRouter(t, db)
 
 	// 自供数据:先各造一行 SimTick/SimReset,再断言列表形状
 	post(t, r, "/api/v1/sim/tick", strings.NewReader(`{"minutes":30}`))
@@ -314,9 +325,10 @@ func TestSimJobs(t *testing.T) {
 }
 
 func TestSimSetClock(t *testing.T) {
-	resetSimClock(t)
-	defer resetSimClock(t)
-	r := simRouter(t)
+	db := writeTestDB(t)
+	resetSimClock(t, db)
+	defer resetSimClock(t, db)
+	r := simRouter(t, db)
 
 	status, b := post(t, r, "/api/v1/sim/clock", strings.NewReader(`{"virtual_now":"2026-10-28T07:55:00+08:00"}`))
 	assertOK(t, status, b)
@@ -330,7 +342,7 @@ func TestSimSetClock(t *testing.T) {
 	if d.VirtualNow != "2026-10-28T07:55:00+08:00" || d.JobID <= 0 {
 		t.Fatalf("set 响应不符: %+v", d)
 	}
-	if j := lastJob(t, "SimSet"); j.ID != d.JobID || j.VirtualDate != "2026-10-28" || j.JobStatus != "success" {
+	if j := lastJob(t, db, "SimSet"); j.ID != d.JobID || j.VirtualDate != "2026-10-28" || j.JobStatus != "success" {
 		t.Fatalf("job_log SimSet 行不符: %+v", j)
 	}
 

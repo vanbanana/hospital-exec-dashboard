@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	"hospital-edss/internal/clock"
 )
 
 // 业务退出码载体——handler 按 errors.Is 映射 35003/35002(error-codes §3 35xxx)
@@ -48,6 +50,9 @@ func SimClock(ctx context.Context, db *gorm.DB) (SimClockRow, time.Time, error) 
 		`SELECT virtual_now, speed, paused, base_date, updated_at FROM sim.clock WHERE id=1`).Scan(&row)
 	if tx.Error != nil {
 		return row, time.Time{}, tx.Error
+	}
+	if tx.RowsAffected == 0 { // 锚定行缺失不能返零值行——virtual_now 会序列化成 0001-01-01 静默下发
+		return row, time.Time{}, clock.ErrNoClockRow
 	}
 	seedEnd, err := simSeedEnd(ctx, db)
 	return row, seedEnd, err
@@ -115,8 +120,12 @@ func SimTick(ctx context.Context, db *gorm.DB, minutes int) (before, after time.
 		if err := checkRunning(tx); err != nil {
 			return err
 		}
-		if err := tx.Raw(`SELECT virtual_now FROM sim.clock WHERE id=1 FOR UPDATE`).Scan(&before).Error; err != nil {
-			return err
+		q := tx.Raw(`SELECT virtual_now FROM sim.clock WHERE id=1 FOR UPDATE`).Scan(&before)
+		if q.Error != nil {
+			return q.Error
+		}
+		if q.RowsAffected == 0 {
+			return clock.ErrNoClockRow
 		}
 		seedEnd, err := simSeedEnd(ctx, tx)
 		if err != nil {
@@ -125,10 +134,14 @@ func SimTick(ctx context.Context, db *gorm.DB, minutes int) (before, after time.
 		if before.Add(time.Duration(minutes) * time.Minute).After(dayBound(seedEnd, simLoc).AddDate(0, 0, 1)) {
 			return ErrSimBound
 		}
-		if err := tx.Raw(`UPDATE sim.clock
+		u := tx.Raw(`UPDATE sim.clock
 			SET virtual_now = virtual_now + (?::int || ' minutes')::interval, updated_at = statement_timestamp()
-			WHERE id=1 RETURNING virtual_now`, minutes).Scan(&after).Error; err != nil {
-			return err
+			WHERE id=1 RETURNING virtual_now`, minutes).Scan(&after)
+		if u.Error != nil {
+			return u.Error
+		}
+		if u.RowsAffected == 0 {
+			return clock.ErrNoClockRow
 		}
 		jobID, err = insertJobLog(tx, "SimTick", after, minutes)
 		return err
@@ -148,11 +161,15 @@ func SimReset(ctx context.Context, db *gorm.DB) (after time.Time, jobID int64, e
 			VirtualNow time.Time
 			BaseDate   time.Time
 		}
-		if err := tx.Raw(`UPDATE sim.clock
+		u := tx.Raw(`UPDATE sim.clock
 			SET virtual_now = (base_date + time '09:00') AT TIME ZONE 'Asia/Shanghai',
 			    speed = 1, paused = false, updated_at = statement_timestamp()
-			WHERE id=1 RETURNING virtual_now, base_date`).Scan(&res).Error; err != nil {
-			return err
+			WHERE id=1 RETURNING virtual_now, base_date`).Scan(&res)
+		if u.Error != nil {
+			return u.Error
+		}
+		if u.RowsAffected == 0 {
+			return clock.ErrNoClockRow
 		}
 		after = res.VirtualNow
 		jobID, err = insertJobLog(tx, "SimReset", res.BaseDate, 0)
@@ -179,8 +196,12 @@ func SimSetClock(ctx context.Context, db *gorm.DB, p SimSetPatch) (after time.Ti
 			VirtualNow time.Time
 			BaseDate   time.Time
 		}
-		if err := tx.Raw(`SELECT virtual_now, base_date FROM sim.clock WHERE id=1 FOR UPDATE`).Scan(&row).Error; err != nil {
-			return err
+		q := tx.Raw(`SELECT virtual_now, base_date FROM sim.clock WHERE id=1 FOR UPDATE`).Scan(&row)
+		if q.Error != nil {
+			return q.Error
+		}
+		if q.RowsAffected == 0 {
+			return clock.ErrNoClockRow
 		}
 		if p.VirtualNow != nil {
 			seedEnd, err := simSeedEnd(ctx, tx)
@@ -192,14 +213,18 @@ func SimSetClock(ctx context.Context, db *gorm.DB, p SimSetPatch) (after time.Ti
 				return ErrSimBound
 			}
 		}
-		if err := tx.Raw(`UPDATE sim.clock
+		u := tx.Raw(`UPDATE sim.clock
 			SET virtual_now = COALESCE(?, virtual_now),
 			    speed = COALESCE(?, speed),
 			    paused = COALESCE(?, paused),
 			    updated_at = statement_timestamp()
 			WHERE id=1 RETURNING virtual_now`,
-			p.VirtualNow, p.Speed, p.Paused).Scan(&after).Error; err != nil {
-			return err
+			p.VirtualNow, p.Speed, p.Paused).Scan(&after)
+		if u.Error != nil {
+			return u.Error
+		}
+		if u.RowsAffected == 0 {
+			return clock.ErrNoClockRow
 		}
 		jobID, err = insertJobLog(tx, "SimSet", after, 0)
 		return err

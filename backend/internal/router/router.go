@@ -2,6 +2,7 @@
 package router
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,13 @@ func Build(d *Deps) *gin.Engine {
 	// X-Forwarded-For 仅信任 TRUSTED_PROXY_CIDRS(默认本机回环)——gin 默认信任全部
 	// CIDR,公网直连伪造 XFF 可污染 audit_log/user_session 的 ip 列;
 	// nginx 反代异机/异容器部署时经 env 放开(config.go)
-	_ = r.SetTrustedProxies(d.TrustedProxies)
+	// 非法 CIDR 不可静默吞——吞错会让代理白名单部分生效(截断的 cidr 列表已装入),
+	// 配置错必须启动即失败
+	if err := r.SetTrustedProxies(d.TrustedProxies); err != nil {
+		log.Fatalf("TRUSTED_PROXY_CIDRS 配置非法: %v", err)
+	}
+	// 已注册路径的错误方法→405+10004;不开此开关时 gin 落到 NoRoute 误报 10003
+	r.HandleMethodNotAllowed = true
 	r.Use(middleware.TraceID(), middleware.RequestLog(), middleware.Recovery(), middleware.Session(d.DB, d.CookieSecure))
 
 	r.GET("/health", func(c *gin.Context) { envelope.OK(c, gin.H{"status": "up"}) })
@@ -45,6 +52,10 @@ func Build(d *Deps) *gin.Engine {
 
 	r.NoRoute(func(c *gin.Context) {
 		envelope.Fail(c, http.StatusNotFound, envelope.CodeNotFound, "资源不存在", nil)
+	})
+	// NoMethod 随全局中间件链执行(会话先决)——无凭证的错误方法请求仍先撞 20001
+	r.NoMethod(func(c *gin.Context) {
+		envelope.Fail(c, http.StatusMethodNotAllowed, envelope.CodeMethodNA, "请求方法不支持", nil)
 	})
 
 	return r

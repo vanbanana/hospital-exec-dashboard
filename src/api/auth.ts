@@ -2,6 +2,7 @@
 // §2.3/§2.4 会话登录经 api() 写路径——client.ts 已支持 method/body，错误形状与真轨一致）
 import { api } from './client'
 import { clearSession, onLoginSuccess } from './session'
+import { ApiError } from './useAsyncData'
 import type { AuthProfileResp, HospitalProfileResp } from './types'
 
 /** §2.1 GET /auth/profile（?role= 切换演示上下文，枚举外后端回 10001） */
@@ -25,7 +26,7 @@ export interface LoginError {
 /** §2.3 POST /auth/login — 成功响应即全量上下文（同 §2.1 data），入会话缓存后 resolve */
 export async function login(username: string, password: string): Promise<AuthProfileResp> {
   const data = await api<AuthProfileResp | null>('auth/login', {}, { method: 'POST', body: { username, password } })
-  if (!data) throw { code: 10000, message: '登录响应缺少会话数据' } satisfies LoginError
+  if (!data) throw new ApiError(10000, '登录响应缺少会话数据')
   onLoginSuccess(data)
   return data
 }

@@ -61,7 +61,7 @@
 
 ### 1.2 分页
 
-- 分页负载 `{ list, page, size, total }` + 查询参数 `?page=1&size=20`（`size ≤ 100`）**仅用于契约 §15 远期预留端点**（如 `/cases`、`/todos`）。
+- 分页负载 `{ list, page, size, total }` + 查询参数 `?page=1&size=20`（`size ≤ 100`）**仅用于契约 §15 分页端点**（`/todos` 已接入；`/cases` 仍预留）。
 - 当前工作台所有端点均为**定长卡片式负载，不带分页字段**；前端不得自行加分页参数。
 
 ### 1.3 单位与格式规范（契约 §1.3 / §1.4）
@@ -83,7 +83,7 @@
 
 | 参数 | 取值 | 说明 |
 | :--- | :--- | :--- |
-| `range` | `本月` / `本季` / `本年` | 时间范围三值（中文字面量原样传）。各端点默认值见各节；契约未标注默认的（operations、hr），前端缺省按 `本年`（见 `src/api/workbench.ts`） |
+| `range` | `本月` / `本季` / `本年` | 时间范围三值（中文字面量原样传）。各端点默认值见各节；契约未标注默认的（operations），前端缺省按 `本年`（见 `src/api/workbench.ts`） |
 | `tab` | `门急诊` / `住院` / `手术` | 仅 `/workbench/medical` |
 | `dim` | `scale` / `benefit` / `efficiency` / `quality` | 仅 `/workbench/compare`，英文枚举 |
 | `topic` | `drg` / `insurance` / `exam` / `outp_fund` | 仅 `/workbench/topics`，英文枚举 |
@@ -104,14 +104,14 @@
 | `code=31004` | `api` 层 resolve `null` → 页面/面板自渲空态 |
 | 图表字段缺失/为 null | 画空坐标轴，不报错 |
 | `code=10001` 非法参数 | 面板/页面错误态 + 重试入口；前端应先校验枚举防呆 |
-| `code=20001/20003` | 清凭证跳 `/login?redirect=<当前路径>`（`/login` 随契约 §2.3–2.4 启用；启用前按当前角色降级展示） |
+| `code=20001/20003` | 清凭证跳 `/login?redirect=<当前路径>`（`/login` 已随契约 §2.3–2.4 落地启用） |
 | `code=20004` | 警告提示（message）+停留当前页；目标面板渲错误态（无独立 `/403` 路由） |
 | `code=10005` | 节流提示，触发按钮置冷却 |
 | 其余非 0 code | 统一错误提示（展示 `message`，附 `trace_id`） |
 | HTTP 5xx / 断网 | 工作台：面板错误态 + 重试；大屏：断线重试态（顶部红条 + 自动重连倒计时） |
 | 重试成功前 | 旧数据保留并标 stale（有刷新态后） |
 
-### 1.7 写路径与会话约定（P3 契约演进，落码随 auth/write epic）
+### 1.7 写路径与会话约定（P3 契约演进，已随 auth/write epic 落码）
 
 **写端点调用形**：`api()` 扩展签名 `api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body?: unknown })`——GET 调用签名不变；写调用 `body` 经 `JSON.stringify` + `Content-Type: application/json` 上送，响应走同一包络拆解。mock 轨以 `method:key` 复合键注册写端点 resolver（路径参数 `{id}`/`{code}` 回填 `params`）。
 
@@ -129,8 +129,8 @@
 
 ## 2. 认证与上下文域 `/auth` & `/hospital`
 
-> 契约 §2。演示级认证：`?role=` 直接切上下文；P3 契约增补会话登录（§2.3–2.4，Cookie `edss_sid`），落码后 `?role=` 保留为演示切换参数（契约 §2.1 演进注）。
-> **当前状态：§2.1/§2.2 两端点已注册 mock 并接入视图；§2.3/§2.4 为契约先行登记**（消费位置见各节）。接入顺序：先注册 mock key 再改视图。
+> 契约 §2。演示级认证：`?role=` 直接切上下文；P3 契约增补会话登录（§2.3–2.4，Cookie `edss_sid`），已落码——`?role=` 保留为演示切换参数（契约 §2.1 演进注）。
+> **当前状态：§2.1–§2.4 四端点均已注册 mock 并接入视图**（§2.3/§2.4 随 P3 auth epic 落码）。接入顺序：先注册 mock key 再改视图。
 
 ### 2.1 `GET /auth/profile`
 
@@ -206,7 +206,7 @@
 
 **mock key**：`hospital/profile`
 
-### 2.3 `POST /auth/login`（契约先行登记，P3 auth epic 落码）
+### 2.3 `POST /auth/login`（已随 P3 auth epic 落码）
 
 - **契约锚点**：§2.3。账号口令登录，签发 HttpOnly Cookie 会话 `edss_sid`；响应即全量上下文（同 §2.1 `data` 形状），前端免二次拉取。
 
@@ -234,7 +234,7 @@
 
 **mock key**：`auth/login`（`POST:` 复合键；resolver 校验演示账号口令 → 置会话旗标；无旗标时 `auth/profile` resolver 抛 `code=20001` 演练未登录态）
 
-### 2.4 `POST /auth/logout`（契约先行登记，P3 auth epic 落码）
+### 2.4 `POST /auth/logout`（已随 P3 auth epic 落码）
 
 - **契约锚点**：§2.4。吊销当前会话并清 Cookie；**幂等**——无会话/已失效调用同返 `code=0`。
 
@@ -1051,8 +1051,18 @@
 | `GET /workbench/topics` | `workbench/topics` | `TopicsView.vue` | ✅ 已接入 |
 | `GET /workbench/settings/config` | `workbench/settings/config` | `SettingsView.vue` | ✅ 已接入 |
 | `GET /screen/snapshot` | `screen/snapshot` | `views/screen/ScreenView.vue` + `components/screen/Scr*` | ✅ 已接入 |
+| `POST /auth/login` | `POST:auth/login` | `views/LoginView.vue` | ✅ 已接入 |
+| `POST /auth/logout` | `POST:auth/logout` | `WorkbenchHeader.vue`（头像下拉「退出登录」） | ✅ 已接入 |
+| `POST /alerts/{id}/ack` | `POST:alerts/{id}/ack` | `RiskAlertsCard.vue` | ✅ 已接入 |
+| `POST /alerts/{id}/dispatch` | `POST:alerts/{id}/dispatch` | `RiskAlertsCard.vue`（派发弹层） | ✅ 已接入 |
+| `POST /alerts/{id}/close` | `POST:alerts/{id}/close` | `RiskAlertsCard.vue`（关闭弹层） | ✅ 已接入 |
+| `GET /todos` | `todos` | `NoticesTodosCard.vue` | ✅ 已接入 |
+| `POST /todos/{id}/status` | `POST:todos/{id}/status` | `NoticesTodosCard.vue`（接单/办结） | ✅ 已接入 |
+| `GET /staff` | `staff` | `RiskAlertsCard.vue`（派发承办人联想） | ✅ 已接入 |
+| `POST /workbench/settings/rules/{code}` | `POST:workbench/settings/rules/{code}` | `SettingsView.vue`（阈值开关） | ✅ 已接入 |
+| `PUT /workbench/settings/preferences` | `PUT:workbench/settings/preferences` | `SettingsView.vue`（偏好表单） | ✅ 已接入 |
 
-合计 21 端点：**21/21 已接入**。
+合计 31 端点：**31/31 已接入**。
 
 > **分段器（WbSeg）语义注记**：`research`/`patient`/`quality`/`assets` 四端点契约未声明 `range` 参数——这四页的 WbSeg 为**纯交互展示控件**，切换不产生取数（代码内已注释"仅保留视图交互状态"）。后端如为某端点补 range 参数，先走契约演进再接值。
 >
@@ -1060,25 +1070,25 @@
 
 ---
 
-## 17. 远期预留端点（契约 §15/§16 — 前端不调用）
+## 17. 远期预留端点（契约 §15/§16 状态账）
 
-以下端点为后端落地/深层穿透预留，**当前前端不发起任何调用**，不建 mock key、不写取数函数。启用时须先走契约演进 → 补本文档对应节 → 再写代码。
+本表登记契约 §15/§16 端点的前端消费状态。**已接入项同时列于 §16 总表**；仍预留的端点启用时须先走契约演进 → 补本文档对应节 → 再写代码。
 
 | # | Method | Path | 用途 | 阶段 | 前端状态 |
 | :- | :----- | :--- | :--- | :-- | :------- |
-| R01 | GET | `/cases` | L4 病例列表（科室/病组/死因筛选，分页） | P2 | 不调用 |
-| R02 | GET | `/cases/{id}` | L5 电子病历（脱敏事实） | P2 | 不调用 |
-| R03 | GET | `/cases/{id}?unmask=1` | L5 实名解密调阅（二次验密） | P2 | 不调用 |
-| R04 | POST | `/alerts/{id}/ack` | 告警认领（契约 §15.1 已定义） | P2 | 不调用 |
-| R05 | POST | `/alerts/{id}/dispatch` | 告警一键督办派发（契约 §15.2 已定义） | P2 | 不调用 |
-| R06 | POST | `/alerts/{id}/close` | 告警直接闭环关闭（契约 §15.3 已定义） | P2 | 不调用 |
-| R07 | GET | `/todos` | 督办追踪工单列表（契约 §15.4 已定义，三点锚点，分页） | P2 | 不调用 |
-| R08 | POST | `/todos/{id}/status` | 督办工单反馈与办结（契约 §15.5 已定义） | P2 | 不调用 |
-| R09 | GET | `/campus/buildings/{code}` | 楼宇详情抽屉（大屏二级穿透） | P2 | 不调用 |
-| R10 | GET | `/staff` | 承办人联想选择器（契约 §15.6 已定义） | P2 | 不调用 |
-| R11 | POST | `/auth/login` | 会话登录（契约 §2.3 已展开；消费形见 §2.3 节） | P3 | 契约先行登记，随 auth epic 落码 |
+| R01 | GET | `/cases` | L4 病例列表（科室/病组/死因筛选，分页） | P2 | 不调用（仍预留） |
+| R02 | GET | `/cases/{id}` | L5 电子病历（脱敏事实） | P2 | 不调用（仍预留） |
+| R03 | GET | `/cases/{id}?unmask=1` | L5 实名解密调阅（二次验密） | P2 | 不调用（仍预留） |
+| R04 | POST | `/alerts/{id}/ack` | 告警认领（契约 §15.1） | P2 | ✅ 已接入（§16；§15.1） |
+| R05 | POST | `/alerts/{id}/dispatch` | 告警一键督办派发（契约 §15.2） | P2 | ✅ 已接入（§16；§15.2） |
+| R06 | POST | `/alerts/{id}/close` | 告警直接闭环关闭（契约 §15.3） | P2 | ✅ 已接入（§16；§15.3） |
+| R07 | GET | `/todos` | 督办追踪工单列表（契约 §15.4，三点锚点，分页） | P2 | ✅ 已接入（§16；§15.4） |
+| R08 | POST | `/todos/{id}/status` | 督办工单反馈与办结（契约 §15.5） | P2 | ✅ 已接入（§16；§15.5） |
+| R09 | GET | `/campus/buildings/{code}` | 楼宇详情抽屉（大屏二级穿透） | P2 | 不调用（仍预留） |
+| R10 | GET | `/staff` | 承办人联想选择器（契约 §15.6） | P2 | ✅ 已接入（§16；§15.6） |
+| R11 | POST | `/auth/login` | 会话登录（契约 §2.3 已展开；消费形见 §2.3 节） | P3 | ✅ 已接入（§16；§2.3） |
 | R12 | POST | `/auth/refresh` | Token 静默轮换 | P3 | 不调用（保留远期，凭证为会话 Cookie） |
 | R13 | POST | `/metrics/query` | ChatBI / 指标语义层查询 | P3 | 不调用 |
 | R14 | GET/POST | `/sim/*` | 仿真时钟控制（契约 §16 档 A 已定义：clock/tick/reset/jobs） | P3 | 不调用（无 UI 挂载位，演示工具链用 curl） |
-| R15 | POST | `/workbench/settings/rules/{code}` | 阈值启停写回（契约 §15.7 已定义） | P3 | 契约先行登记，随 write epic 落码 |
-| R16 | PUT | `/workbench/settings/preferences` | 系统偏好写回（契约 §15.8 已定义） | P3 | 契约先行登记，随 write epic 落码 |
+| R15 | POST | `/workbench/settings/rules/{code}` | 阈值启停写回（契约 §15.7） | P3 | ✅ 已接入（§16；§15.7） |
+| R16 | PUT | `/workbench/settings/preferences` | 系统偏好写回（契约 §15.8） | P3 | ✅ 已接入（§16；§15.8） |

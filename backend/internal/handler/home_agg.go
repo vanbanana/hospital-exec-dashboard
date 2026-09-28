@@ -127,7 +127,7 @@ func (h *Home) Kpis(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	curFirst, curNext := aggMonthSpan(today)
@@ -135,22 +135,22 @@ func (h *Home) Kpis(c *gin.Context) {
 
 	cur, err := repo.HomeMonthlyAgg(ctx, h.db, curFirst, curNext)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	prev, err := repo.HomeMonthlyAgg(ctx, h.db, prevFirst, curFirst)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	staffCur, err := repo.HomeMetricValue(ctx, h.db, "STAFF_CNT", curFirst)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	staffPrev, err := repo.HomeMetricValue(ctx, h.db, "STAFF_CNT", prevFirst)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 
@@ -189,7 +189,7 @@ func (h *Home) Trends(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	yearFirst := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, today.Location())
@@ -198,12 +198,12 @@ func (h *Home) Trends(c *gin.Context) {
 
 	curPts, err := repo.HomeYearMonths(ctx, h.db, yearFirst, yearNext)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	lastPts, err := repo.HomeYearMonths(ctx, h.db, lastFirst, yearFirst)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 
@@ -250,7 +250,7 @@ func (h *Home) Indicators(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	curFirst, curNext := aggMonthSpan(today)
@@ -258,22 +258,22 @@ func (h *Home) Indicators(c *gin.Context) {
 
 	cur, err := repo.HomeMonthlyAgg(ctx, h.db, curFirst, curNext)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	prev, err := repo.HomeMonthlyAgg(ctx, h.db, prevFirst, curFirst)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	svcCur, err := repo.HomeMedSvcRatio(ctx, h.db, curFirst, curNext)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	svcPrev, err := repo.HomeMedSvcRatio(ctx, h.db, prevFirst, curFirst)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 

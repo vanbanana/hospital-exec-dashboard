@@ -4,6 +4,7 @@ package clock
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -17,15 +18,26 @@ func New(db *gorm.DB) *Source {
 	return &Source{db: db}
 }
 
+// ErrNoClockRow sim.clock 锚定行(id=1)缺失——缺行时 Scan 出零值时刻不报错,
+// 会让全部业务"今天"静默坍成 0001-01-01;repo 侧 sim 写事务的 FOR UPDATE/RETURNING
+// 零行同判此错(单哨兵,handler 统一落 10000)
+var ErrNoClockRow = errors.New("sim.clock 缺锚定行(id=1)")
+
 // Now 当前虚拟时刻;sim.clock 单行(id=1)由种子锚定 BASE_DATE=2026-10-28
 func (s *Source) Now(ctx context.Context) (time.Time, error) {
 	var t time.Time
-	err := s.db.WithContext(ctx).
+	tx := s.db.WithContext(ctx).
 		Table("sim.clock").
 		Select("virtual_now").
 		Where("id = 1").
-		Scan(&t).Error
-	return t, err
+		Scan(&t)
+	if tx.Error != nil {
+		return t, tx.Error
+	}
+	if tx.RowsAffected == 0 {
+		return t, ErrNoClockRow
+	}
+	return t, nil
 }
 
 // Today 虚拟日期(去掉时分秒)

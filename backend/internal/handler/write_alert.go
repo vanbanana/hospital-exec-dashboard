@@ -26,9 +26,11 @@ func NewWriteHandler(r *repo.WriteRepo) *WriteHandler {
 }
 
 // operator 契约 §15 头部——?role= 出席=演示切换(白名单只管这个入参:须为演示账号,非法→10001);
-// 缺席=当前会话用户(任何已认证账号直查 FindOperator,不走演示白名单;测试直挂路径兜底 president)
+// 缺席=当前会话用户(任何已认证账号直查 FindOperator,不走演示白名单);
+// 两者皆无→20001:原 "president" 兜底是 fail-open——中间件被绕过/漏挂时写接口
+// 以院长身份无痕记账,宁可误拒不可静默放权
 func (h *WriteHandler) operator(c *gin.Context) (*repo.Operator, bool) {
-	username := "president"
+	var username string
 	if v, present := c.GetQuery("role"); present {
 		// 域=§2.1 演示账号全集(3 角色);admin 不入——admin 会话经下方会话分支直查
 		switch v {
@@ -45,12 +47,17 @@ func (h *WriteHandler) operator(c *gin.Context) (*repo.Operator, bool) {
 			envelope.Fail(c, http.StatusForbidden, envelope.CodeScopeDeny, "无权执行该操作(角色不足)", nil)
 			return nil, false
 		}
-	} else if su, ok := sessionUser(c); ok {
+	} else {
+		su, ok := sessionUser(c)
+		if !ok {
+			envelope.Fail(c, http.StatusUnauthorized, envelope.CodeUnauth, "未登录或凭证缺失", nil)
+			return nil, false
+		}
 		username = su.Username
 	}
 	op, err := h.r.FindOperator(c.Request.Context(), username)
 	if err != nil || op == nil { // 0 行=账号被清,数据异常同 context.go
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return nil, false
 	}
 	// ?role= 演示切换与会话用户不一致时,审计 detail 同记双身份(谁登的、以谁名义办的)
@@ -101,7 +108,7 @@ func (h *WriteHandler) alertErr(c *gin.Context, err error) {
 	case errors.Is(err, repo.ErrDeadlineBad):
 		envelope.Fail(c, http.StatusBadRequest, envelope.CodeDeadlineBad, "截止时间非法", nil)
 	default:
-		fail(c, err)
+		envelope.FailInternal(c, err)
 	}
 }
 
@@ -218,7 +225,7 @@ func (h *WriteHandler) StaffList(c *gin.Context) {
 	}
 	rows, err := h.r.StaffOptions(c.Request.Context(), deptID)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	list := make([]gin.H, 0, len(rows))

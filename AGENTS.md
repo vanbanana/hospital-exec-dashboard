@@ -9,7 +9,7 @@
 - **工作台 `/workbench`（主形态）**：浅色医疗专业风格的 Web 管理台，侧栏 11 个业务页 + 首页。院长/主任日常用，重"管"——筛选、下钻、督办、报表。
 - **大屏 `/screen`（展示形态）**：深色科技风演示大屏，已按 `archive/smart-hospital-cockpit/` 视觉基准 + 契约 §14 建成（`ScreenLayout` + `ScreenView` + `Scr*` 组件族）。重"看"——宏观态势、告警跑马灯。
 
-**双轨数据供给：默认契约 mock + `VITE_USE_MOCK=0` 经 vite proxy 接 Go 真后端（读侧 21 端点已落地，写侧未做）；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，换数据源契约与页面不动。
+**双轨数据供给：默认契约 mock + `VITE_USE_MOCK=0` 经 vite proxy 接 Go 真后端（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）；`docs/api-contract.md` 是数据契约**——前端对着它做数据层，换数据源契约与页面不动。
 
 ### 0.1 设计资产定位（重要，别搞反）
 
@@ -31,7 +31,7 @@
 | 4 | `docs/architecture.md` | 技术栈白名单、系统拓扑、分期路线 |
 | 5 | `docs/simulation-plan.md` | 数据供给分层（mock→契约层→仿真）、演示 runbook |
 | 6 | `docs/acceptance.md` | 验收门禁 |
-| 7 | `docs/database-schema.md` | 库表设计（**已实施**：57 表 hospital_edss；演进按"只加列/表/索引"纪律） |
+| 7 | `docs/database-schema.md` | 库表设计（**已实施**：58 表 hospital_edss；演进按"只加列/表/索引"纪律） |
 | 8 | `docs/frontend-api.md` | 前端接口使用文档：每端点怎么调、字段怎么用、空错态怎么渲染 |
 | 9 | `docs/design-tokens.md` | 设计令牌治理：颜色/字号/间距/圆角唯一出处，token 增改先过本文 |
 | 10 | `backend/README.md` | 后端跑法、迁移/种子清单、断言脚本位置 |
@@ -118,19 +118,19 @@
 
 ### 前端（Vue3 + TS + Vite + VueRouter + ECharts + lucide）
 
-- `src/api/types.ts`（建立后）照抄契约 snake_case 字段名
+- `src/api/types.ts` 照抄契约 snake_case 字段名
 - 数据流单向：组件 → store → api 模块 → http（**当前为 mock 直读，见 §2.6**）
 - 轮询/定时器：`onUnmounted` 里清理；ECharts 卸载时 `dispose()`（`WbChart` 已封装，优先复用）
 - 金额/比率渲染先读单位声明
 - count-up 等动效只在值真实变化时触发
 
-### 后端（已落地，读侧）
+### 后端（已落地）
 
-- `backend/`：`cmd/server` + `internal/{config,envelope,middleware,clock,router,handler,repo}`；薄查询层 handler→repo→预聚合表（dws/ads/dwd），读侧 21 端点；写侧督办闭环未做
+- `backend/`：`cmd/server` + `internal/{config,envelope,middleware,clock,router,handler,repo}`；薄查询层 handler→repo→预聚合表（dws/ads/dwd）；39 端点已落地（读 21 + auth 2 + 写 8 + sim 5 + infra 3 根挂），会话/RBAC 生效中
 - 响应一律经包络 helper；多表写放事务；唯一时间源 `clock`（`sim.clock.virtual_now`）；包络 `ts` 为传输墙钟字段，豁免业务时钟纪律
 - 跑法见 `backend/README.md`（`go run ./cmd/server` :8080；前端 `VITE_USE_MOCK=0 npm run dev` 即真链路）
 
-### 数据库（已实施，57 表 hospital_edss）
+### 数据库（已实施，58 表 hospital_edss）
 
 - `docs/database-schema.md` 为设计文档；演进按"已建表只加列/表/索引"纪律执行
 - 灌库与种子幂等/确定性纪律见 `backend/README.md`
@@ -147,7 +147,7 @@ npx vue-tsc -b && npm run build
   http://localhost:5173/workbench/<路由>
 
 # 后端（在 backend/ 目录跑）
-cd backend && go vet ./... && go build ./... && go test ./... -run Contract
+cd backend && go vet ./... && go build ./... && go test -count=1 ./...
 
 # 机械自查（time.Now 豁免清单=传输/运维层墙钟:envelope.go 包络 ts、requestlog.go 延迟计时、
 # write_alert.go failData ts(包络冻结故本地实现)、cmd/migrate/main.go 迁移耗时统计;

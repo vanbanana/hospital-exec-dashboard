@@ -1,6 +1,6 @@
 # 验证与验收基线 — EDSS（v2.1）
 
-> 版本：v2.1（后端门禁生效 + 机械检查路径修正）  
+> 版本：v2.1（后端门禁生效 + 机械检查路径修正 + P3 验收项恢复）  
 > 回答一个问题：**怎么证明这一版做完了？**
 
 ---
@@ -12,7 +12,7 @@
 npx vue-tsc -b && npm run build
 
 # 后端（在 backend/ 目录跑）
-cd backend && go vet ./... && go build ./... && go test ./... -run Contract
+cd backend && go vet ./... && go build ./... && go test -count=1 ./...
 
 # 机械自查（time.Now 豁免清单=传输/运维层墙钟:envelope.go 包络 ts、requestlog.go 延迟计时、
 # write_alert.go failData ts(包络冻结故本地实现)、cmd/migrate/main.go 迁移耗时统计;
@@ -47,6 +47,17 @@ grep -rn "time.Now\|as any\|@ts-ignore" --include="*.ts" --include="*.go" src/ b
 | 3 | 自洽 | 同指标跨页同值；环比方向与数值一致；床位占用≤开放 |
 | 4 | 剧情可讲 | 预警→下钻链路数据相互印证（见 simulation-plan §2） |
 
-## 4. 远期验收（写侧/仿真启用后恢复）
+## 4. P3 已恢复验收项（原"远期"清单回门禁）
 
-v1.1 清单保留（契约冒烟/五级穿透/权限/时钟/重置），见 git 历史；读侧 21 端点已由 §1 后端门禁覆盖，写侧与仿真引擎启用时按范围逐项恢复。
+v1.1 清单中随 P3 批落地、恢复条件已成就的项，挪回正式门禁；剩余远期项仍保留。
+
+**已恢复（正式门禁，回归必过）**：
+
+| # | 验收项 | 判据 |
+| :- | :--- | :--- |
+| 1 | 会话闭环 | `POST /auth/login` 成功签发 `edss_sid` HttpOnly Cookie + 全量上下文；`logout` 吊销幂等 `code=0`；无会话访问受保护端点 → `20001` |
+| 2 | RBAC | `/sim/*` 全端点限 `admin`（无会话 → `20001`，非 admin → `20004`）；`GET /workbench/settings/config` 限 `admin`/`president`（其余 → `20004`）；写面角色矩阵与越权 `?role=` 切换闸 → `20005` |
+| 3 | 写闭环 | 告警 `ack → dispatch → todo accept/report → alert done` / `close` 直闭环全链走通；幂等撞键 → `33002`/`33104`；`sys.audit_log` 落审计行 |
+| 4 | sim 时钟 | `clock`/`tick`（≤43200/界校验）/`reset`（幂等）/`jobs` 台账全通；`SIM_ENABLED=0` 时 `/sim/*` → `NoRoute` → `10003` |
+
+**仍远期**（保留 v1.1 口径，启用后恢复验收）：五级穿透与实名验密（R01–R03）、楼宇抽屉（R09）、Token 轮换（R12）、ChatBI（R13）、仿真生成引擎（`scope=full` 全量重灌/DayGen/Intraday 生成模型/AlertScan 去重键）、契约冒烟批量断言脚本化。

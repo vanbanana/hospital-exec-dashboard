@@ -28,10 +28,10 @@
 | axios | ❌ 不引入 | api 层已用原生 fetch 落地（client.ts 自拆包络，实测工作正常），axios 不再需要 |
 | Element Plus | ❌ 暂不引入 | 工作台用自研 `--wb-*` 设计体系（表格/表单已覆盖），引入会破坏视觉统一；确需复杂组件时先问用户 |
 | Tailwind/样式框架 | ❌ 不引入 | 已有自研 token 体系 |
-| Go + Gin + GORM + PG16 + Redis | ✅ 已落地（读侧） | `backend/` 读侧 21 端点 + 57 表 hospital_edss 库在跑；写侧督办闭环未做（契约 §15 预留）；Redis 未启用 |
-| golang.org/x/crypto（bcrypt） | ✅ 审批已过 | 登录口令安全必需（契约 §2.3 `POST /auth/login` bcrypt 校验）；Go 官方扩展库，`go.mod` 现为 indirect → 使用时转直接依赖，非新增外部库；不引入第三方 auth/JWT 库 |
+| Go + Gin + GORM + PG16 + Redis | ✅ 已落地 | `backend/` 39 端点（读 21 + auth 2 + 写 8 + sim 5 + infra 3）+ 58 表 hospital_edss 库在跑；Redis 未启用 |
+| golang.org/x/crypto（bcrypt） | ✅ 审批已过 | 登录口令安全必需（契约 §2.3 `POST /auth/login` bcrypt 校验，已在用）；Go 官方扩展库，已是 `go.mod` 直接依赖；不引入第三方 auth/JWT 库 |
 
-**当前真实栈**：前端 `Vue3 + TS + Vite + VueRouter + ECharts + lucide`（无 Pinia、无 axios）；后端 `backend/` Go + Gin + GORM + PG15/16（读侧已落地，写侧未做）。
+**当前真实栈**：前端 `Vue3 + TS + Vite + VueRouter + ECharts + lucide`（无 Pinia、无 axios）；后端 `backend/` Go + Gin + GORM + PG15/16（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）。
 
 ## 2. 系统拓扑（现状）
 
@@ -46,22 +46,24 @@
                                                     Go 后端 /api/v1/<key> → PG hospital_edss
 ```
 
-### 生产部署拓扑（远期，未实施）
+### 生产部署拓扑（已落地：`deploy/` 三件套）
 
 ```
-浏览器 ── Nginx（/ 静态 + /api 反代）
-   ├─ 前端 SPA（不变）
-   └─ Go Backend（单体）：handler → service → repository → PG16(+Redis)
-        写侧双轨制：Fact Producer(仿真器|ETL) → dwd；Derived Pipeline → dws/ads
+浏览器 ── Nginx（web 容器：/ 静态 + /api 反代 + /health 透出）
+   ├─ 前端 SPA（deploy/Dockerfile web target）
+   └─ Go Backend（单体 edss:8080）：handler → repo → PG16（db 服务，仅内网）
+        〔v1.1 设计保留，未启用：写侧 Fact Producer(仿真器|ETL) → dwd；Derived Pipeline → dws/ads；Redis〕
 ```
+
+compose 编排 `db → backend（edss-migrate 迁移+种子 → edss）→ web`；跑法见 `backend/README.md` compose 段。
 
 保留原 v1.1 核心思想：**契约面与数据面分离**——后端可整体替换/后补，前端只认契约 JSON 形状。
 
-## 3. 后端内部结构（读侧已落地，写侧未做）
+## 3. 后端内部结构（已落地）
 
-**已落地**（`backend/`，详见 `backend/README.md`）：Go 单体 `cmd/server` + `internal/{config,envelope,middleware,clock,router,handler,repo}`——薄查询层 `handler → repo → 预聚合表（dws/ads/dwd）→ 契约 JSON`，读侧 21 端点对接契约 §2–§14；57 表 `hospital_edss` 库（六 schema，迁移+种子见 `database-schema.md` §5）；`sim.clock.virtual_now` 为唯一时间源；包络由 `envelope` 包统一出口。
+**已落地**（`backend/`，详见 `backend/README.md`）：Go 单体 `cmd/server` + `internal/{config,envelope,middleware,clock,router,handler,repo}`——薄查询层 `handler → repo → 预聚合表（dws/ads/dwd）→ 契约 JSON`，39 端点对接契约 §2–§16（读 21 + auth 2 + 写 8 + sim 5；另有 infra 3 根挂不入契约面）；58 表 `hospital_edss` 库（六 schema，迁移+种子见 `database-schema.md` §5）；`sim.clock.virtual_now` 为唯一时间源；包络由 `envelope` 包统一出口；会话（`sys.user_session` + `edss_sid` Cookie）与端点级 RBAC 已生效。
 
-**未实施**（v1.1 设计保留，按需启用）：写侧 Fact/Derived 双轨（Fact Producer/仿真器 → dwd；Derived Pipeline → dws/ads）、告警引擎、督办写闭环（契约 §15 R04–R08）、Redis。
+**未实施**（v1.1 设计保留，按需启用）：写侧 Fact/Derived 双轨（Fact Producer/仿真器 → dwd；Derived Pipeline → dws/ads）、告警引擎、Redis；契约 §15 深层穿透端点（R01–R03/R09/R12/R13）仍预留。
 
 ## 4. 分期路线图（v2.0 实际路线）
 
@@ -85,7 +87,7 @@
 
 - 当前：`npm run dev`（:5173）本地开发预览；真链路 `VITE_USE_MOCK=0`（需 `backend/` Go 服务 :8080 + PG hospital_edss，见 `backend/README.md`）
 - 演示：`npm run build` + 静态托管即可（mock 轨纯前端无依赖）
-- 后端生产部署（远期）：恢复 v1.1 的 docker-compose 方案（db+redis+backend+web）
+- 后端生产部署（已落地）：`deploy/` 三件套 docker-compose（db+backend+web，无 redis），跑法见 `backend/README.md`
 
 **端口归一（P3 登记）**：
 
@@ -98,10 +100,10 @@ dev 形态（本机）：
 | 5432 | 本地 PG | 真链路时 | brew postgresql@15/16 |
 | — | vite proxy `/api`→`localhost:8080` | — | target 硬编码于 `vite.config.ts` |
 
-prod 形态（静态托管 + 反代，远期）：
+prod 形态（`deploy/` compose 三服务，已落地）：
 
 | 端口 | 用途 | 暴露面 |
 | :--- | :--- | :--- |
-| 80/443 | 反代（Nginx）：`/` 静态 SPA + `/api` 反代后端；TLS 终结 | 公网唯一入口 |
-| 8080 | backend | 内网；可选 `127.0.0.1:8080` 调试透出 |
+| 80 | nginx：`/` 静态 SPA + `/api` 反代 + `/health` 透出（TLS 终结在更外层 LB） | 公网唯一入口，`WEB_PORT` 改绑 |
+| 8080 | backend | 内网；`127.0.0.1:${BACKEND_PORT}` 调试透出 |
 | 5432 | postgres | 仅内网，不 publish |

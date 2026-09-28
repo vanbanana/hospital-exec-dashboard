@@ -8,6 +8,7 @@
 | `smart-hospital-cockpit/` | 独立 Vite 工程「智慧医院综合管理平台」 | `/screen` 大屏的目标视觉参考；**其代码为参考稿，不并入主工程** |
 | `output/` | 早期设计快照与 token 导出（2026-09-18） | 旧深蓝大屏的设计稿资产，已过时 |
 | `screenshot.png` | 早期大屏截图 | 历史快照 |
+| `process_assets.py` | 大屏素材边缘融合脚本（生图 → `#0b1325` 深蓝底，smootherstep 羽化；曾为 cockpit 参考工程 `public/assets` 出图，路径为当时 Windows 本机） | 历史工具留档，不可直接运行 |
 
 ## 使用纪律
 

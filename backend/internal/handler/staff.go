@@ -12,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"hospital-edss/internal/envelope"
 	"hospital-edss/internal/repo"
 )
 
@@ -23,15 +22,6 @@ type StaffHandler struct {
 
 func NewStaffHandler(r *repo.StaffRepo) *StaffHandler {
 	return &StaffHandler{r: r}
-}
-
-// fail 统一 500 短路(handler 内 return 即停;错误明细不外泄,error-codes §3 10000)
-// err 挂 c.Error 供 requestlog 落明细(EO err 上链)
-func fail(c *gin.Context, err error) {
-	if err != nil {
-		_ = c.Error(err)
-	}
-	envelope.Fail(c, 500, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
 }
 
 // ---- 契约零件构造 ---------------------------------------------------------

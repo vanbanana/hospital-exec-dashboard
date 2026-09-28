@@ -30,7 +30,7 @@
         <div class="action-divider"></div>
 
         <!-- Director Profile：点击展开角色切换菜单(契约 §2.1 ?role= 演示上下文) -->
-        <div class="user-profile" @click="roleOpen = !roleOpen">
+        <div class="user-profile" ref="profileEl" @click="roleOpen = !roleOpen">
           <img
             :src="profile?.user.avatar || fallbackAvatar"
             alt="头像"
@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Search, Bell, ChevronDown, LogOut } from 'lucide-vue-next'
 import { getAuthProfile, logout } from '../../api/auth'
 import { currentProfile } from '../../api/session'
@@ -82,6 +82,7 @@ const profile = ref<AuthProfileResp | null>(null)
 const session = ref<AuthProfileResp | null>(null)
 const alertCount = ref(0)
 const roleOpen = ref(false)
+const profileEl = ref<HTMLElement | null>(null)
 
 // 会话真身（?role= 只切 display 层 profile，session 不动）
 const ROLE_SWITCH_ALLOW: readonly string[] = ['admin', 'president']
@@ -104,9 +105,32 @@ const onLogout = () => {
 // 头像降级：data=null/接口失败时回退默认身份展示（frontend-api §2.1 空态）
 const fallbackAvatar = new URL('../../assets/workbench/director_avatar.png', import.meta.url).href
 
+// 角色菜单开合:弹层期间挂 document 点外侧 + Esc 关闭(同 RiskAlertsCard 派发弹层模式),收起即卸
+function onDocClick(e: MouseEvent) {
+  if (profileEl.value && !profileEl.value.contains(e.target as Node)) roleOpen.value = false
+}
+function onMenuEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') roleOpen.value = false
+}
+watch(roleOpen, (v) => {
+  if (v) {
+    document.addEventListener('click', onDocClick)
+    window.addEventListener('keydown', onMenuEsc)
+  } else {
+    document.removeEventListener('click', onDocClick)
+    window.removeEventListener('keydown', onMenuEsc)
+  }
+})
+onUnmounted(() => {
+  document.removeEventListener('click', onDocClick)
+  window.removeEventListener('keydown', onMenuEsc)
+})
+
 onMounted(async () => {
-  session.value = await currentProfile().catch(() => null)
-  profile.value = await getAuthProfile().catch(() => null)
+  // 会话真身与展示 profile 同源会话缓存(§2.1);显式 ?role= 切换见 switchRole 裸调
+  const p = await currentProfile().catch(() => null)
+  session.value = p
+  profile.value = p
   alertCount.value = await getHomeAlerts().then((r) => r.list.length).catch(() => 0)
 })
 

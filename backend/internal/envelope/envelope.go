@@ -16,6 +16,7 @@ const (
 	CodeInvalidArg = 10001 // 请求参数错误(枚举外/必填缺席)
 	CodeFieldErr   = 10002 // 表单字段校验失败(data.fields 定位)
 	CodeNotFound   = 10003 // 资源不存在
+	CodeMethodNA   = 10004 // 请求方法不支持
 	CodeBadJSON    = 10006 // 请求体 JSON 解析失败
 	CodeConflict   = 10007 // 资源状态冲突
 	// 20xxx 认证授权
@@ -43,6 +44,7 @@ const (
 	CodeTodoClosed    = 33104 // 工单已关闭
 	// 35xxx 仿真域
 	CodeSimTierNA = 35002 // 该档位未开放
+	CodeSimBusy   = 35003 // 仿真批次进行中
 	// 42xxx 数据管道
 	CodeUpstreamNil = 42001 // 数据管道无上游数据(预留)
 )
@@ -88,4 +90,13 @@ func Fail(c *gin.Context, httpStatus, code int, message string, fields Fields) {
 // InvalidArg 参数校验失败的统一短路(handler 内 return 即停)
 func InvalidArg(c *gin.Context, field, msg string) {
 	Fail(c, http.StatusBadRequest, CodeInvalidArg, "请求参数错误", Fields{field: msg})
+}
+
+// FailInternal 500/10000 统一短路——err 挂 c.Error 供 requestlog 落明细(明细不出包络,
+// error-codes §3 10000);err=nil 时仍回 500(数据异常如 0 行也走此出口)
+func FailInternal(c *gin.Context, err error) {
+	if err != nil {
+		_ = c.Error(err)
+	}
+	Fail(c, http.StatusInternalServerError, CodeInternal, "系统繁忙,请稍后重试", nil)
 }

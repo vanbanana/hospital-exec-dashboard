@@ -95,7 +95,8 @@ const router = createRouter({
 
 // §3.1 登录态守卫：meta.public 豁免（/login、/screen）；其余路由以 currentProfile()
 // 校验会话，失败 → /login?redirect=<fullPath>；已登录访问 /login → 回工作台。
-// mock 轨 profile 恒 resolve = 恒放行恒跳回，与"mock 轨=已认证演示"语义一致
+// mock 轨凭 localStorage 会话旗标判会话（mock/auth.ts assertSession）：无旗标抛 20001 →
+// 守卫按同一路径跳 /login，与真轨 401 拦截语义一致（非恒放行）
 router.beforeEach(async (to) => {
   if (!to.meta.public) {
     try {

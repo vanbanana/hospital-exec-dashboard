@@ -25,8 +25,15 @@ import (
 var dsnSecret = regexp.MustCompile(`//([^:/@]+):[^@]+@`)
 
 func main() {
+	// config 先于 slog 装配:LOG_LEVEL 解析唯一出处在 config(cfg.LogLevel),
+	// 此处再读 env 会让 config 字段成死字段;Load 失败走 slog 默认 handler(stderr)兜底
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("config load failed", "error", err)
+		os.Exit(1)
+	}
 	lvl := slog.LevelInfo
-	switch os.Getenv("LOG_LEVEL") {
+	switch cfg.LogLevel {
 	case "debug":
 		lvl = slog.LevelDebug
 	case "warn":
@@ -36,11 +43,6 @@ func main() {
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl})))
 
-	cfg, err := config.Load()
-	if err != nil {
-		slog.Error("config load failed", "error", err)
-		os.Exit(1)
-	}
 	// DisableAutomaticPing:启动不预连——DB 停机时进程仍起,/ready 报 503(不可服务),
 	// 池惰性连接,DB 恢复后自愈不重启;若启动即 fail-fast,/ready 永远到不了 503 分支
 	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{DisableAutomaticPing: true})

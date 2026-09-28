@@ -1,6 +1,6 @@
 # XX市人民医院 · 院长查询与决策支持系统（EDSS）
 
-**双形态院长决策系统**：`/workbench` 浅色工作台（主，日常管理用）+ `/screen` 深色演示大屏（展示用）。无真实医院环境，**双轨数据供给**：默认契约 mock；`VITE_USE_MOCK=0` 时经 vite proxy 接 Go 真后端（读侧 21 端点已落地，写侧未做）。`docs/api-contract.md` 为数据契约，换数据源契约与页面不动。
+**双形态院长决策系统**：`/workbench` 浅色工作台（主，日常管理用）+ `/screen` 深色演示大屏（展示用）。无真实医院环境，**双轨数据供给**：默认契约 mock；`VITE_USE_MOCK=0` 时经 vite proxy 接 Go 真后端（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）。`docs/api-contract.md` 为数据契约，换数据源契约与页面不动。
 
 ## 快速开始
 
@@ -22,4 +22,4 @@ npm install && npm run dev   # http://localhost:5173 → 自动重定向 /workbe
 
 ## 技术栈
 
-前端 Vue3 + TS + Vite + VueRouter + ECharts + lucide-vue-next（无 Pinia/axios——见 architecture §1 白名单）；后端 `backend/`：Go + Gin + GORM + PostgreSQL（读侧 21 端点已落地，跑法见 `backend/README.md`）。
+前端 Vue3 + TS + Vite + VueRouter + ECharts + lucide-vue-next（无 Pinia/axios——见 architecture §1 白名单）；后端 `backend/`：Go + Gin + GORM + PostgreSQL（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3，跑法见 `backend/README.md`）。

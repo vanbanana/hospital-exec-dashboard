@@ -38,8 +38,9 @@
         </div>
         <div class="kpi-trend-row">
           <span class="trend-label">{{ card.delta_label || '较上月' }}</span>
-          <span class="trend-val wb-num">
-            {{ card.delta }}<span class="trend-arrow">{{ card.dir === 'down' ? '↓' : '↑' }}</span>
+          <span class="trend-val wb-num" :class="{ 'trend-flat': card.dir === 'flat' }">
+            {{ card.delta
+            }}<span class="trend-arrow">{{ card.dir === 'down' ? '↓' : card.dir === 'flat' ? '–' : '↑' }}</span>
           </span>
         </div>
       </div>
@@ -138,23 +139,6 @@ const TONE_BG: Record<ToneType, string> = {
   flex-shrink: 0;
 }
 
-.yen-circle-badge {
-  width: 26px;
-  height: 26px;
-  background-color: var(--p-white); /* 原色直取 */ /* 原色直取 */
-  border-radius: var(--wb-radius-pill);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.yen-char {
-  color: var(--p-green-500); /* 原色直取 */
-  font-weight: var(--wb-fw-bold);
-  font-size: var(--wb-fs-lg);
-  line-height: var(--wb-lh-solid);
-}
-
 .kpi-content {
   display: flex;
   flex-direction: column;
@@ -205,6 +189,11 @@ const TONE_BG: Record<ToneType, string> = {
   display: flex;
   align-items: center;
   gap: var(--wb-space-1);
+}
+
+/* dir=flat 中性色,与全局 .wb-delta-flat 同色口径 */
+.trend-val.trend-flat {
+  color: var(--wb-text-3);
 }
 
 .trend-arrow {

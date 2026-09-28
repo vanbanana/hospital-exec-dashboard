@@ -25,7 +25,7 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	ctx := c.Request.Context()
 	today, err := h.r.Today(ctx)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	mStart := repo.PeriodStart(today, "month")
@@ -43,7 +43,7 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	} {
 		it, err := h.patientStat(ctx, today, s.label, s.code, s.unit, s.conv)
 		if err != nil {
-			fail(c, err)
+			envelope.FailInternal(c, err)
 			return
 		}
 		stats = append(stats, it)
@@ -52,19 +52,19 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	// metric_value 仅落月行(3001_dws_agg),直读月粒度,e3-design §9.1 锚 17.46→"17"持平
 	waitCur, _, err := h.r.MetricAt(ctx, "AVG_WAIT_MIN", 0, mStart)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	waitPrev, waitOk, err := h.r.MetricAt(ctx, "AVG_WAIT_MIN", 0, repo.PrevPeriodStart(today, "month"))
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	waitDelta, waitDir := deltaAbs(waitCur, waitPrev, waitOk, "分钟")
 	stats = append(stats, statItem("平均候诊", fmtComma(waitCur), "分钟", waitDelta, "较上月", waitDir, ""))
 	online, err := h.patientStat(ctx, today, "网约挂号率", "ONLINE_REG_RATE", "%", func(v float64) string { return fmtF(v*100, 1) })
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	stats = append(stats, online)
@@ -73,12 +73,12 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	starts, months := repo.MonthAxis(today, 6)
 	opSer, err := h.r.MetricSeries(ctx, "SAT_OP_SCORE", 0, starts)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	ipSer, err := h.r.MetricSeries(ctx, "SAT_IP_SCORE", 0, starts)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	outpatient := make([]float64, len(starts))
@@ -92,7 +92,7 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	// ---- channel_distribution:dict 序,share=round(cnt/Σ*100),和可不为 100 ----
 	sums, err := h.r.RegChannelMonth(ctx, mStart)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	var total int64
@@ -101,7 +101,7 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	}
 	channels, err := h.r.DictList(ctx, "reg_channel")
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	list := make([]gin.H, 0, len(channels))
@@ -118,7 +118,7 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	for _, dt := range []string{"feedback_type", "feedback_channel", "feedback_status", "feedback_score"} {
 		rows, err := h.r.DictList(ctx, dt)
 		if err != nil {
-			fail(c, err)
+			envelope.FailInternal(c, err)
 			return
 		}
 		m := make(map[string]string, len(rows))
@@ -129,7 +129,7 @@ func (h *StaffHandler) Patient(c *gin.Context) {
 	}
 	fbs, err := h.r.FeedbackLatest(ctx, today, 6)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	fbRows := make([]gin.H, 0, len(fbs))

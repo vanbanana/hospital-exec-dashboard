@@ -60,7 +60,7 @@ func (h *WriteHandler) TodoList(c *gin.Context) {
 		Status: status, AssigneeID: assigneeID, Offset: (page - 1) * size, Limit: size,
 	})
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	// current_value 批量预取——单条 SQL 对本页 metric_code 集一次取齐(消 N+1)
@@ -74,7 +74,7 @@ func (h *WriteHandler) TodoList(c *gin.Context) {
 	}
 	curs, err := h.r.TodoCurrentValues(ctx, codes)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	list := make([]gin.H, 0, len(rows))
@@ -144,7 +144,7 @@ func (h *WriteHandler) TodoStatus(c *gin.Context) {
 			failData(c, http.StatusConflict, envelope.CodeTodoClosed, "工单已关闭，禁止变更",
 				gin.H{"current_status": sc.Current})
 		default:
-			fail(c, err)
+			envelope.FailInternal(c, err)
 		}
 		return
 	}

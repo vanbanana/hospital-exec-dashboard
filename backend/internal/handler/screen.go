@@ -191,54 +191,47 @@ func screenQuadrantOf(cmi, profit float64) int {
 	}
 }
 
-func (h *ScreenHandler) fail(c *gin.Context, err error) {
-	if err != nil {
-		_ = c.Error(err)
-	}
-	envelope.Fail(c, 500, envelope.CodeInternal, "系统繁忙,请稍后重试", nil)
-}
-
 func (h *ScreenHandler) Snapshot(c *gin.Context) {
 	ctx := c.Request.Context()
 	now, err := h.clk.Now(ctx)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	today, err := h.clk.Today(ctx)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 
 	openCnts, err := repo.ScreenOpenAlertCounts(ctx, h.db)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	kpiRows, err := repo.ScreenTodayKpis(ctx, h.db)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	drgRows, err := repo.ScreenDrgPoints(ctx, h.db)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	campusRows, err := repo.ScreenCampus(ctx, h.db)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	rankRows, err := repo.ScreenDeptRanking(ctx, h.db, today)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	alertRows, err := repo.ScreenOpenAlerts(ctx, h.db)
 	if err != nil {
-		h.fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 
@@ -291,7 +284,7 @@ func (h *ScreenHandler) Snapshot(c *gin.Context) {
 		var spark []float64
 		if len(r.Spark) > 0 {
 			if err := json.Unmarshal(r.Spark, &spark); err != nil {
-				h.fail(c, err)
+				envelope.FailInternal(c, err)
 				return
 			}
 		}
@@ -360,7 +353,7 @@ func (h *ScreenHandler) Snapshot(c *gin.Context) {
 		metrics := map[string]any{}
 		if len(r.Metrics) > 0 {
 			if err := json.Unmarshal(r.Metrics, &metrics); err != nil {
-				h.fail(c, err)
+				envelope.FailInternal(c, err)
 				return
 			}
 		}

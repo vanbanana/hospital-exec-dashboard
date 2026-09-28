@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -71,7 +72,10 @@ func Session(d *gorm.DB, cookieSecure bool) gin.HandlerFunc {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				_ = repo.RenewSessionExpiry(ctx, d, tokenHash)
+				// fire-and-forget 语义不变,但失败须可观测——静默吞错时 12h 到期丢会话无迹可查
+				if err := repo.RenewSessionExpiry(ctx, d, tokenHash); err != nil {
+					slog.Warn("session renew failed", "err", err)
+				}
 			}()
 			// Cookie 轨同步重签——登录 Cookie Max-Age=43200 固定,不续签浏览器 12h 到期
 			// 照样丢 edss_sid,服务端续期只对 Bearer 轨生效

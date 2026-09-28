@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	"hospital-edss/internal/clock"
+	"hospital-edss/internal/middleware"
 	"hospital-edss/internal/repo"
 )
 
@@ -68,7 +69,13 @@ func writeTx(t *testing.T) (*gin.Engine, *gorm.DB) {
 	h := NewWriteHandler(repo.NewWriteRepo(tx, clock.New(tx)))
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(func(c *gin.Context) { c.Set("trace_id", "test-trace"); c.Next() })
+	// operator() 无 ?role= 且无会话兜底已改 20001(原 "president" fail-open)——
+	// 直挂路由测试显式注入 session_user,等价 Session 中间件产物
+	r.Use(func(c *gin.Context) {
+		c.Set("trace_id", "test-trace")
+		c.Set("session_user", middleware.SessionUser{ID: 1, Username: "president", Role: "president"})
+		c.Next()
+	})
 	r.POST("/api/v1/alerts/:id/ack", h.AlertAck)
 	r.POST("/api/v1/alerts/:id/dispatch", h.AlertDispatch)
 	r.POST("/api/v1/alerts/:id/close", h.AlertClose)
@@ -189,6 +196,27 @@ func TestWriteAlertAckErrors(t *testing.T) {
 	assertCode(t, status, http.StatusBadRequest, b, 10001)
 	status, b = postJSON(t, r, "/api/v1/alerts/101/ack?role=bad", "{}")
 	assertCode(t, status, http.StatusBadRequest, b, 10001)
+}
+
+// operator() 无 ?role= 且无 session_user→401/20001(原 "president" 兜底 fail-open 已修);
+// ?role= 出席+无会话仍走演示切换直挂路径(契约 §15 头部,测试架设语义)
+func TestWriteOperatorNoSession(t *testing.T) {
+	db := writeTestDB(t)
+	tx := db.Begin()
+	if tx.Error != nil {
+		t.Fatalf("begin tx: %v", tx.Error)
+	}
+	t.Cleanup(func() { tx.Rollback() })
+	h := NewWriteHandler(repo.NewWriteRepo(tx, clock.New(tx)))
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("trace_id", "test-trace"); c.Next() })
+	r.POST("/api/v1/alerts/:id/ack", h.AlertAck)
+
+	status, b := postJSON(t, r, "/api/v1/alerts/101/ack", "{}")
+	assertCode(t, status, http.StatusUnauthorized, b, 20001)
+	status, b = postJSON(t, r, "/api/v1/alerts/101/ack?role=president", "{}")
+	assertCode(t, status, http.StatusOK, b, 0)
 }
 
 // ---- R05 dispatch --------------------------------------------------------------

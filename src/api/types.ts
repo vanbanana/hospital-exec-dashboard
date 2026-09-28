@@ -71,7 +71,8 @@ export interface AuthUser {
   dept_id: number | null
   dept_name: string
   avatar: string
-  role: RoleKey
+  /** 会话角色——真实域 ⊇ RoleKey(admin/vp_medical 等非演示账号照实回传);?role= 入参域仍限 RoleKey */
+  role: string
 }
 
 export interface RoleOption {

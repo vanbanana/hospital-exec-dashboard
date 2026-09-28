@@ -18,9 +18,6 @@ import (
 	"hospital-edss/internal/repo"
 )
 
-// 35003 仿真批次进行中(error-codes §3 注册);envelope 常量子集未含,本域自取
-const codeSimBusy = 35003
-
 // simTickMax lead 附加单次上限(契约 §16.2 minutes≥1 之外的部署侧护栏)
 const simTickMax = 43200
 
@@ -43,11 +40,11 @@ func decodeBody(c *gin.Context) (map[string]json.RawMessage, error) {
 func simFail(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, repo.ErrSimBusy):
-		envelope.Fail(c, http.StatusConflict, codeSimBusy, "仿真批次进行中,请稍后", nil)
+		envelope.Fail(c, http.StatusConflict, envelope.CodeSimBusy, "仿真批次进行中,请稍后", nil)
 	case errors.Is(err, repo.ErrSimBound):
 		envelope.Fail(c, http.StatusBadRequest, envelope.CodeSimTierNA, "越出仿真播种边界", nil)
 	default:
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 	}
 }
 
@@ -55,7 +52,7 @@ func simFail(c *gin.Context, err error) {
 func (h *Sim) Clock(c *gin.Context) {
 	row, seedEnd, err := repo.SimClock(c.Request.Context(), h.db)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	envelope.OK(c, gin.H{
@@ -163,7 +160,7 @@ func (h *Sim) Jobs(c *gin.Context) {
 
 	rows, total, err := repo.SimJobs(c.Request.Context(), h.db, job, status, page, size)
 	if err != nil {
-		failInternal(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	list := make([]gin.H, 0, len(rows))

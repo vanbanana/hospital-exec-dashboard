@@ -34,9 +34,9 @@
           <span class="trend-text">{{ item.delta_label || '较上月' }}</span>
           <span
             class="trend-delta wb-num"
-            :class="item.dir === 'down' ? 'trend-down' : 'trend-up'"
+            :class="item.dir === 'down' ? 'trend-down' : item.dir === 'flat' ? 'trend-flat' : 'trend-up'"
           >
-            {{ item.delta }} {{ item.dir === 'down' ? '↓' : '↑' }}
+            {{ item.delta }} {{ item.dir === 'down' ? '↓' : item.dir === 'flat' ? '–' : '↑' }}
           </span>
         </div>
       </div>
@@ -215,5 +215,10 @@ const styleOf = (tone: ToneType = 'primary') => TONE_STYLE[tone]
 
 .trend-down {
   color: var(--wb-down);
+}
+
+/* dir=flat 中性色,与全局 .wb-delta-flat 同色口径 */
+.trend-flat {
+  color: var(--wb-text-3);
 }
 </style>

@@ -40,52 +40,52 @@ func (h *OpsHandler) Operations(c *gin.Context) {
 
 	cur, err := h.ops.HospSum(ctx, win)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	prevSum, err := h.ops.HospSum(ctx, prev)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	feeCur, err := h.ops.ChargeTotals(ctx, win)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	feePrev, err := h.ops.ChargeTotals(ctx, prev)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	hCur, err := h.ops.HourlySum(ctx, win)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	hPrev, err := h.ops.HourlySum(ctx, prev)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	monthly, err := h.ops.HospMonthly(ctx, today.Year())
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	abx, _, err := h.ops.MetricLatest(ctx, "ABX_DDD_IP", 0, win)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	infusion, _, err := h.ops.MetricLatest(ctx, "OP_INFUSION_RATE", 0, win)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	deptRows, err := h.ops.DeptEconTop(ctx, win, 6)
 	if err != nil {
-		h.internalErr(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 

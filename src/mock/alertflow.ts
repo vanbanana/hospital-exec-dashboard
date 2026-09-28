@@ -30,6 +30,32 @@ interface AlertState {
   occurred_at: string
   rule_code: string
   alert_status: AlertStatus
+  /** 涉事科室(repo write.go:245 科室域校验用);null=院级事件免比对 */
+  dept_id: number | null
+  /** 告警 payload.value(write.go:203 baseline 锚点源);stub 负载无值→null */
+  baseline: number | null
+}
+
+// 种子告警科室/锚点登记 —— mock id 201~205 按 rule_code 对位 backend/seed/3030_ads_screen.sql 行:
+// 201↔96 INPT_FEE_SURGE(院级,value .112);202↔103 BED_OVER_95(骨科1,.963);
+// 203↔98 STOCK_TURN_SLOW(库房43,41);204↔97 DRUG_RATIO_WARN(院级,.302);
+// 205↔104 DEVICE_MAINTAIN(设备18,stub 负载无 value→null)
+const ALERT_META: Record<number, { dept_id: number | null; baseline: number | null }> = {
+  201: { dept_id: null, baseline: 0.112 },
+  202: { dept_id: 1, baseline: 0.963 },
+  203: { dept_id: 43, baseline: 41 },
+  204: { dept_id: null, baseline: 0.302 },
+  205: { dept_id: 18, baseline: null },
+}
+
+// §15.2 三点锚点规则表 —— rule_code→(metric_code,threshold) 照 3030_ads_screen.sql alert_rule 行登记;
+// scenario 注入器规则(DEVICE_MAINTAIN)无指标三元组→null(后端列 NULL 直插同义)
+const ALERT_RULES: Record<string, { metric_code: string | null; threshold: number | null }> = {
+  INPT_FEE_SURGE: { metric_code: 'INPT_FEE_YOY', threshold: 0.08 },
+  BED_OVER_95: { metric_code: 'BED_USE_RATE', threshold: 0.95 },
+  STOCK_TURN_SLOW: { metric_code: 'STOCK_TURN_DAYS', threshold: 35 },
+  DRUG_RATIO_WARN: { metric_code: 'DRUG_RATIO', threshold: 0.3 },
+  DEVICE_MAINTAIN: { metric_code: null, threshold: null },
 }
 
 // 存储态 todo = 契约 TodoItem + 幂等锚点 alert_occurred_at(契约 §15.2 部分唯一索引口径),出参剥离
@@ -70,7 +96,29 @@ function toMinute(s: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-/** 失败包络形 Error — mock 轨由 client 原样透传,形状对齐真轨拆包络产物(code/fields/current_status/todo_id) */
+/** RFC3339 严格判形(秒+时区偏移必填,对齐 Go time.RFC3339;裸 new Date 宽容度超界故先正则闸)→非法返 undefined */
+function parseRfc3339(v: unknown): Date | undefined {
+  if (
+    typeof v !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(v)
+  ) {
+    return undefined
+  }
+  const d = new Date(v)
+  return Number.isNaN(d.getTime()) ? undefined : d
+}
+
+/** R05 回参 deadline 归一 +08:00 偏移 RFC3339(write_alert.go:172 Format(RFC3339) 口径;演示时区恒 +08,平移后取 UTC 分量) */
+function toRfc3339Plus8(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  const t = new Date(d.getTime() + 8 * 3600_000)
+  return (
+    `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())}` +
+    `T${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:${p(t.getUTCSeconds())}+08:00`
+  )
+}
+
+/** 失败包络形 Error — 与 client.ts 真轨拆包络产物同构(code/fields/current_status/todo_id,契约 §15 冲突码回传约定),mock 轨原样透传 */
 function fail(
   code: number,
   message: string,
@@ -97,8 +145,9 @@ interface Persisted {
 
 function seed(): Persisted {
   return {
-    // 初始状态机派生自 homeAlerts(id 201~205)自带 alert_status(§3.6 演进后真源),202 置 processing 对齐真库已认领样态
-    alerts: homeAlerts.list.map((a) => ({ ...a })),
+    // 初始状态机派生自 homeAlerts(id 201~205)自带 alert_status(§3.6 演进后真源),202 置 processing 对齐真库已认领样态;
+    // dept_id/baseline 为 ALERT_META 登记的不可变种子属性,随 id 回填
+    alerts: homeAlerts.list.map((a) => ({ ...a, ...ALERT_META[a.id] })),
     todos: [
       {
         id: 1,
@@ -139,14 +188,17 @@ function load(): Persisted {
 
 const persisted = load()
 
-// 与 homeAlerts 种子对账:持久态缺的新告警补 pending(202 补 processing),种子外旧 id 丢弃
+// 与 homeAlerts 种子对账:持久态缺的新告警补 pending(202 补 processing),种子外旧 id 丢弃;
+// dept_id/baseline 为种子不可变属性(旧快照无此键),以 ALERT_META 登记值恒回填
 const seedIds = new Set(homeAlerts.list.map((a) => a.id))
 const alerts = new Map<number, AlertState>()
 for (const s of persisted.alerts) {
-  if (seedIds.has(s.id)) alerts.set(s.id, s)
+  if (seedIds.has(s.id)) alerts.set(s.id, { ...ALERT_META[s.id], ...s })
 }
 for (const a of homeAlerts.list) {
-  if (!alerts.has(a.id)) alerts.set(a.id, { ...a, alert_status: a.id === 202 ? 'processing' : 'pending' })
+  if (!alerts.has(a.id)) {
+    alerts.set(a.id, { ...a, ...ALERT_META[a.id], alert_status: a.id === 202 ? 'processing' : 'pending' })
+  }
 }
 
 const todos = new Map<number, StoredTodo>(persisted.todos.map((t) => [t.id, t]))
@@ -221,7 +273,8 @@ export function alertStateList(): HomeAlertsResp {
 export function staffList(params: MockParams): StaffListResp {
   let deptId: number | undefined
   if (params.dept_id !== undefined) {
-    deptId = Number(params.dept_id)
+    // 对齐后端 ParseInt:空串/空白/非整数字面量(含 '1e3')一律 10001,Number('')=0 的静默吞不许
+    deptId = /^[+-]?\d+$/.test(params.dept_id) ? Number(params.dept_id) : NaN
     if (!Number.isInteger(deptId)) fail(10001, '请求参数错误', { fields: { dept_id: '须为整数' } })
   }
   const list = STAFF.filter((s) => deptId === undefined || s.dept_id === deptId)
@@ -241,13 +294,15 @@ export function getTodosList(params: MockParams): TodoListResp {
   }
   let assigneeId: number | undefined
   if (params.assignee_id !== undefined) {
-    assigneeId = Number(params.assignee_id)
+    assigneeId = /^[+-]?\d+$/.test(params.assignee_id) ? Number(params.assignee_id) : NaN
     if (!Number.isInteger(assigneeId)) fail(10001, '请求参数错误', { fields: { assignee_id: '须为整数' } })
   }
   sweepExpired()
   let list = [...todos.values()]
   if (status !== undefined) list = list.filter((t) => t.todo_status === status)
   if (assigneeId !== undefined) list = list.filter((t) => t.assignee_id === assigneeId)
+  // 后端 ORDER BY t.id DESC(write.go:411)——Map 插入序=升序,须显式倒排再分页
+  list.sort((a, b) => b.id - a.id)
   const start = (page - 1) * size
   return { list: list.slice(start, start + size).map(stripTodo), page, size, total: list.length }
 }
@@ -316,24 +371,30 @@ export function postAlertDispatch(params: MockParams, body?: unknown): AlertDisp
   if (!Number.isInteger(id)) fail(10001, '请求参数错误', { fields: { id: '须为整数' } })
   operatorId(params) // ?role= 校验先于 body(后端序:pathID→operator→body)
   const b = bodyObj(body)
+  // 字段段对齐后端 handler(write_alert.go:149-164):必填+RFC3339 格式在此判 →10002
   const fields: Record<string, string> = {}
   if (typeof b.assignee_id !== 'number' || !Number.isInteger(b.assignee_id)) fields.assignee_id = '必填,整数'
-  if (typeof b.deadline !== 'string' || !b.deadline) fields.deadline = '必填,ISO 8601'
+  const deadline = parseRfc3339(b.deadline)
+  if (deadline === undefined) {
+    // 后端:缺席/null→必填;出席但解析失败(含空串、非 RFC3339)→格式非法
+    fields.deadline = b.deadline === undefined || b.deadline === null ? '必填,ISO 8601' : 'ISO 8601 格式非法'
+  }
   if (Object.keys(fields).length) fail(10002, '参数校验失败', { fields })
   const a = alerts.get(id)
   if (!a) fail(33001, '告警不存在')
-  // 校验序对齐后端 write.go AlertDispatch:状态冲突 → 打开工单判重 → 承办人 → deadline
+  // 规则缺失=数据完整性故障,同后端 write.go:219-221 落 10000 而非业务码
+  const rule = ALERT_RULES[a.rule_code]
+  if (!rule) fail(10000, '系统繁忙,请稍后重试')
+  // 校验序对齐后端 write.go AlertDispatch:状态冲突 → 打开工单判重 → 承办人(在职+科室域) → deadline>now
   if (a.alert_status === 'done' || a.alert_status === 'closed') {
     fail(33002, '告警已办结', { current_status: a.alert_status })
   }
   const opened = openTodoFor(a)
   if (opened) fail(33002, '该告警已有打开的督办工单', { current_status: 'todo_open', todo_id: opened.id })
   const staff = STAFF.find((s) => s.id === b.assignee_id)
-  if (!staff) fail(33102, '承办人非在职或不存在')
-  // deadline 二分对齐后端:格式非法→10002 fields(handler 层),合法但非未来→33103(repo 层)
-  const dl = new Date(String(b.deadline).replace(' ', 'T'))
-  if (Number.isNaN(dl.getTime())) fail(10002, '参数校验失败', { fields: { deadline: 'ISO 8601 格式非法' } })
-  if (dl.getTime() <= Date.now()) fail(33103, '截止时间须晚于当前时间')
+  // repo write.go:245:非在职同码;告警 dept_id 非 null(院级事件免比对)时承办人须在涉事科室
+  if (!staff || (a.dept_id !== null && staff.dept_id !== a.dept_id)) fail(33102, '承办人非在职或非涉事科室')
+  if (deadline!.getTime() <= Date.now()) fail(33103, '截止时间须晚于当前时间') // 字段段已闸,非 undefined
   const todo: StoredTodo = {
     id: nextTodoId++,
     alert_id: a.id,
@@ -342,13 +403,14 @@ export function postAlertDispatch(params: MockParams, body?: unknown): AlertDisp
     assignee_id: staff.id,
     assignee_name: staff.name,
     dept_name: staff.dept_name,
-    deadline: toMinute(String(b.deadline)),
+    deadline: toMinute(b.deadline as string),
     todo_status: 'open',
     status_label: TODO_STATUS_LABEL.open,
-    baseline_value: null,
+    // 三点锚点承接告警+规则(write.go:263-264 INSERT):baseline=payload.value,target=rule.threshold
+    baseline_value: a.baseline,
     current_value: null,
-    target_value: null,
-    metric_code: a.rule_code,
+    target_value: rule.threshold,
+    metric_code: rule.metric_code,
     note: typeof b.note === 'string' && b.note ? b.note : null,
     result_note: null,
     created_at: toMinute(mockNow()),
@@ -362,7 +424,7 @@ export function postAlertDispatch(params: MockParams, body?: unknown): AlertDisp
     alert_id: a.id,
     alert_status: 'processing',
     assignee_id: staff.id,
-    deadline: String(b.deadline),
+    deadline: toRfc3339Plus8(deadline!),
   }
 }
 

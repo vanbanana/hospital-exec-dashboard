@@ -125,6 +125,10 @@ type AuditRow struct {
 	IP       *string
 }
 
+// InsertAudit login/login_fail 审计——故意不写 created_at:走列 DEFAULT now() 墙钟,
+// CountRecentLoginFail 的 `created_at > now()-15min` 锁定窗口以墙钟消费此列;
+// 业务审计(告警/工单/规则/偏好)见 write.go auditLog 显式传虚拟时钟——
+// 同表同列两时基为有意设计,勿对齐
 func InsertAudit(ctx context.Context, tx *gorm.DB, row AuditRow) error {
 	var uid, ip, detail any
 	if row.UserID != nil {

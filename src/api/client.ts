@@ -1,7 +1,7 @@
 // 统一取数层 — api<T>(key, params, opts?):VITE_USE_MOCK=1(默认)走 src/mock 注册表,
 // =0 时经 vite proxy 打 Go 后端 /api/v1/<key>,拆 ApiEnvelope 包络(error-codes §1/§4)
 // 写路径:method 非 GET 时 body JSON 上送、mock 轨按 'METHOD:key' 复合键查 resolver(frontend-architecture §8.4)
-import { mockResolvers, type MockParams } from '../mock'
+import type { MockParams } from '../mock'
 import type { ApiEnvelope } from './types'
 
 const MOCK_LATENCY_MS = 120
@@ -32,9 +32,13 @@ export function setOperatorRole(role: string) {
 }
 
 /** 写端点模式匹配:注册键 'METHOD:a/{p}/b' 对调用键 'METHOD:a/1/b' 分段比对,{p} 段捕获字面量回填 params */
-function matchMockResolver(callKey: string, params: MockParams) {
+function matchMockResolver(
+  resolvers: Record<string, (params: MockParams, body?: unknown) => unknown>,
+  callKey: string,
+  params: MockParams,
+) {
   const method = callKey.slice(0, callKey.indexOf(':'))
-  for (const regKey of Object.keys(mockResolvers)) {
+  for (const regKey of Object.keys(resolvers)) {
     if (!regKey.startsWith(`${method}:`)) continue
     const patSegs = regKey.slice(method.length + 1).split('/')
     const callSegs = callKey.slice(method.length + 1).split('/')
@@ -52,7 +56,7 @@ function matchMockResolver(callKey: string, params: MockParams) {
     }
     if (ok) {
       Object.assign(params, captured)
-      return mockResolvers[regKey]
+      return resolvers[regKey]
     }
   }
   return undefined
@@ -67,13 +71,27 @@ export async function api<T>(key: string, params: MockParams = {}, opts: ApiOpts
   const method = opts.method ?? 'GET'
 
   if (USE_MOCK) {
+    // 动态导入注册表:VITE_USE_MOCK=0 真轨构建时本分支被 DCE 剔除,mock 模块不进产物
+    const { mockResolvers } = await import('../mock')
     // GET 原样按 key 精确匹配;写调用按 'METHOD:key' 复合键,先精确再模式匹配({id} 段回填 params)
     const callKey = method === 'GET' ? key : `${method}:${key}`
-    const resolve = mockResolvers[callKey] ?? (method === 'GET' ? undefined : matchMockResolver(callKey, params))
+    const resolve =
+      mockResolvers[callKey] ?? (method === 'GET' ? undefined : matchMockResolver(mockResolvers, callKey, params))
     if (!resolve) throw new Error(`[api] 未注册的端点: ${callKey}`)
     await new Promise((r) => setTimeout(r, MOCK_LATENCY_MS))
-    // 深拷贝隔离 mock 模块单例,防止消费方原地修改污染后续请求
-    return JSON.parse(JSON.stringify(resolve(params, opts.body))) as T
+    try {
+      // 深拷贝隔离 mock 模块单例,防止消费方原地修改污染后续请求
+      return JSON.parse(JSON.stringify(resolve(params, opts.body))) as T
+    } catch (e) {
+      // 会话失效与真轨同一拦截路径(error-codes §4):清会话+跳 /login;
+      // auth/* 键豁免——守卫以 profile 20001 判未登录,拦截会致 /login?redirect= 套娃
+      const code = (e as { code?: unknown }).code
+      if ((code === 20001 || code === 20002 || code === 20003) && !key.startsWith('auth/')) {
+        unauthorizedHandler?.()
+        location.assign(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)
+      }
+      throw e
+    }
   }
 
   const qs = new URLSearchParams()
@@ -101,11 +119,20 @@ export async function api<T>(key: string, params: MockParams = {}, opts: ApiOpts
     const err = new Error(env.message || `[api] code ${env.code}`) as Error & {
       code?: number
       fields?: Record<string, string>
+      current_status?: string
+      todo_id?: number
       trace_id?: string
     }
     err.code = env.code
-    const data = env.data as { fields?: Record<string, string> } | null
+    const data = env.data as {
+      fields?: Record<string, string>
+      current_status?: string
+      todo_id?: number
+    } | null
     if (data?.fields) err.fields = data.fields
+    // 契约 §15.1/§15.2/§15.5 冲突码(33002/33104)回传 data.current_status[+todo_id],原样挂 err
+    if (data?.current_status !== undefined) err.current_status = data.current_status
+    if (data?.todo_id !== undefined) err.todo_id = data.todo_id
     if (env.trace_id) err.trace_id = env.trace_id
     // 401 会话失效:清会话态+硬跳登录页;auth/* 自检族全豁免——守卫以 profile 20001 判
     // 未登录,拦截会引起 /login?redirect=/login?... 无限套娃(frontend-api §1.7)

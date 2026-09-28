@@ -76,7 +76,10 @@ type StatusConflict struct {
 
 func (e *StatusConflict) Error() string { return "status conflict: " + e.Current }
 
-// auditLog sys.audit_log 写入——created_at 显式传虚拟时钟覆写列默认(纪律同任务书);
+// auditLog sys.audit_log 写入——created_at 显式传虚拟时钟(sim.clock.virtual_now)覆写列默认;
+// 有意与 auth.go InsertAudit 不同时基:业务审计须随仿真时钟走才可在演示叙事中自洽,
+// login/login_fail 审计则被 CountRecentLoginFail 的 now()-15min 墙钟窗口消费,必须用墙钟——
+// 同表同列两时基为有意设计,勿对齐
 // ip 空串→NULL(inet),detail nil→NULL;在事务内调用,失败回滚整个写
 func auditLog(tx *gorm.DB, op Operator, action, targetType, targetID string, detail map[string]any, ip string, now time.Time) error {
 	// 演示切换(?role= 与会话用户不一致)时 detail 同记双身份——行为人以 op.Username 计,

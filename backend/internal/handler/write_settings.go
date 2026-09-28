@@ -43,7 +43,7 @@ func (h *WriteHandler) RuleToggle(c *gin.Context) {
 			envelope.Fail(c, http.StatusNotFound, envelope.CodeNotFound, "资源不存在", nil)
 			return
 		}
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	envelope.OK(c, gin.H{"code": code, "enabled": *b.Enabled})
@@ -107,12 +107,12 @@ func (h *WriteHandler) PrefsSave(c *gin.Context) {
 	}
 	ctx := c.Request.Context()
 	if err := h.r.PrefsSave(ctx, *op, in, c.ClientIP()); err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	pref, err := h.r.PrefsLoad(ctx, op.ID)
 	if err != nil {
-		fail(c, err)
+		envelope.FailInternal(c, err)
 		return
 	}
 	envelope.OK(c, prefsData(pref))
