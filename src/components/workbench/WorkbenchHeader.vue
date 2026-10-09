@@ -10,6 +10,10 @@
     <!-- Right Controls & Info -->
     <div class="header-right">
       <div class="header-top-row">
+        <RouterLink v-if="canViewScreen" class="screen-link" :to="{ path: '/screen', query: { returnTo: route.fullPath } }">
+          <Monitor :size="16" />
+          <span>数据大屏</span>
+        </RouterLink>
         <!-- 搜索无契约端点支撑，禁用防死交互 -->
         <div class="search-box">
           <Search class="search-icon" :size="15" />
@@ -71,7 +75,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { Search, Bell, ChevronDown, LogOut } from 'lucide-vue-next'
+import { Search, Bell, ChevronDown, LogOut, Monitor } from 'lucide-vue-next'
+import { RouterLink, useRoute } from 'vue-router'
 import { getAuthProfile, logout } from '../../api/auth'
 import { currentProfile, profileState } from '../../api/session'
 import { setOperatorRole } from '../../api/client'
@@ -79,6 +84,8 @@ import { usePreferencePolling } from '../../api/preferences'
 import { getHomeAlerts } from '../../api/workbench'
 import type { AuthProfileResp } from '../../api/types'
 
+const route = useRoute()
+const canViewScreen = computed(() => !!session.value?.allowed_pages?.includes('/workbench/overview'))
 const profile = ref<AuthProfileResp | null>(null)
 watch(profileState, p => { profile.value = p; session.value = p })
 const session = ref<AuthProfileResp | null>(null)
@@ -369,5 +376,30 @@ const dateText = computed(() => {
   font-size: var(--wb-fs-sm);
   color: var(--wb-text-3);
   letter-spacing: var(--wb-ls-sm);
+}
+
+.screen-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--wb-space-2);
+  padding: var(--wb-space-2) var(--wb-space-3);
+  border: 1px solid var(--wb-border);
+  border-radius: var(--wb-radius-sm);
+  color: var(--wb-primary);
+  background: var(--wb-surface);
+  font-size: var(--wb-fs-sm);
+  font-weight: var(--wb-fw-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--wb-dur-fast);
+}
+.screen-link:hover { background: var(--wb-hover-bg); }
+.screen-link:focus-visible { outline: 2px solid var(--wb-primary); outline-offset: 2px; }
+@media (max-width: 1440px) {
+  .system-subtitle, .title-divider { display: none; }
+}
+@media (max-width: 1100px) {
+  .search-box { display: none; }
 }
 </style>

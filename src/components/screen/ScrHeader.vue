@@ -25,6 +25,12 @@
     </div>
 
     <div class="hdr-right">
+      <RouterLink :to="workbenchTarget" custom v-slot="{ href, navigate }">
+        <a class="workbench-link" :href="href" @click="returnToWorkbench($event, navigate)">
+          <ArrowLeft :size="14" />
+          <span>返回工作台</span>
+        </a>
+      </RouterLink>
       <button class="adapt-pill" type="button" :title="adaptTitle" @click="adapt?.toggleAdaptMode()">
         <span class="adapt-dot" :class="{ fill: adapt?.adaptMode.value === 'fill' }"></span>
         <span class="scr-num adapt-text">{{ adaptLabel }}</span>
@@ -47,7 +53,8 @@
 <script setup lang="ts">
 import { ref, computed, inject, watch, onMounted, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import { Maximize } from 'lucide-vue-next'
+import { Maximize, ArrowLeft } from 'lucide-vue-next'
+import { RouterLink, useRoute } from 'vue-router'
 import type { ScreenStatus } from '../../api/types'
 import { getHospitalProfile } from '../../api/auth'
 
@@ -56,6 +63,23 @@ const props = defineProps<{
   status?: ScreenStatus
   serverTime?: string
 }>()
+
+const route = useRoute()
+const workbenchTarget = computed(() => {
+  const target = route.query.returnTo
+  return typeof target === 'string' && /^\/workbench(?:[/?#]|$)/.test(target) && !/[\\\u0000-\u001f\u007f]/.test(target)
+    ? target : '/workbench'
+})
+
+async function returnToWorkbench(event: MouseEvent, navigate: (event?: MouseEvent) => unknown) {
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  if (document.fullscreenElement) {
+    await document.exitFullscreen().catch(() => { /* 退出被拒绝仍继续导航 */ })
+  }
+  // navigate 会忽略已 preventDefault 的事件；无事件调用保留 RouterLink 导航语义。
+  await navigate()
+}
 
 interface ScreenAdapt {
   adaptMode: Ref<'contain' | 'fill'>
@@ -388,4 +412,22 @@ const toggleFullscreen = () => {
   color: var(--scr-text-1);
   box-shadow: 0 2px 8px rgb(from var(--scr-royal) r g b / 0.35);
 }
+
+.workbench-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--scr-space-3);
+  padding: var(--scr-space-3) var(--scr-space-5);
+  border: 1px solid var(--scr-inset-border);
+  border-radius: var(--scr-radius-chip);
+  background: var(--scr-inset-bg);
+  color: var(--scr-accent-bright);
+  font-size: var(--scr-fs-md);
+  font-weight: var(--scr-fw-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--scr-dur-normal), color var(--scr-dur-normal);
+}
+.workbench-link:hover { border-color: var(--scr-accent); color: var(--scr-text-1); }
+.workbench-link:focus-visible { outline: 2px solid var(--scr-accent); outline-offset: 2px; }
 </style>

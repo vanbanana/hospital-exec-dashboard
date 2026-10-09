@@ -63,7 +63,7 @@ src/
 │   ├── WorkbenchLayout.vue         # 工作台标准布局（左侧固定导航 + 右侧 Header 与滚动区）
 │   └── ScreenLayout.vue            # 大屏布局：.screen-layout 作用域 + 1920×1080 画布缩放适配
 ├── router/                         # 路由配置
-│   └── index.ts                    # 路由定义表（/ 重定向、/workbench 14 个导航页 + access 回退页、/screen、/login、登录态守卫、子域 catch-all；根级无 catch-all）
+│   └── index.ts                    # 路由定义表（/ 重定向、/workbench 14 个导航页 + access 回退页、/screen、/login、登录态守卫、子域和根级 catch-all）
 ├── styles/                         # 样式系统
 │   ├── index.css                   # 全局 reset + body 基座（引入 tokens.css、盒模型重置、字体与 overflow）
 │   ├── tokens.css                  # ★ 设计令牌唯一出处（design-tokens.md）：L0 原色 --p-*(:root)
@@ -188,7 +188,7 @@ src/
 | 区域 / 页面 | 交互元素 | 数据效果 |
 | :--- | :--- | :--- |
 | 侧栏 `WorkbenchSidebar` | 12 项 `router-link` 菜单 | 路由切换，`isActive`/`isExactActive` 驱动高亮 |
-| 顶栏 `WorkbenchHeader` | 搜索框 / 铃铛 / 院长头像区 / 日期 | 日期与角色消费 `auth/profile`（system_date+weekday+title）；铃铛角标消费 `home/alerts` 计数；头像区点击展开角色下拉（`available_roles`，选中经 `?role=` 重取切上下文）；搜索仍为禁用静态展示 |
+| 顶栏 `WorkbenchHeader` | 数据大屏入口 / 搜索框 / 铃铛 / 院长头像区 / 日期 | 日期与角色消费 `auth/profile`（system_date+weekday+title）；铃铛角标消费 `home/alerts` 计数；头像区点击展开角色下拉（`available_roles`，选中经 `?role=` 重取切上下文）；搜索仍为禁用静态展示 |
 | 侧栏 `WorkbenchSidebar` | 品牌区 / 院训底纹 | 院名与英文名、座右铭消费 `hospital/profile` |
 | 首页 `WorkbenchHero` | 标语阶梯 | `hospital/profile.slogans/pillars` 驱动 |
 | 首页 `TrendChartCard` | 4 个趋势 Tab（门急诊人次 / 住院人次 / 手术台次 / 医疗收入） | 本地切换 `currentTab`，复用已取回的 `home/trends` 数据换序列 |
@@ -205,7 +205,7 @@ src/
 | 专题分析 | 4 张专题卡点击（DRG/医保/国考/门诊统筹）+ `WbSeg` range | `watch` 触发 `getTopics(topic, range)` 重取 |
 | 系统设置 | 阈值启用开关、5 项偏好下拉/开关 | 持久化已落地（R15/R16，契约 §15.7/15.8）：开关/表单提交走 `setRuleEnabled`/`savePreferences` 写端点 |
 | 各页 `WbTable` 行 | — | 无点击下钻；L4/L5 穿透属契约 §15 远期预留 |
-| 大屏 `ScrHeader` | 全屏按钮 / 适配胶囊 | `requestFullscreen` 切换（拒绝静默）；点击胶囊切 contain/fill 适配（`screen-adapt` inject） |
+| 大屏 `ScrHeader` | 返回工作台 / 全屏按钮 / 适配胶囊 | `requestFullscreen` 切换（拒绝静默）；点击胶囊切 contain/fill 适配（`screen-adapt` inject） |
 | 大屏 `ScrAlertFeed` | 告警跑马灯 | CSS 纵向循环滚动，自动随 DOM 卸载 |
 | 大屏 `ScreenView` | 断线重试条 | error 态顶部红条 + 手动「重新连接」重发 `getScreenSnapshot()` |
 
@@ -621,3 +621,12 @@ ECharts 改为按需注册共享模块（canvas、所需图表与组件），首
 督办工单页的筛选、分页按钮与办结表单使用现有 --wb-* 令牌；页面专属布局样式限定在 TasksView，提交期间禁用全部状态操作。
 
 本轮交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。
+
+
+## 工作台与大屏切换（2026-10-09）
+
+工作台顶栏提供图标和文字「数据大屏」，同窗口导航 /screen，returnTo 查询参数记录当前工作台 fullPath（含查询与锚点）。入口依据真实会话 allowed_pages 包含 /workbench/overview 显示，不依据演示角色；后端大屏授权继续生效。
+
+大屏顶栏始终提供「返回工作台」，快照加载或失败时仍可用；不新增 auth/profile 请求。returnTo 只接受单个字符串且为 /workbench、/workbench/、/workbench? 或 /workbench# 开头的本地路径；数组、外部地址、带反斜杠或控制字符的值回退 /workbench。工作台既有路由守卫继续校验登录与页面授权。
+
+普通点击或键盘 Enter 返回时尝试退出全屏；退出失败仍继续导航。链接保留修饰键及新标签打开行为。入口复用现有令牌；工作台在 ≤1440px 隐藏副标，在 ≤1100px 隐藏禁用搜索框，为入口保留空间。

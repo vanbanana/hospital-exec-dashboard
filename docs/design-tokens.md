@@ -271,3 +271,5 @@ rg -o --no-filename 'var\(--[\w-]+' src/
 ## 2026-10-08 演示来源标识
 
 新增 --scr-z-data-mode=30 用于大屏数据来源标识；颜色、字号、位置复用 --scr-text-3 / --scr-fs-sm / --scr-space-2。工作台标识复用 --wb-text-3 / --wb-fs-sm / --wb-space-2。
+
+工作台／大屏切换链接复用 --wb-* / --scr-* 强调色、边框、字号、间距、圆角和过渡令牌；focus-visible 使用对应强调色描边，不新增全局令牌。工作台顶栏 ≤1440px 隐藏副标，≤1100px 隐藏禁用搜索框。

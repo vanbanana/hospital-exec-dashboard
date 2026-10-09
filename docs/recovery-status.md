@@ -39,3 +39,7 @@
 恢复内容已做本地 Git 提交；没有推送 GitHub。恢复前文件与 Git 历史、完整历史命令、云配置参数、本轮测试输出和恢复后 Git bundle 位于 `/workspace/recovery/`，目录权限 0700。仓库内的上下文与本记录随本地提交保存。
 
 下次接续先读本文件、`AGENTS.md`、[工程计划](engineering-acceptance.md)及[当前清单](current-state.md)。优先继续切换入口与公网访问需求，不将历史未完成工作误认成已完成。
+
+## 后续完成：切换入口
+
+2026-10-09 已按用户要求实现工作台「数据大屏」与大屏「返回工作台」。保留原页面地址、退出全屏、非法参数回退、失败快照返回和科室权限已验证；截图保存于 `/workspace/recovery/workbench-switch.png` 与 `/workspace/recovery/screen-switch.png`。此前「保留待办」描述是恢复当时的状态；公网访问仍未实施。
