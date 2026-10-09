@@ -1,0 +1,15 @@
+[Unit]
+Description=EDSS readiness and operational alert checks
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=edss-ops
+WorkingDirectory=/opt/hospital-exec-dashboard
+EnvironmentFile=/etc/edss/ops.env
+ExecStart=/usr/bin/python3 scripts/ops.py monitor
+TimeoutStartSec=45
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

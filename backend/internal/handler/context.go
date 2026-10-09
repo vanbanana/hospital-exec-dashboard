@@ -11,6 +11,7 @@ import (
 
 	"hospital-edss/internal/clock"
 	"hospital-edss/internal/envelope"
+	"hospital-edss/internal/middleware"
 	"hospital-edss/internal/repo"
 )
 
@@ -46,6 +47,10 @@ type authProfileResp struct {
 	AvailableRoles []roleOption `json:"available_roles"`
 	SystemDate     string       `json:"system_date"`
 	Weekday        string       `json:"weekday"`
+	Preferences    gin.H        `json:"preferences,omitempty"`
+	ScopeType      string       `json:"scope_type,omitempty"`
+	AllowedPages   []string     `json:"allowed_pages"`
+	DataMode       string       `json:"data_mode"`
 }
 
 // §2.2 出参镜像 HospitalProfileResp;缺 dict 键给零值(空串/空数组),不报错
@@ -76,7 +81,11 @@ func demoSwitchOn(c *gin.Context) bool {
 // available_roles 收敛为仅含会话角色自身一档(契约 §2.1 演进注·生产形态)
 func (h *Context) AuthProfile(c *gin.Context) {
 	var username string
-	if v, present := c.GetQuery("role"); present && demoSwitchOn(c) { // 出席即须合法:?role= 空串→10001
+	if v, present := c.GetQuery("role"); present && demoSwitchOn(c) {
+		if su, ok := sessionUser(c); ok && su.Username != v && su.Role != "admin" && su.Role != "president" {
+			envelope.Fail(c, http.StatusForbidden, envelope.CodeScopeDeny, "无权切换角色", nil)
+			return
+		} // 出席即须合法:?role= 空串→10001
 		switch v {
 		case "president", "ops_director", "dept_leader":
 			username = v
@@ -129,6 +138,14 @@ func buildAuthProfileResp(ctx context.Context, db *gorm.DB, clk *clock.Source, u
 		SystemDate: today.Format("2006-01-02"),
 		Weekday:    clock.WeekdayCN(today),
 	}
+	pref, err := repo.NewWriteRepo(db, clk).PrefsLoad(ctx, u.ID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Preferences = prefsData(pref)
+	resp.ScopeType = u.ScopeType
+	resp.DataMode = "demo"
+	resp.AllowedPages = middleware.AllowedPages(middleware.SessionUser{ID: u.ID, Username: u.Username, Role: u.Role, DeptID: u.DeptID, ScopeType: u.ScopeType}, demoSwitch)
 	if !demoSwitch {
 		// 生产形态:available_roles 仅含会话角色自身一档(契约 §2.1 演进注);
 		// role 键同演示态取 username——前端 length>1 判显隐,本档恒不满足

@@ -71,6 +71,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDefaultRange } from '../../api/preferences'
 import { ref, computed, onMounted, watch } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
@@ -89,7 +90,7 @@ import type { CompareDim, RangeKey, WbTableColumn, WbTableData } from '../../api
 
 const systemDate = useSystemDate()
 const dim = ref('业务量')
-const range = ref('本月')
+const range = useDefaultRange()
 // WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
 const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 

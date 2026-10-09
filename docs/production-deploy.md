@@ -1,64 +1,85 @@
-# 生产部署 Checklist — EDSS
+# 部署与恢复手册
 
-> 读者：上线/运维操作员。与 `docs/sim-runbook.md`（演示态）对应——本文只管**生产形态**。
-> 标注口径：✅=当前代码已具备（配 env 即生效）；⚠️=代码具备但依赖外部队件；❌=未实现，需外部方案或后续迭代。
+> 2026-10-09 静态对齐。production 是安全部署配置，数据仍为 demo。无需医院数据即可验证部署、权限和恢复；真实医院接入/对账不纳入验收。现状见 [current-state.md](current-state.md)，后续标准见 [engineering-acceptance.md](engineering-acceptance.md)。
 
-## 1. 形态开关（三项全置才进入生产语义）
+## 1. 本地开发（云环境）
 
-| 项 | 生产值 | 状态 | 说明 |
-| :--- | :--- | :--- | :--- |
-| `SIM_ENABLED` | `0` | ✅ 已具备 | `/sim/*` 路由不注册，撞 `NoRoute → 10003`（契约 §16） |
-| `DEMO_ROLE_SWITCH` | `0` | ✅ 已具备 | 演示角色切换总闸（契约 §2.1 演进注·生产形态）：`available_roles` 收敛会话自身一档、`?role=` 读侧忽略（等效自回显）、写侧异名一律 `20004`。前端按 `available_roles.length>1` 自动隐藏切换下拉 |
-| `AUTH_COOKIE_SECURE` | `1` | ✅ 已具备 | `edss_sid` 追加 `Secure`；**仅 HTTPS 部署置位**，HTTP 下置 1 会导致浏览器拒存 Cookie |
-
-> ⚠️ **compose 透传缺口**：`deploy/docker-compose.yml` 的 backend `environment` 清单当前未含 `DEMO_ROLE_SWITCH`——容器内未设即回演示态。生产 compose 部署前须补 `DEMO_ROLE_SWITCH: ${DEMO_ROLE_SWITCH:-0}`（同 `SIM_ENABLED` 式样），`docker-compose.yml` 归 D1 lane。
-
-## 2. 凭证与口令
-
-| 项 | 状态 | 说明 |
-| :--- | :--- | :--- |
-| 会话凭证 | ✅ 已具备 | 不透明令牌（crypto/rand 32B）→ `edss_sid` Cookie（HttpOnly/SameSite=Lax/12h）或 `Authorization: Bearer`；库内只落 sha256，泄库≠会话泄露；滑动续期 <6h 阈值 |
-| JWT | ❌ 未实现 | 当前会话为 PG 表态会话（`sys.user_session`），非无状态 JWT；`POST /auth/refresh`（契约 R12）为远期保留端点，未实施 |
-| 口令散列 | ✅ 已具备 | bcrypt（种子与登录校验同 cost） |
-| 口令轮换/改密 | ❌ 未实现 | 无自助改密端点（`20103` 为预留码）；轮换只能走 SQL：`UPDATE sys."user" SET password_hash=<bcrypt>` + 吊销 `sys.user_session` 存量会话；演示口令 `Edss@2026` 上生产前必须全量替换 |
-| 登录防爆破 | ✅ 已具备 | 双层：账号侧 15min 内 `login_fail` ≥5 → `20104` 锁（计数源 `sys.audit_log`）；IP 侧 nginx `limit_req_zone edss_login` 10r/s burst=5（deploy/nginx.conf，超限裸 503 不进包络） |
-
-## 3. 传输与边界
-
-| 项 | 状态 | 说明 |
-| :--- | :--- | :--- |
-| TLS 终结 | ⚠️ 需外部 | nginx.conf 已含 443 server block（安全头+HSTS+登录限流与 :80 同口径）；证书由 `deploy/certs` 自签脚本/真实证书链供给，compose 挂载 `/etc/nginx/certs/` 并 publish 443 |
-| 安全响应头 | ✅ 已具备 | 双层下发：Go `securityHeaders` 中间件全响应带（nosniff/DENY/Referrer-Policy/Permissions-Policy/CSP + `/api/` no-store）；nginx 同口径作用于 SPA 文档面。CSP=`default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'`（ECharts canvas + Vue scoped 已核；实测破版则降级 `Content-Security-Policy-Report-Only`） |
-| `TRUSTED_PROXY_CIDRS` | ✅ 已具备 | XFF 可信代理白名单；反代异机/异容器必须放开（compose 内网默认 `172.16.0.0/12`），否则审计 ip 记成代理地址 |
-| RBAC | ✅ 已具备 | 静态角色矩阵（`middleware/rbac.go`）：settings/config 读面限 admin/president；`/sim/*` 全端点限 admin；写侧 `?role=` 越权切换 `20005`，生产态异名直接 `20004` |
-
-## 4. 数据与迁移
-
-| 项 | 状态 | 说明 |
-| :--- | :--- | :--- |
-| 备份/恢复 | ⚠️ 需外部 | 依赖 `pg_dump` 例行任务（cron/CI/LB 外编排）：`pg_dump -Fc -d hospital_edss -f edss_$(date +%F).dump`；恢复 `pg_restore -d hospital_edss --clean edss_*.dump`；演示库要求备份窗口内停写 |
-| 迁移升级 | ✅ 已具备 | `edss-migrate`：`apply` 跑未应用迁移（`schema_migrations` 追踪、文件级单事务、advisory lock 防双跑）；既有库接入先 `-baseline` 收养；升级序=备份 → `edss-migrate`（**不带 -seed**）→ 探活 |
-| 种子灌库 | ✅ 已具备 | `SEED_ON_BOOT`/`edss-migrate -seed`；**生产须置空/0**——种子幂等但会重置种子域为演示锚点 |
-| 审计 | ✅ 已具备 | `sys.audit_log` 全量登录/写操作（含演示切换双身份 detail）；保留/归档策略属外部运维 |
-
-## 5. 运行面
-
-| 项 | 状态 | 说明 |
-| :--- | :--- | :--- |
-| 日志 | ✅ 已具备 | slog JSON → stdout；`LOG_LEVEL=info`（生产建议 `info`，排障临时 `warn/debug`）；每请求一行 method/route/status/latency_ms/trace_id |
-| 健康检查 | ✅ 已具备 | `GET /health`（恒 200，LB 存活探针，nginx 透出）；`GET /ready`（DB ping+关键表行数，compose healthcheck 用，**nginx 不透出**）；`GET /stats`（内部运维面，不透出） |
-| 优雅停机 | ✅ 已具备 | SIGINT/SIGTERM → 10s drain → 连接池关闭 |
-| 时钟 | ✅ 已具备 | 业务时= `sim.clock.virtual_now`（唯一时间源）；生产无 tick 入口（`/sim/*` 不注册），`virtual_now` 冻结在种子锚点——**接真库前须确认业务时间源口径**（演示库按静态切面出数） |
-
-## 6. 上线步骤速查
+需要 Docker、Node >=22.12、npm 与 Python 3。宿主没有 Go SDK 时使用官方 golang:1.27 容器。
 
 ```bash
-# 1. .env 按 .env.production.example 填齐(POSTGRES_PASSWORD 必须强口令)
-# 2. 备份现库 → 迁移 → 起栈
-pg_dump -Fc -d hospital_edss -f /backup/edss_pre_$(date +%F).dump
-docker compose -f deploy/docker-compose.yml --env-file .env.production up -d --build
-# 3. 冒烟:登录 → profile roles 一档 → /health
-curl -s http://localhost/health
-curl -s -c ck -X POST http://localhost/api/v1/auth/login -H 'Content-Type: application/json' -d '{"username":"<账号>","password":"<口令>"}'
-curl -s -b ck http://localhost/api/v1/auth/profile   # available_roles 应仅自身一档
+npm ci --cache /tmp/edss-npm-cache --registry=https://registry.npmjs.org --replace-registry-host=always
+scripts/cloud-dev.sh start
+npm run dev -- --host 127.0.0.1
+# 完整后端测试会初始化独立写域库；首次种子较慢。
+scripts/cloud-dev.sh test
 ```
+
+start 只在 schema_migrations 缺席的全新库灌演示种子，正常重启只迁移。初始化中断时检查日志后显式 scripts/cloud-dev.sh seed 继续；绝不能对真实库执行 seed。项目默认 edss-dev，命名卷 edss-dev_pgdata 保留；接续已有环境使用对应 EDSS_DEV_PROJECT（本会话 edss-remediation）；不使用 down -v。
+
+cloud-dev.sh 仅管理本项目内网 db 的 hospital_edss 演示库，拒绝其他 DATABASE_URL，防止将自动演示初始化用于外部数据库。其他目标库使用手动迁移和部署流程。
+
+云代理证书经 SSL_CERT_FILE 只读挂载给 Go；镜像构建另叠加 docker-compose.cloud.yml 使用 BuildKit proxy_ca，保持 TLS 验证。
+
+## 2. 演示容器栈
+
+基础栈默认不灌种子。全新演示库只在首次显式设置 SEED_ON_BOOT=1 初始化，之后设置 0。
+
+```bash
+SEED_ON_BOOT=1 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.edssprod.yml up -d --build
+SEED_ON_BOOT=0 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.edssprod.yml up -d
+```
+
+HTTP 8093 / HTTPS 8443；镜像内自签证书仅演示使用。演示覆盖不挂空证书目录。
+
+## 3. 生产安全配置
+
+将 .env.production.example 复制为被忽略的 .env.production，填写 POSTGRES_PASSWORD 及 TLS_CERT_FILE/TLS_KEY_FILE。使用正式证书。密码包含 DSN 保留字符时提供 URL 编码后的 DATABASE_URL；基础 compose 使用 DATABASE_URL 优先，否则按密码组装内网 DSN。
+
+前置条件是数据库已有经核对的合成业务数据。全新空库仅迁移仍不能通过 ready，web 不会启动。先用开发脚本或演示配置在隔离库初始化种子，再备份恢复到新库并显式设置 DATABASE_URL；production 强制不播种，数据仍标为 demo。此过程不要求医院数据。
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.production.yml --env-file .env.production up -d --build
+```
+
+生产覆盖固定 SEED_ON_BOOT=0、SIM_ENABLED=0、DEMO_ROLE_SWITCH=0、AUTH_COOKIE_SECURE=1、SCREEN_PUBLIC=0；无法通过 .env 意外开启演示闸。缺口令在配置解析时失败；缺证书文件在启动时失败。HTTP 跳转 HTTPS，web 等待 backend healthy。backend 调试端口只绑定回环，PG 不发布端口。
+
+基础 compose 空 SEED_ON_BOOT 保持空值，启动判等 1 才灌种子。生产绝不使用空值表达关闭。
+
+生产拒绝域未定义的全院读取；scope_type=dept 按科室过滤工单与人员；非管理用户服务端强制姓名脱敏。未知角色与新注册但未授权路由默认拒绝。不要将隐私展示开关当作访问权限。
+
+业务时间仍由 sim.clock.virtual_now 提供：禁用仿真控制面不会使数据自动更新。数据模式标识为 demo；常驻生成、同步与派生管线未实现，后续若纳入范围须使用合成场景验收，不等待真实医院接口。
+
+## 4. 备份与恢复
+
+先停业务写入，再备份。脚本从渲染后的 Compose 后端 DSN 选择实际部署库，EDSS_DB_NAME 为可选核对值，保存自定义格式及 SHA256 清单并使用 0600 权限；目标文件存在时拒绝覆盖，命令失败不留下成功备份。
+
+```bash
+mkdir -p backups
+scripts/backup-db.sh backups/edss.dump
+scripts/restore-db.sh backups/edss.dump hospital_edss_restore
+# 停业务写入后进行独立内容校验（源库名按实际配置）
+python3 scripts/ops.py verify-db hospital_edss hospital_edss_restore
+```
+
+恢复目标必须是新数据库，拒绝覆盖 hospital_edss、hospital_edss_w 或 postgres。恢复使用单事务与 exit-on-error。通过非空业务表内容摘要、主外键/序列、关键 API 结果和迁移台账核对后，再由操作员切换 DATABASE_URL。指定其他 Compose 项目时设置 EDSS_DEV_PROJECT。
+
+## 5. 升级与故障恢复
+
+升级序：备份 → edss-migrate（不带 -seed）→ ready → 登录/权限/关键指标检查。迁移有 schema_migrations 追踪、文件事务和 advisory lock；重复执行应 0 applied。数据库重启后 API 可重新连接；ready 失败不能当作健康，web 健康依赖并不替代外部告警。
+
+共享安全部署前轮换公开演示口令，并吊销对应 user_session；用户管理扩展须先定义内部契约，医院数据接入不在范围内。迁移与恢复均先在隔离副本执行。
+
+## 6. 门禁
+
+npm run build；npm run test:unit；npm run test:e2e；python3 tests/deploy-config.py；Go vet/build/test -race；make ci-mech。集成测试数据库缺失即失败。CI 安装 Chromium 并运行演示链路及生产权限模式；后者在 HTTP 下使用 AUTH_COOKIE_SECURE=0，不等于 HTTPS/Secure Cookie 验证。make ci 不含浏览器、配置测试或恢复；完整入口见 [acceptance.md](acceptance.md)。
+
+
+## 7. 周期运维与性能
+
+新增 [运维性能手册](operations-performance.md) 和 deploy/ops.env.example。安全部署的 EDSS_DEV_PROJECT、EDSS_COMPOSE_FILES、EDSS_ENV_FILE、EDSS_DB_NAME（如设置）必须对应当前栈，特别是已切换到恢复库的场景。
+
+提供 backup-cycle、monitor、resources 命令及 systemd 定时器。异常写 JSON 日志并返回非零；不自动发邮件或外部消息，也不自动安装定时器。正式启用前明确备份目录权限、磁盘预算、日志保留及告警接收渠道。
+
+新 1000 迁移仅加索引，按普通事务建索引会阻塞写入，应在维护窗口执行。/stats 新指标需重启新版后端才能使用；当前运行服务未自动重建。认证压测只在隔离合成库运行，固定硬件、数据量及阈值，实际结果再登记。
+
+镜像必须保证非 root 服务用户可读全部 migrations/seed SQL：Dockerfile COPY 后显式归一目录/文件读取权限，不依赖本地 umask。部署前运行镜像文件访问检查，再验证全新合成库初始化和已有库升级；本轮曾由新增文件 0600 触发迁移 permission denied，须保留回归证据。

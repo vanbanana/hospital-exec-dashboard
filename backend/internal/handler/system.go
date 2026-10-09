@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -61,11 +62,22 @@ func (s *System) Stats(c *gin.Context) {
 		return
 	}
 	dbs := sqlDB.Stats()
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
 	envelope.OK(c, gin.H{
-		"uptime_s":       int64(time.Since(rs.StartedAt).Seconds()),
-		"requests_total": rs.Total,
-		"in_flight":      rs.InFlight,
-		"by_status":      rs.ByStatus,
+		"started_at":        rs.StartedAt.UTC().Format(time.RFC3339Nano),
+		"uptime_s":          int64(time.Since(rs.StartedAt).Seconds()),
+		"requests_total":    rs.Total,
+		"in_flight":         rs.InFlight,
+		"by_status":         rs.ByStatus,
+		"by_route":          rs.ByRoute,
+		"latency_bounds_ms": middleware.LatencyBoundsMS,
+		"runtime": gin.H{
+			"goroutines":       runtime.NumGoroutine(),
+			"heap_alloc_bytes": mem.HeapAlloc,
+			"heap_sys_bytes":   mem.HeapSys,
+			"gc_cycles":        mem.NumGC,
+		},
 		"db": gin.H{
 			"max_open":             dbs.MaxOpenConnections,
 			"open":                 dbs.OpenConnections,

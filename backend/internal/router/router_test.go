@@ -54,7 +54,7 @@ func routerTestDB(t *testing.T) *gorm.DB {
 		rtDBPool = db
 	})
 	if rtDBErr != nil {
-		t.Skipf("postgres 不可达: %v", rtDBErr)
+		t.Fatalf("postgres 不可达（集成测试必须执行）: %v", rtDBErr)
 	}
 	return rtDBPool
 }

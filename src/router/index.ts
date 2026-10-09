@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WorkbenchLayout from '../layouts/WorkbenchLayout.vue'
-import HomeView from '../views/workbench/HomeView.vue'
+
 import ScreenLayout from '../layouts/ScreenLayout.vue'
-import ScreenView from '../views/screen/ScreenView.vue'
+
 import { currentProfile } from '../api/session'
 
 const routes = [
@@ -14,7 +14,7 @@ const routes = [
     path: '/workbench',
     component: WorkbenchLayout,
     children: [
-      { path: '', name: 'wb-home', component: HomeView },
+      { path: '', name: 'wb-home', component: () => import('../views/workbench/HomeView.vue') },
       {
         path: 'overview',
         name: 'wb-overview',
@@ -70,6 +70,9 @@ const routes = [
         name: 'wb-settings',
         component: () => import('../views/workbench/SettingsView.vue'),
       },
+      { path: 'preferences', name: 'wb-preferences', component: () => import('../views/workbench/PreferencesView.vue') },
+      { path: 'tasks', name: 'wb-tasks', component: () => import('../views/workbench/TasksView.vue') },
+      { path: 'access', name: 'wb-access', component: () => import('../views/workbench/AccessView.vue') },
       { path: ':pathMatch(.*)*', redirect: '/workbench' },
     ],
   },
@@ -84,8 +87,9 @@ const routes = [
     component: ScreenLayout,
     // 大屏公开位：meta 沿 matched 链合并，子路由同豁免
     meta: { public: true },
-    children: [{ path: '', name: 'screen', component: ScreenView }],
+    children: [{ path: '', name: 'screen', component: () => import('../views/screen/ScreenView.vue') }],
   },
+  { path: '/:pathMatch(.*)*', redirect: '/workbench' },
 ]
 
 const router = createRouter({
@@ -99,7 +103,8 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.meta.public) {
     try {
-      await currentProfile()
+      const p = await currentProfile()
+      if (to.path.startsWith('/workbench') && to.name !== 'wb-access' && p.allowed_pages && !p.allowed_pages.includes(to.path)) return p.allowed_pages[0] ?? '/workbench/access'
       return true
     } catch {
       return { path: '/login', query: { redirect: to.fullPath } }
@@ -108,7 +113,7 @@ router.beforeEach(async (to) => {
   if (to.name === 'login') {
     try {
       await currentProfile()
-      return { path: '/workbench' }
+      return { path: (await currentProfile()).allowed_pages?.[0] ?? '/workbench/access' }
     } catch {
       return true
     }

@@ -176,7 +176,7 @@ func (r *Ops) ChargeTotals(ctx context.Context, w RangeWin) (ChargeSum, error) {
 	var row ChargeSum
 	err := r.db.WithContext(ctx).Raw(
 		`SELECT COALESCE(SUM(in_fee),0) AS in_fee, COALESCE(SUM(out_fee),0) AS out_fee
-		 FROM dwd.charge_day WHERE date >= ? AND date < ?`, w.Start, w.End).Scan(&row).Error
+		 FROM dws.charge_daily WHERE date >= ? AND date < ?`, w.Start, w.End).Scan(&row).Error
 	return row, err
 }
 
@@ -197,10 +197,10 @@ func (r *Ops) DeptCharges(ctx context.Context, w RangeWin) ([]DeptCharge, error)
 		`SELECT c.dept_id, d.name,
 			COALESCE(SUM(c.in_fee),0) AS in_fee,
 			COALESCE(SUM(c.out_fee),0) AS out_fee,
-			COALESCE(SUM(c.in_fee) FILTER (WHERE c.fee_cat='drug'),0) AS in_drug,
-			COALESCE(SUM(c.out_fee) FILTER (WHERE c.fee_cat='drug'),0) AS out_drug,
-			COALESCE(SUM(c.in_fee+c.out_fee) FILTER (WHERE c.fee_cat='material'),0) AS mat
-		 FROM dwd.charge_day c
+			COALESCE(SUM(c.in_drug),0) AS in_drug,
+			COALESCE(SUM(c.out_drug),0) AS out_drug,
+			COALESCE(SUM(c.mat),0) AS mat
+		 FROM dws.charge_daily c
 		 JOIN dim.department d ON d.id = c.dept_id
 		 WHERE c.date >= ? AND c.date < ?
 		   AND d.level = 2 AND d.dept_domain IN ('clinical','platform')
@@ -281,6 +281,17 @@ type HourlySum struct {
 
 func (r *Ops) HourlySum(ctx context.Context, w RangeWin) (HourlySum, error) {
 	var row HourlySum
+	loc := simLoc
+	start, end := w.Start.In(loc), w.End.In(loc)
+	if start.Hour() == 0 && start.Minute() == 0 && start.Second() == 0 && start.Nanosecond() == 0 &&
+		end.Hour() == 0 && end.Minute() == 0 && end.Second() == 0 && end.Nanosecond() == 0 {
+		err := r.db.WithContext(ctx).Raw(`SELECT COALESCE(SUM(visit),0) AS visit,
+			COALESCE(SUM(expert),0) AS expert, COALESCE(SUM(emerg_visit),0) AS emerg_visit,
+			COALESCE(SUM(wait_min_sum),0) AS wait_min_sum, COALESCE(SUM(fee_total),0) AS fee_total
+			FROM dws.outpatient_daily WHERE date >= ? AND date < ?`,
+			start.Format("2006-01-02"), end.Format("2006-01-02")).Scan(&row).Error
+		return row, err
+	}
 	err := r.db.WithContext(ctx).Raw(
 		`SELECT COALESCE(SUM(visit_cnt),0) AS visit,
 			COALESCE(SUM(expert_cnt),0) AS expert,

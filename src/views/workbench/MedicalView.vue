@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDefaultRange } from '../../api/preferences'
 import { ref, computed, onMounted, watch } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
@@ -82,7 +83,7 @@ import type { MedicalTab, RangeKey, WbTableData } from '../../api/types'
 
 const systemDate = useSystemDate()
 const bizTab = ref('门急诊')
-const range = ref('本年')
+const range = useDefaultRange()
 // WbSeg 出参为中文标签,映射为契约 tab/range 枚举(§1.4-1,非法值后端回 10001)
 const TAB_PARAM: Record<string, MedicalTab> = { 门急诊: '门急诊', 住院: '住院', 手术: '手术' }
 const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }

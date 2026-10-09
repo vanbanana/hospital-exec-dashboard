@@ -24,8 +24,8 @@
         <div class="metric-info">
           <span class="metric-name">{{ item.name }}</span>
           <div class="metric-val-row">
-            <span class="metric-num wb-num">{{ item.value }}</span>
-            <span v-if="item.unit" class="metric-unit">{{ item.unit }}</span>
+            <span class="metric-num wb-num">{{ displayMoney(item.value, item.unit).value }}</span>
+            <span v-if="item.unit" class="metric-unit">{{ displayMoney(item.value, item.unit).unit }}</span>
           </div>
         </div>
 
@@ -45,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import { displayMoney } from '../../api/preferences'
 import { computed, onMounted } from 'vue'
 import type { Component } from 'vue'
 import {

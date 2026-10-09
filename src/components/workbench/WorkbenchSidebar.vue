@@ -16,10 +16,12 @@
         :key="item.name"
         :to="item.to"
         custom
-        v-slot="{ isActive, isExactActive, navigate }"
+        v-slot="{ isActive, isExactActive, navigate, href }"
       >
         <a
           class="nav-item"
+          :href="href"
+          :aria-current="(item.exact ? isExactActive : isActive) ? 'page' : undefined"
           :class="{ active: item.exact ? isExactActive : isActive }"
           @click="navigate"
         >
@@ -42,7 +44,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { profileState } from '../../api/session'
 import { getHospitalProfile } from '../../api/auth'
 import type { HospitalProfileResp } from '../../api/types'
 import {
@@ -74,7 +77,7 @@ onMounted(async () => {
   profile.value = (await getHospitalProfile().catch(() => null)) ?? profile.value
 })
 
-const menuItems = [
+const allMenuItems = [
   { name: '首页', icon: Home, to: '/workbench', exact: true },
   { name: '综合概览', icon: LayoutGrid, to: '/workbench/overview' },
   { name: '医疗业务', icon: Cross, to: '/workbench/medical' },
@@ -86,8 +89,11 @@ const menuItems = [
   { name: '资产与后勤', icon: Boxes, to: '/workbench/assets' },
   { name: '对比分析', icon: BarChart2, to: '/workbench/compare' },
   { name: '专题分析', icon: PieChart, to: '/workbench/topics' },
+  { name: '个人偏好', icon: Settings, to: '/workbench/preferences' },
+  { name: '督办工单', icon: Briefcase, to: '/workbench/tasks' },
   { name: '系统设置', icon: Settings, to: '/workbench/settings' },
 ]
+const menuItems = computed(() => allMenuItems.filter(item => !profileState.value?.allowed_pages || profileState.value.allowed_pages.includes(item.to)))
 </script>
 
 <style scoped>

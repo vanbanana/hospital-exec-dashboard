@@ -1,108 +1,90 @@
-# 总体架构设计 — 院长查询与决策支持系统（EDSS）
+# 总体架构设计 — EDSS
 
-> 版本：v2.2（前端假数据清零——真后端单轨；v2.1 = 后端落地双轨期；v2.0 = 双形态改版基线，替代 v1.1 大屏单一形态基线）
-> **核心约束：本项目无真实医院环境，全部业务数据为模拟口径（种子库 + 仿真时钟）。`api-contract.md` 是数据契约——前端单轨打真后端，无任何假数据兜底（`src/mock/` 已摘除）。**
+> 版本：v2.4，2026-10-09 静态对齐。实现数量、端口和配置以 [当前实现清单](current-state.md) 为统一索引；字段和语义以 [API 契约](api-contract.md) 为准。
+> 无法取得真实医院数据是固定约束。工程目标与验收见 [工程质量提升计划](engineering-acceptance.md)，不再等待医院样本或接口。
 
----
+## 0. 产品定位与形态
 
-## 0. 产品定位与形态（v2.0 裁决）
+同一数据底座，两种渲染形态：
 
-对标真实产品（帆软"一库多端"、卫宁 WiNEX、东软 RealOne）：同一数据底座，两种渲染形态。
+| 形态 | 路由 | 用途 |
+| --- | --- | --- |
+| 工作台 | `/workbench/*` | 浅色管理台；14 个导航页面，按 allowed_pages 展示；另有 access 回退页 |
+| 大屏 | `/screen` | 深色态势展示；视觉参考为只读 archive/smart-hospital-cockpit/ |
 
-| 形态 | 路由 | 定位 | 受众/场景 |
-| :--- | :--- | :--- | :--- |
-| **工作台** | `/workbench/*`（主，`/` 重定向至此） | 浅色医疗专业 Web 管理台：筛选、对比、明细、督办、报表 | 院长/处长/科主任日常办公，近距离高密度 |
-| **大屏** | `/screen`（已建成，e6aeb52） | 深色科技风演示屏：3D 院区、告警跑马灯、宏观 KPI；视觉基准 `archive/smart-hospital-cockpit/` | 运营中心/会议室/演示，远距离低交互 |
+两形态使用同一工程、同一 API 层和契约。业务数据为持久化合成数据，界面显示 demo 来源；前端请求失败必须显示错误或陈旧数据，不能编造业务值。品牌文案降级和测试替身与业务数据兜底分别管理。
 
-两形态**同一工程、同一数据契约、同一 api 层**，仅表现层不同。顶栏预留模式切换入口。
+## 1. 技术栈白名单
 
-## 1. 技术栈裁剪决策（对照实际 package.json）
+| 组件 | 状态与使用方式 |
+| --- | --- |
+| Vue 3 + TypeScript + Vite 8 | 已使用；Node ≥22.12 |
+| Vue Router 4 | 已使用；所有页面视图懒加载 |
+| ECharts 6 | 已使用；src/charts.ts 按需注册，chartPresets 统一主题 |
+| lucide-vue-next | 已使用；线性图标来源 |
+| 原生 fetch + Vue composable | 已使用；client.ts 拆包络，模块共享会话/偏好/日期 |
+| Go 1.27 + Gin + GORM + pgx + PostgreSQL 16 | 已使用；60 张业务表，18 个迁移、13 个种子文件 |
+| golang.org/x/crypto bcrypt | 已使用；登录口令校验 |
+| Pinia、Redis | 未安装/未启用；按具体需求评估，不是工程验收前置条件 |
+| Axios | 不引入；已有 fetch 客户端 |
+| Element Plus、Tailwind 等样式框架 | 未引入；现有 Wb 原语与设计令牌，新增依赖先确认 |
 
-| 组件 | 决策 | 状态/理由 |
-| :--- | :--- | :--- |
-| Vue3 + TS + Vite | ✅ | 已落地，前端基座 |
-| Vue Router 4 | ✅ | 已装，双形态与 11 个子页路由必需 |
-| ECharts 5 | ✅ | 已装，全部图表（chartPresets 统一主题） |
-| lucide-vue-next | ✅ | 已装，线性图标唯一来源 |
-| Pinia | ⚠️ 待装 | 数据层上 store 时需要；当前组件直连 api 为过渡态 |
-| axios | ❌ 不引入 | api 层已用原生 fetch 落地（client.ts 自拆包络，实测工作正常），axios 不再需要 |
-| Element Plus | ❌ 暂不引入 | 工作台用自研 `--wb-*` 设计体系（表格/表单已覆盖），引入会破坏视觉统一；确需复杂组件时先问用户 |
-| Tailwind/样式框架 | ❌ 不引入 | 已有自研 token 体系 |
-| Go + Gin + GORM + PG16 + Redis | ✅ 已落地 | `backend/` 39 端点（读 21 + auth 2 + 写 8 + sim 5 + infra 3）+ 58 表 hospital_edss 库在跑；Redis 未启用 |
-| golang.org/x/crypto（bcrypt） | ✅ 审批已过 | 登录口令安全必需（契约 §2.3 `POST /auth/login` bcrypt 校验，已在用）；Go 官方扩展库，已是 `go.mod` 直接依赖；不引入第三方 auth/JWT 库 |
+## 2. 系统拓扑
 
-**当前真实栈**：前端 `Vue3 + TS + Vite + VueRouter + ECharts + lucide`（无 Pinia、无 axios）；后端 `backend/` Go + Gin + GORM + PG15/16（39 端点已落地：读 21 + auth 2 + 写 8 + sim 5 + infra 3）。
-
-## 2. 系统拓扑（现状）
-
-```
-浏览器 ── Vite dev(:5173)
-  ├─ /workbench        工作台：WorkbenchLayout(侧栏+头部) + 12 个 view
-  └─ /screen           大屏：ScreenLayout + ScreenView + Scr* 组件族（已建成；视觉基准 archive/smart-hospital-cockpit）
-
-数据供给（单轨——`src/mock/` 已摘除，无假数据兜底）：
-  视图组件 ── src/api/*(端点函数) ── client.ts ── vite proxy /api→:8080（生产 nginx 同路径反代）
-                                                    Go 后端 /api/v1/<key> → PG hospital_edss
+```text
+浏览器
+  ├─ 工作台：WorkbenchLayout + 14 个导航页 + AccessView
+  └─ 大屏：ScreenLayout + ScreenView + Scr* 组件
+       ↓ src/api/* 与共享 composable → client.ts
+       ↓ /api（开发 Vite 5173；部署 Nginx 静态站点和同源反代）
+Go API :8080 → handler → repo → PostgreSQL 16
+                               sys/dim/dwd/dws/ads/sim
 ```
 
-### 生产部署拓扑（已落地：`deploy/` 三件套）
+开发代理固定 localhost:8080，Vite 使用 strictPort，5173 占用即失败。部署为 db → backend → web 的健康依赖：PG 可连接，迁移完成并具有初始化业务数据后 `/ready` 才成功。基础配置 seed 默认关闭；production 覆盖强制关闭自动播种。
 
-```
-浏览器 ── Nginx（web 容器：/ 静态 + /api 反代 + /health 透出）
-   ├─ 前端 SPA（deploy/Dockerfile web target）
-   └─ Go Backend（单体 edss:8080）：handler → repo → PG16（db 服务，仅内网）
-        〔v1.1 设计保留，未启用：写侧 Fact Producer(仿真器|ETL) → dwd；Derived Pipeline → dws/ads；Redis〕
-```
+Nginx 在 web 容器终结 TLS，后端内网使用 HTTP。基础配置只发布 HTTP；edssprod 演示覆盖发布 8093/8443；production 默认发布 HTTP 80 重定向 HTTPS 443。API 调试端口绑定回环；PG 基础/production 不发布，edssprod 仅回环发布 5433。详见 [部署手册](production-deploy.md)。
 
-compose 编排 `db → backend（edss-migrate 迁移+种子 → edss）→ web`；跑法见 `backend/README.md` compose 段。
+## 3. 后端与数据路径
 
-保留原 v1.1 核心思想：**契约面与数据面分离**——后端可整体替换/后补，前端只认契约 JSON 形状。
+Go 单体包含 cmd/server、cmd/migrate 和 internal/{config,envelope,middleware,clock,router,handler,repo}。开启 sim 时注册 40 个方法/路径组合，关闭时 35 个；完整清单见 [current-state.md](current-state.md)。会话持久化到 sys.user_session，edss_sid 为 HttpOnly Cookie。
 
-## 3. 后端内部结构（已落地）
+种子在初始化阶段生成明细、汇总和集市。运行 API 读取预聚合数据，并写会话、审计、个人偏好、规则开关、告警和工单。sim.clock.virtual_now 是业务时间源；包络 ts、会话期限和运维计时使用传输/运维墙钟。
 
-**已落地**（`backend/`，详见 `backend/README.md`）：Go 单体 `cmd/server` + `internal/{config,envelope,middleware,clock,router,handler,repo}`——薄查询层 `handler → repo → 预聚合表（dws/ads/dwd）→ 契约 JSON`，39 端点对接契约 §2–§16（读 21 + auth 2 + 写 8 + sim 5；另有 infra 3 根挂不入契约面）；58 表 `hospital_edss` 库（六 schema，迁移+种子见 `database-schema.md` §5）；`sim.clock.virtual_now` 为唯一时间源；包络由 `envelope` 包统一出口；会话（`sys.user_session` + `edss_sid` Cookie）与端点级 RBAC 已生效。
+**未实现**：常驻 Fact/Derived 管线、自动告警扫描、仿真生成引擎、契约中的五级深层穿透和 ChatBI 等预留功能。tick 只推进时钟，跨日不会重算 ads 快照；工单办结也不会自动让指标恢复。种子中的派生 SQL 不等于常驻生成服务。
 
-**未实施**（v1.1 设计保留，按需启用）：写侧 Fact/Derived 双轨（Fact Producer/仿真器 → dwd；Derived Pipeline → dws/ads）、告警引擎、Redis；契约 §15 深层穿透端点（R01–R03/R09/R12/R13）仍预留。
+契约形状与实现分离便于演进，但新数据源或新口径仍需字段、单位、权限和统计语义验证；不能仅凭 JSON 形状相同声称兼容。
 
-## 4. 分期路线图（v2.0 实际路线）
+## 4. 实施历史与当前工程路线
 
-| 期 | 内容 | 状态 |
-| :- | :--- | :--- |
-| P0 | 工作台 12 页 v0 参考实现（agy 复刻+审查产出）+ 设计体系（`--wb-*` token + Wb 原语） | ✅ 已落地 |
-| P0.5 | **前端规范化重写**：按 frontend-architecture v2.0 整改 v0 代码；数据曾集中 `src/mock/`（已于本轮摘除，切真后端单轨） | ✅ 已落地 |
-| P0.6 | **规范验收与令牌统一**：设计令牌（tokens.css）+ 文档先行机制 + /screen 按 cockpit 基准重建 | ✅ 已落地（e6aeb52） |
-| P1 | store 层落地（组件→store→api）；督办/预警写操作闭环 | ◐ 组件直连 api 过渡态；写闭环已随 P3-EW 落地 |
-| P2 | 最小后端跑通契约端点；督办/预警写操作闭环 | ✅ 已完成（读侧 21 端点 + 写侧 8 端点真 SQL） |
-| P3 | 认证会话/RBAC/写侧生命周期/仿真控制面/运维部署件（原 v1.1 裁剪后 P3 范围；五级下钻·病案脱敏归 P3.1 远期） | ✅ 已落地（EA 会话+RBAC、EW 写侧、ES sim、EO 运维） |
+| 阶段 | 实施范围 | 当前说明 |
+| --- | --- | --- |
+| 历史 P0/P0.5 | 原 12 页与设计体系、集中前端 mock | 页面基线已扩展；mock 已退役 |
+| 历史 P2/P3 | Go 查询、认证、写闭环、sim 控制面、三服务部署 | 已实现相应功能，边界见当前清单 |
+| 已执行整改 | 偏好行为、科室工单、强制脱敏、TLS 部署、回归基础、备份恢复脚本 | 证据见 quality-remediation-plan.md；不代表全部高标准通过 |
+| 下一轮 E1–E5 | 契约与权限、交互、恢复、交付、性能与持续安全 | 顺序和完成条件见 engineering-acceptance.md，待实施 |
 
-## 5. 安全与合规（演示级）
+Pinia、Redis 或额外基础设施不是必做阶段。真实医院数据接入不属于当前路线；合成样本的口径、业务状态和数据一致性属于工程路线。
 
-- **认证（P3-EA 已落地）**：`POST /auth/login`/`logout`（契约 §2.3–2.4）= PG 会话表 `sys.user_session` + `edss_sid` HttpOnly Cookie（生产追加 `Secure`）；口令 bcrypt（x/crypto，§1 已批）；登录防爆破 5 次/15min → `20104`（`sys.audit_log` 计数）。`?role=` 双轨语义：读侧保留演示切换（契约 §2.1 注），写侧异名切换限 `admin`/`president` 会话（契约 §15 闸注）。
-- **RBAC（端点级，已生效）**：`/workbench/settings/config` 读限 `admin`/`president`（`20004`），§15 写面按角色矩阵放行管理域三角色（`20005`），`/sim/*` 全限 `admin`；数据域 RBAC（`dept_leader` 本科室过滤已实现于工单域闸）与实名脱敏属 P3.1 远期。
-- **CORS/TLS**：dev（vite proxy 同源 `/api`→:8080）与 prod（静态托管 + 反代同源）均不实现 CORS 中间件；TLS 在生产反代（Nginx）终结，Go 后端保 HTTP，本地不强制。
-- 密钥一律 `.env`；演示截图/录屏场景注意不展示真实敏感信息
+## 5. 安全与数据范围
 
-## 6. 部署
+- 基础演示默认允许公开大屏和演示角色切换；这些默认值不应用于共享安全部署。production 覆盖强制 SIM_ENABLED=0、DEMO_ROLE_SWITCH=0、AUTH_COOKIE_SECURE=1、SCREEN_PUBLIC=0、SEED_ON_BOOT=0。
+- 登录使用 bcrypt、PG 会话和 Cookie；失败锁定为同用户名五次/十五分钟，计数源为 sys.audit_log。没有 Redis 锁或 refresh 队列。
+- 生产模式对已注册业务端点显式授权；未知角色和未登记业务路由拒绝。domain 聚合范围未定义时拒绝全院数据；科室工单/人员过滤及非管理姓名脱敏已实现，科室统计待内部契约与合成样本实现。
+- 大屏前端公开路由与 API 权限分开：SCREEN_PUBLIC=0 时请求必须有合法会话及范围授权。
+- 同源开发/部署不使用 CORS 中间件。密钥存于被忽略的 .env/.env.* 或被忽略的证书私钥文件，不提交仓库。
+- 当前依赖、权限与恢复证据有明确范围；全面安全审计、容量、高可用和医院现场业务验收未获证明。
 
-- 当前：`npm run dev`（:5173）本地开发预览（需 `backend/` Go 服务 :8080 + PG hospital_edss，见 `backend/README.md`）；无 mock 轨，前端独立启动将全错误态
-- 演示：`deploy/` docker-compose 三件套（web nginx 反代 /api→backend）；纯静态托管无数据可出
-- 后端生产部署（已落地）：`deploy/` 三件套 docker-compose（db+backend+web，无 redis），跑法见 `backend/README.md`
+## 6. 部署与运行入口
 
-**端口归一（P3 登记）**：
+使用 npm ci 复现前端依赖。云开发 scripts/cloud-dev.sh 管理本项目合成库，项目默认 edss-dev，继续已有环境时设置 EDSS_DEV_PROJECT。初始化、生产安全配置、备份恢复与故障步骤以 [production-deploy.md](production-deploy.md) 为准。
 
-dev 形态（本机）：
+“production”是安全配置名称，数据仍为 demo。可在隔离合成库上验证 HTTPS、Secure Cookie、权限、恢复和负载，不要求医院数据。预期达到的工程能力以 [工程验收计划](engineering-acceptance.md) 的实测条件评判。
 
-| 端口 | 用途 | 必开 | 备注 |
-| :--- | :--- | :--- | :--- |
-| 5173 | vite dev 唯一 canonical（proxy /api→:8080） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
-| 8080 | Go API | 真链路时 | `PORT` env |
-| 5432 | 本地 PG | 真链路时 | brew postgresql@15/16 |
-| — | vite proxy `/api`→`localhost:8080` | — | target 硬编码于 `vite.config.ts` |
+## 7. 运维与性能增补
 
-prod 形态（`deploy/` compose 三服务，已落地）：
+备份管理/恢复内容校验、周期巡检和资源采样、内部 /stats 路由延迟、认证业务压测与追加索引见 [实施手册](operations-performance.md)。实现已加入工作树，定时器未启用，运行服务与数据库尚未升级到这些能力；容量与恢复结果须另行记录。
 
-| 端口 | 用途 | 暴露面 |
-| :--- | :--- | :--- |
-| 80 | nginx：`/` 静态 SPA + `/api` 反代 + `/health` 透出（TLS 终结在更外层 LB） | 公网唯一入口，`WEB_PORT` 改绑 |
-| 8080 | backend | 内网；`127.0.0.1:${BACKEND_PORT}` 调试透出 |
-| 5432 | postgres | 仅内网，不 publish |
+本轮性能整改新增 `1010_outpatient_daily_rollup.sql`：`dws.outpatient_daily` 按东八区自然日保存门诊小时表的同口径五项累计。迁移先锁源表、回填，再注册 INSERT/UPDATE/DELETE 语句级增量触发器与 TRUNCATE 清空触发器；源事实与汇总在同一事务内提交或回滚，不使用 TTL 缓存、不依赖手工刷新。只加表/函数/触发器，现有表结构不改；业务表增加至 59、迁移增加至 17。整日窗口走汇总，非整日窗口仍按小时事实查询。维护窗口应用，需独立比较原始 SQL、时区边界、修改/删除/回滚和并发写入结果。
+
+门诊汇总后仍有收费查询瓶颈，新增 `1020_charge_daily_rollup.sql` 和 `dws.charge_daily`：按日期/科室汇总收费类别，保持院级总额与 level=2 科室过滤原语义，INSERT/UPDATE/DELETE/TRUNCATE 与源表同事务更新。迁移执行前锁源表，不允许与写入并发回填。业务表 60 张、迁移 18 个；恢复校验新增触发器定义/启用状态及业务 schema 函数摘要。前台调度资源快照包含 cloud-dev 独立 API，巡检日志保留连接池与运行时数值。

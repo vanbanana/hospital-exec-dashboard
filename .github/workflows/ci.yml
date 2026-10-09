@@ -2,7 +2,7 @@
 #   frontend : vue-tsc → test:unit(vitest run,script 由测试 lane 提供) → build
 #   backend  : postgres:16 service 灌迁移+种子 → vet+build+test -race。
 #              测试为实库集成测试,DSN 定位见 backend/internal/handler/*_test.go:
-#              DATABASE_URL=读库(hospital_edss)/DATABASE_URL_W=写域库(hospital_edss_w),不可达则 Skip
+#              DATABASE_URL=读库(hospital_edss)/DATABASE_URL_W=写域库(hospital_edss_w),不可达即失败
 #   mechanical: time.Now/as any/@ts-ignore 豁免核对,清单照 acceptance.md §1 逐字实现
 name: ci
 
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod # 跟随 go.mod(当前 1.25.x),满足 ≥1.22
+          go-version-file: backend/go.mod # 跟随 go.mod(当前 1.27.x),满足 ≥1.22
           cache-dependency-path: backend/go.sum
       - name: vet + build
         run: cd backend && go vet ./... && go build ./...
@@ -76,13 +76,47 @@ jobs:
           # 种子确定性(md5 派生零 random/now)保证两库等价
           createdb -h localhost -U postgres hospital_edss_w
           DATABASE_URL="$DATABASE_URL_W" go run ./cmd/migrate -seed
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - name: test(实库集成;ubuntu 有 gcc,-race 可用)
         run: cd backend && go test -count=1 -race ./...
+      - name: 汇总与原始事实独立校验（写入全部回滚）
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d hospital_edss_w -f backend/assert/assert_outpatient_daily.sql
+          psql -h localhost -U postgres -d hospital_edss_w -f backend/assert/assert_charge_daily.sql
+      - name: 浏览器关键链路
+        run: |
+          (cd backend && go build -o /tmp/edss-server ./cmd/server)
+          /tmp/edss-server > /tmp/edss-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/ready >/dev/null && break; sleep 1; done
+          curl -sf http://localhost:8080/ready >/dev/null
+          npm run test:e2e -- --ignore-snapshots --grep-invert '生产权限模式'
+          kill "$server_pid"
+          wait "$server_pid" || true
+          DEMO_ROLE_SWITCH=0 SCREEN_PUBLIC=0 SIM_ENABLED=0 AUTH_COOKIE_SECURE=0 /tmp/edss-server > /tmp/edss-production-server.log 2>&1 &
+          server_pid=$!
+          for i in $(seq 1 60); do curl -sf http://localhost:8080/ready >/dev/null && break; sleep 1; done
+          curl -sf http://localhost:8080/ready >/dev/null
+          EDSS_TEST_PRODUCTION=1 npm run test:e2e -- tests/e2e/permissions.spec.ts
 
   mechanical:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: python3 tests/deploy-config.py
+      - run: python3 tests/ops-test.py
+      - name: 运维脚本语法
+        run: |
+          python3 -c 'import ast, pathlib; ast.parse(pathlib.Path("scripts/ops.py").read_text())'
+          bash -n scripts/backup-db.sh scripts/restore-db.sh scripts/cloud-dev.sh scripts/build-images.sh
       - name: time.Now/as any/@ts-ignore 豁免核对
         run: |
           # 豁免清单(acceptance.md §1,仅豁免 time.Now,按文件收口):

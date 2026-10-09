@@ -33,8 +33,8 @@
       <div class="kpi-content">
         <div class="kpi-title">{{ card.label }}</div>
         <div class="kpi-value-row">
-          <span class="kpi-number wb-num">{{ card.value }}</span>
-          <span v-if="card.unit" class="kpi-unit">{{ card.unit }}</span>
+          <span class="kpi-number wb-num">{{ displayMoney(card.value, card.unit).value }}</span>
+          <span v-if="card.unit" class="kpi-unit">{{ displayMoney(card.value, card.unit).unit }}</span>
         </div>
         <div class="kpi-trend-row">
           <span class="trend-label">{{ card.delta_label || '较上月' }}</span>
@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { displayMoney } from '../../api/preferences'
 import { computed, onMounted } from 'vue'
 import type { Component } from 'vue'
 import {

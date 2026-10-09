@@ -70,6 +70,11 @@ const trackStyle = computed(() =>
 )
 
 let ro: ResizeObserver | null = null
+let measureFrame = 0
+const scheduleMeasure = () => {
+  cancelAnimationFrame(measureFrame)
+  measureFrame = requestAnimationFrame(measure)
+}
 const measure = () => {
   const box = boxRef.value
   const probe = probeRef.value
@@ -81,7 +86,7 @@ const measure = () => {
 }
 
 onMounted(() => {
-  ro = new ResizeObserver(measure)
+  ro = new ResizeObserver(scheduleMeasure)
   if (boxRef.value) ro.observe(boxRef.value)
   if (probeRef.value) ro.observe(probeRef.value)
 })
@@ -93,12 +98,13 @@ watch(
     // list 晚到场景：feed 容器此刻才挂载，补挂观察
     if (ro && boxRef.value) ro.observe(boxRef.value)
     if (ro && probeRef.value) ro.observe(probeRef.value)
-    measure()
+    scheduleMeasure()
   }
 )
 
 onUnmounted(() => {
   ro?.disconnect()
+  cancelAnimationFrame(measureFrame)
   ro = null
 })
 </script>

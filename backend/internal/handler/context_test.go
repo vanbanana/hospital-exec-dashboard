@@ -56,7 +56,7 @@ func testDB(t *testing.T) *gorm.DB {
 		testDBPool = db
 	})
 	if testDBErr != nil {
-		t.Skipf("postgres 不可达: %v", testDBErr)
+		t.Fatalf("postgres 不可达（集成测试必须执行）: %v", testDBErr)
 	}
 	return testDBPool
 }

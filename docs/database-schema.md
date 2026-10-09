@@ -1,31 +1,33 @@
 # 数据库设计 — EDSS（v2.0 终装配版）
 
-> **版本**：v2.0　**日期**：2026-10-28　**取代**：v1.1（全文重写）
-> **状态**：设计与种子已装配至 `backend/migrations/` + `backend/seed/`（文件名序即执行序，见 `backend/README.md`）；经三轮独立审核收敛至 0 BLOCKER/0 MAJOR，干净库（PG15）全链 apply 实证通过；种子幂等可重跑（迁移仅首装执行，非幂等重跑）。
+> **版本**：v2.1；2026-10-09 静态对齐。**种子业务锚点**为 2026-10-28，与文档日期无关。取代 v1.1 的历史建模基线继续保留。
+> **状态**：仓库内 18 个迁移与 13 个种子文件，六 schema 共 60 张业务表（不含 public.schema_migrations），见 [当前清单](current-state.md)。旧建模审核和 PG15 验证属于历史证据；实际迁移重跑依赖台账，种子可显式重跑。真实医院数据不在验收范围内，合成样本勾稽仍须验证。
 > **适用范围**：PostgreSQL 16（语法兼容验证至 PG15.15）；服务 `/workbench` 工作台与 `/screen` 大屏两套形态。
 
 ---
 
 ## 1. 六 schema 分层总览
 
+下图为历史目标层次，常驻派生流水线和自动生成引擎未实现。当前由种子 SQL 初始化 dwd/dws/ads；API 读预聚合数据，并写会话、审计、偏好、规则、告警和工单。sim 关闭控制路由不等于删除 sim.clock，它仍是业务时钟与 ready 的依赖。
+
 ```
 写入方                     层          职责                          读取方
 ─────────────────────────────────────────────────────────────────────────
-仿真器/未来ETL     ──►   dwd  明细事实（逐例/逐时/逐日事件行）
+目标生成器     ──►   dwd  明细事实（逐例/逐时/逐日事件行）
 派生流水线(常驻)   ──►   dws  日/周期汇总（院级、科室级、病组级）
 派生流水线(常驻)   ──►   ads  应用集市（页面直读快照/榜单/告警）
 L1 系统域          ──►   sys  账号/字典/指标定义/通知/审计/数据源/偏好
 L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/人员/病组/病区/设备…）
-仿真控制           ──►   sim  虚拟时钟/作业日志/参数（生产可按 env 跳过）
+仿真控制           ──►   sim  虚拟时钟/作业日志/参数（控制路由可关闭，表保留）
 ```
 
-**读写纪律**（与 architecture.md 派生流水线一致）：
+**目标管线纪律与当前实现边界**：
 
-- **API 默认只读 `dws/ads/sys`**；白名单例外：realtime 今日指标（dwd 当日累计）、Level-5 病例穿透（dwd.drg_case）、告警事实回溯。
-- **仿真器只写 `dwd`+`sim`**，禁直写 dws/ads；dws/ads 由派生流水线独占写入——这是"切真实 ETL 后大屏不死"的关键。
+- API 读取 dws/ads/sys/dim/dwd 对应数据；写侧更新上述会话/审计/偏好/规则/告警/工单，工单读取还带惰性过期维护。Level-5 病例穿透为预留，尚不计为已实现。
+- 若启用生成管线，应让生成器写 dwd+sim、派生器写 dws/ads。当前仅种子阶段派生；tick 不生成事实或重算集市，不将目标管线描述为现役能力。
 - **依赖方向不可逆**：`sys → dim → dwd → dws → ads`（sim 旁挂末位）。种子相位装配见 §5。
 
-## 2. 表总目录（58 表 × lane × 粒度 × 种子规模）
+## 2. 表总目录（60 表 × lane × 粒度 × 种子规模）
 
 > 行数列为 lane 种子实测/规格值（BASE_DATE=2026-10-28，窗口 2025-01-01~2026-12-31），已按当前库实测校核一轮；"—"=空表/缓建。
 
@@ -84,7 +86,7 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 | dwd.material_stock_day | L8e | 日×物资 | 24×730≈1.8 万 |
 | dwd.logistics_order | L8e | 一工单一行 | 锚月 156（完结 92%） |
 
-### dws（9 表 · L5 + L6/L8 自有表）
+### dws（11 表 · L5 + L6/L8 自有表）
 
 | 表 | lane | 粒度 | 规模 |
 | :-- | :-- | :-- | :-- |
@@ -97,6 +99,8 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 | dws.quality_rule_audit | L8d | 期×制度 | 8×24=192 |
 | dws.energy_month | L8e | 月×分项 | 3×24=72 |
 | dws.research_paper_period | L8b | 年×分区×学科 | 三年谱系 |
+| dws.outpatient_daily | 运维性能 | 东八区自然日 | 730；小时事实增量触发同步 |
+| dws.charge_daily | 运维性能 | 日×科室 | 14,600；收费分类增量触发同步 |
 
 ### ads（8 表 · L6/L7）
 
@@ -111,7 +115,7 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 | ads.alert_event | L7 | 一事件一行 | open 5+历史 |
 | ads.todo_order | L7 | 督办行 | 0（空表预案） |
 
-### sim（3 表 · L9，env 可跳）
+### sim（3 表 · L9；仅控制路由可关闭，时钟表不可跳）
 
 | 表 | 粒度 | 种子 |
 | :-- | :-- | :-- |
@@ -171,7 +175,7 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 
 ## 5. 迁移与种子装配
 
-### 5.1 迁移（`backend/migrations/`，13 文件，域级合并）
+### 5.1 迁移（`backend/migrations/`，18 文件，域级合并）
 
 | 序号段 | 文件 | 内容 |
 | :-- | :-- | :-- |
@@ -182,13 +186,18 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 | `0200`/`0210` | `0200_dwd_flow.sql` / `0210_dwd_clinical.sql` | dwd 业务流事实（outpatient_hourly/inpatient_move/bed_state_day/charge_day/insurance 等）+ 临床事实（surgery_case/drg_case） |
 | `0300` | `0300_dws_agg.sql` | dws 9 表（含 L6 benchmark_peer/exam_indicator、L8 quality_rule_audit/energy_month/research_paper_period） |
 | `0400`/`0410` | `0400_ads_workbench.sql` / `0410_ads_screen_alert.sql` | ads 8 表（含 todo_order 空表预案） |
-| `0500` | `0500_sim.sql` | sim 3 表（末批，env 可跳） |
+| `0420` | `0420_todo_open_uq.sql` | 活跃工单唯一约束 |
+| `0500` | `0500_sim.sql` | sim 3 表（即使控制路由关闭仍保留） |
+| `0510` | `0510_sim_clock_tz.sql` | 时钟复位的时区修正 |
 | `0900` | `0900_sys_user_dept_fk.sql` | `sys.user.dept_id→dim.department(id)` 延迟 FK（RESTRICT，须在 dim 后） |
 | `0910` | `0910_sys_user_session.sql` | `sys.user_session` 会话表（PK/UQ/FK/索引见 §2 sys 注）+ 演示账号口令重置 UPDATE（既有库修复件） |
+| `1000` | `1000_ops_query_indexes.sql` | 登录失败审计条件索引、工单状态/承办人倒序分页索引；维护窗口应用 |
+| `1010` | `1010_outpatient_daily_rollup.sql` | 门诊日汇总、同事务增量与清空触发器 |
+| `1020` | `1020_charge_daily_rollup.sql` | 收费日/科室汇总、同事务增量与清空触发器 |
 
-命名 `NNNN_<schema>_<域>.sql` 全局单调；一文件一域（多对象合并，非一文件一对象）；dict 行与 CHECK 同文件。**迁移仅首装执行**（非幂等重跑；58 张 CREATE TABLE 中仅部分带 `IF NOT EXISTS`）；幂等声明适用范围 = 种子（见 §3 种子行与 §5.2）。
+命名 `NNNN_<schema>_<域>.sql` 全局单调；一文件一域（多对象合并，非一文件一对象）；dict 行与 CHECK 同文件。**迁移仅首装执行**（非幂等重跑；60 张 CREATE TABLE 中仅部分带 `IF NOT EXISTS`）；幂等声明适用范围 = 种子（见 §3 种子行与 §5.2）。
 
-### 5.2 种子装配（`backend/seed/`，正本=`seed-manifest.md`）
+### 5.2 种子装配（`backend/seed/`，13 文件；仓库内 SQL 为当前正本）
 
 DDL 全链先 apply，种子**按相位不按 lane 文件边界**（clean-DB 实测断链收口：L5 引用的 metric_def 曾埋在 newdom 尾部 seed 里报 FK 违规）：
 
@@ -199,10 +208,10 @@ DDL 全链先 apply，种子**按相位不按 lane 文件边界**（clean-DB 实
 Ⅱ  事实：seed/2010_dwd_flow → 2020_dwd_clinical → 2030_l8_hr → 2031_l8_pat_qual → 2032_l8_supply
 Ⅲa 聚合：seed/3001_dws_agg.sql（hospital_oper_day/dept_oper_day/drg_dept_period/metric_value，全 dwd 派生）
 Ⅲb 集市：seed/3020_ads_workbench → 3030_ads_screen
-Ⅳ  仿真：seed/5001_sim.sql（env 可跳）
+Ⅳ  仿真：seed/5001_sim.sql（业务时钟依赖，不能跳过）
 ```
 
-铁律：`INSERT INTO sys.metric_def`/`sys.dict` 集中在 Ⅰa 文件（lane 文件内防御性 ON CONFLICT 供稿段幂等无害）；user 回填必在 department 之后；L8 事实先于 L5 聚合（dws 读 dwd.critical_value）。理想态 26 文件相位拆分正本见 `/tmp/modeling/schema/seed-manifest.md`。
+铁律：`INSERT INTO sys.metric_def`/`sys.dict` 集中在 Ⅰa 文件（lane 文件内防御性 ON CONFLICT 供稿段幂等无害）；user 回填必在 department 之后；L8 事实先于 L5 聚合（dws 读 dwd.critical_value）。理想态 26 文件拆分记录是历史设计，当前启动不依赖外部 seed-manifest.md。
 
 ## 6. 遗留 open-items（交接清单）
 
@@ -212,10 +221,14 @@ DDL 全链先 apply，种子**按相位不按 lane 文件边界**（clean-DB 实
 | O-E7 | 高职占比：契约已改 12.0%（=284/2,368 实算） | ✅ 已消解 |
 | O-E8 | 住培/继教/转化率、医保结算明细、benchmark region/bench 为 manual 占位（无库内真源） | 演示期接受 |
 | 契约残留（R3 遗留） | scale_revenue_trend×10+unit、compare 派生值、stats 当月口径注、weekday 修正——**全部已修**（commit 9f6e1e5） | ✅ 已消解 |
-| 缓建项 | `sim` 三表 env 可跳；`dim.drug`、`sys.audit_log`、`ads.todo_order` 空表 | 按计划 |
-| 口径注记 | L5 成本/结余为合成口径（系数收敛 4.2%）待真实成本源；drg_case 窗口裁 14 月（103,656 行）；`research disciplines.funds` 走 metric_value 口径禁用 Σproject | 已登记，非阻塞 |
+| 种子空表与运行态 | dim.drug 种子为空；sys.audit_log/ads.todo_order 在运行时写入，不应把种子零行当作功能未实现；sim 三表保留 | 已登记 |
+| 口径注记 | L5 成本/结余为合成口径（系数收敛 4.2%）为合成模型，不等待医院成本源；drg_case 窗口裁 14 月（103,656 行）；`research disciplines.funds` 走 metric_value 口径禁用 Σproject | 已登记，非阻塞 |
 | 文档微痕 | 个别 lane README/注释残留 `8,110`/`847,000` 旧字样（数值断言不受影响） | 清扫项 |
 
 ---
 
-> 附：建模流水线全部过程资产在 `/tmp/modeling/`：`conventions.md`（公约）、`schema/plan.md`（总账+DAG）、`schema/seed-manifest.md`（种子相位装配正本）、`escalations.md`（33 条裁决/门禁台账）、`scale-decision.md`（规模裁决书 v2.2）、各 lane `README/columns/open-items`。
+> 历史附录：早期建模过程资产曾存于 `/tmp/modeling/`：`conventions.md`（公约）、`schema/plan.md`（总账+DAG）、`schema/seed-manifest.md`（种子相位装配正本）、`escalations.md`（33 条裁决/门禁台账）、`scale-decision.md`（规模裁决书 v2.2）、各 lane `README/columns/open-items`。
+
+本轮性能整改新增 `1010_outpatient_daily_rollup.sql`：`dws.outpatient_daily` 按东八区自然日保存门诊小时表的同口径五项累计。迁移先锁源表、回填，再注册 INSERT/UPDATE/DELETE 语句级增量触发器与 TRUNCATE 清空触发器；源事实与汇总在同一事务内提交或回滚，不使用 TTL 缓存、不依赖手工刷新。只加表/函数/触发器，现有表结构不改；业务表增加至 59、迁移增加至 17。整日窗口走汇总，非整日窗口仍按小时事实查询。维护窗口应用，需独立比较原始 SQL、时区边界、修改/删除/回滚和并发写入结果。
+
+门诊汇总后仍有收费查询瓶颈，新增 `1020_charge_daily_rollup.sql` 和 `dws.charge_daily`：按日期/科室汇总收费类别，保持院级总额与 level=2 科室过滤原语义，INSERT/UPDATE/DELETE/TRUNCATE 与源表同事务更新。迁移执行前锁源表，不允许与写入并发回填。业务表 60 张、迁移 18 个；恢复校验新增触发器定义/启用状态及业务 schema 函数摘要。前台调度资源快照包含 cloud-dev 独立 API，巡检日志保留连接池与运行时数值。

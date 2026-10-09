@@ -15,7 +15,8 @@ import (
 
 // TodoList R07 GET /todos——惰性过期清扫后分页列表(契约 §15.4)
 func (h *WriteHandler) TodoList(c *gin.Context) {
-	if _, ok := h.operator(c); !ok { // §15 头部:R04–R08 操作人经 ?role= 传输,出席须合法
+	op, ok := h.operator(c)
+	if !ok { // §15 头部:R04–R08 操作人经 ?role= 传输,出席须合法
 		return
 	}
 	page, size := 1, 20
@@ -57,7 +58,7 @@ func (h *WriteHandler) TodoList(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	rows, total, err := h.r.TodoList(ctx, repo.TodoFilter{
-		Status: status, AssigneeID: assigneeID, Offset: (page - 1) * size, Limit: size,
+		Status: status, AssigneeID: assigneeID, DeptID: scopedDept(c, op.DeptID, op.ScopeType), Offset: (page - 1) * size, Limit: size,
 	})
 	if err != nil {
 		envelope.FailInternal(c, err)
@@ -77,6 +78,11 @@ func (h *WriteHandler) TodoList(c *gin.Context) {
 		envelope.FailInternal(c, err)
 		return
 	}
+	mask, err := h.maskNames(c)
+	if err != nil {
+		envelope.FailInternal(c, err)
+		return
+	}
 	list := make([]gin.H, 0, len(rows))
 	for _, t := range rows {
 		var cur *float64
@@ -87,7 +93,7 @@ func (h *WriteHandler) TodoList(c *gin.Context) {
 		}
 		list = append(list, gin.H{
 			"id": t.ID, "alert_id": t.AlertID, "title": t.Title,
-			"assignee_id": t.AssigneeID, "assignee_name": t.AssigneeName, "dept_name": t.DeptName,
+			"assignee_id": t.AssigneeID, "assignee_name": privacyName(t.AssigneeName, mask), "dept_name": t.DeptName,
 			"deadline":    t.Deadline.Format("2006-01-02 15:04"),
 			"todo_status": t.TodoStatus, "status_label": t.StatusLabel,
 			"baseline_value": t.BaselineValue, "current_value": cur, "target_value": t.TargetValue,

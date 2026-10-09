@@ -266,3 +266,8 @@ rg -o --no-filename 'var\(--[\w-]+' src/
 ```
 
 收敛目标：色值字面量 `tokens.css` 外 0 命中；`chartPresets.ts` 以外 `.ts` 0 命中；图表 `fontSize` 仅经 `wbChartFs`/scrTokens fs 槽。
+
+
+## 2026-10-08 演示来源标识
+
+新增 --scr-z-data-mode=30 用于大屏数据来源标识；颜色、字号、位置复用 --scr-text-3 / --scr-fs-sm / --scr-space-2。工作台标识复用 --wb-text-3 / --wb-fs-sm / --wb-space-2。

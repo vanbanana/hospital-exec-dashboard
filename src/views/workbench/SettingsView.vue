@@ -1,5 +1,6 @@
 <template>
   <div class="wb-page">
+    <p>当前数据源状态来自演示配置，尚未连接医院实时系统。</p>
     <WbPageHead title="系统设置" sub="数据源 · 预警阈值 · 用户权限 · 偏好">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
     </WbPageHead>
@@ -80,49 +81,7 @@
             <h3 class="wb-panel-title">系统偏好</h3>
           </div>
           <div class="wb-panel-body">
-            <div class="wb-form-row">
-              <div>
-                <div class="wb-form-label">默认时间范围</div>
-                <div class="wb-form-desc">进入工作台时默认展示的统计口径</div>
-              </div>
-              <select class="wb-select" v-model="pref.default_range" @change="savePref('default_range')">
-                <option>本月</option>
-                <option>本季</option>
-                <option>本年</option>
-              </select>
-            </div>
-            <div class="wb-form-row">
-              <div>
-                <div class="wb-form-label">数据刷新频率</div>
-                <div class="wb-form-desc">实时类指标的自动刷新间隔</div>
-              </div>
-              <select class="wb-select" v-model="pref.refresh_interval" @change="savePref('refresh_interval')">
-                <option>5 分钟</option>
-                <option>15 分钟</option>
-                <option>30 分钟</option>
-              </select>
-            </div>
-            <div class="wb-form-row">
-              <div>
-                <div class="wb-form-label">新预警声音提醒</div>
-                <div class="wb-form-desc">出现高风险预警时播放提示音</div>
-              </div>
-              <button class="wb-switch" :class="{ on: pref.alert_sound }" @click="flipPref('alert_sound')"></button>
-            </div>
-            <div class="wb-form-row">
-              <div>
-                <div class="wb-form-label">金额单位缩写</div>
-                <div class="wb-form-desc">大额指标以「万元/亿元」缩写展示</div>
-              </div>
-              <button class="wb-switch" :class="{ on: pref.unit_abbreviation }" @click="flipPref('unit_abbreviation')"></button>
-            </div>
-            <div class="wb-form-row">
-              <div>
-                <div class="wb-form-label">敏感数据脱敏</div>
-                <div class="wb-form-desc">人员姓名等字段在非管理端脱敏显示</div>
-              </div>
-              <button class="wb-switch" :class="{ on: pref.privacy_mask }" @click="flipPref('privacy_mask')"></button>
-            </div>
+            <WbPreferences />
           </div>
         </div>
       </div>
@@ -132,7 +91,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, watch } from 'vue'
+import WbPreferences from '../../components/workbench/WbPreferences.vue'
+import { reactive, computed, onMounted } from 'vue'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
 import WbTable, { type WbTableColumn } from '../../components/workbench/WbTable.vue'
 import WbSkeleton from '../../components/workbench/WbSkeleton.vue'
@@ -141,9 +101,8 @@ import WbEmpty from '../../components/workbench/WbEmpty.vue'
 import WbStaleTag from '../../components/workbench/WbStaleTag.vue'
 import WbToast, { toast } from '../../components/workbench/WbToast.vue'
 import { getSettings } from '../../api/workbench'
-import { setRuleEnabled, savePreferences } from '../../api/settings'
+import { setRuleEnabled } from '../../api/settings'
 import { useAsyncData } from '../../api/useAsyncData'
-import type { PreferencesPatch, SettingsResp } from '../../api/types'
 
 // §13.2 三个列表非 WbTableData 形状（契约未下发 columns），列定义留本地
 const dsCols: WbTableColumn[] = [
@@ -179,24 +138,6 @@ const dsRows = computed(() => data.value?.data_sources ?? [])
 const thRows = computed(() => data.value?.thresholds ?? [])
 const userRows = computed(() => data.value?.users ?? [])
 
-// 偏好为本地可编辑态,变更即经 R16 写回持久化(契约 §15.8)——成功落地后拷入 reactive
-const pref = reactive<SettingsResp['preferences']>({
-  default_range: '本月',
-  refresh_interval: '5 分钟',
-  alert_sound: true,
-  unit_abbreviation: true,
-  privacy_mask: true,
-})
-// 回滚基线=末次已确认值(拉取/写成功即推进)——data.value 只反映末次拉取,
-// 连续两次写第二次失败时会滚过第一次的成功值
-const lastGood = reactive<SettingsResp['preferences']>({ ...pref })
-watch(data, (d) => {
-  if (d) {
-    Object.assign(pref, d.preferences)
-    Object.assign(lastGood, d.preferences)
-  }
-})
-
 interface WriteErr {
   code?: number
   message: string
@@ -222,29 +163,6 @@ async function toggleRule(row: Record<string, unknown>) {
   }
 }
 
-/* ===== R16 偏好写回:乐观生效 → 失败回滚到上次读值(§15.8) ===== */
-const pendingPrefs = reactive(new Set<keyof SettingsResp['preferences']>())
-async function savePref<K extends keyof SettingsResp['preferences']>(key: K) {
-  if (pendingPrefs.has(key)) return
-  pendingPrefs.add(key)
-  const patch: PreferencesPatch = {}
-  patch[key] = pref[key]
-  try {
-    await savePreferences(patch)
-    lastGood[key] = pref[key]
-    toast.success('已保存')
-  } catch (e) {
-    pref[key] = lastGood[key]
-    toast.warning(errInfo(e).message)
-  } finally {
-    pendingPrefs.delete(key)
-  }
-}
-function flipPref(key: 'alert_sound' | 'unit_abbreviation' | 'privacy_mask') {
-  if (pendingPrefs.has(key)) return
-  pref[key] = !pref[key]
-  savePref(key)
-}
 </script>
 
 <style scoped>

@@ -1,0 +1,10 @@
+services:
+  backend:
+    build:
+      secrets: [proxy_ca]
+  web:
+    build:
+      secrets: [proxy_ca]
+secrets:
+  proxy_ca:
+    file: ${SSL_CERT_FILE:?SSL_CERT_FILE trust bundle required}

@@ -1,8 +1,7 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="科研教学" :sub="`课题 · 论文 · 重点学科 · 教学培训 · 数据截至 ${systemDate}`">
+    <WbPageHead title="科研教学" :sub="`课题 · 论文 · 重点学科 · 教学培训 · 固定统计口径 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
-      <WbSeg v-model="range" :options="['本季', '本年']" />
     </WbPageHead>
 
     <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
@@ -61,10 +60,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
-import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
@@ -86,10 +84,7 @@ import { useAsyncData } from '../../api/useAsyncData'
 import { useSystemDate } from '../../api/useSystemDate'
 import type { WbTableData } from '../../api/types'
 
-// 契约 §8.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数;
-// 选项只列 RangeKey 枚举内值(原'近三年'超枚举已移除)
 const systemDate = useSystemDate()
-const range = ref('本年')
 
 // 五态取数经 useAsyncData（frontend-architecture §10.1）
 const { data, loading, error, stale, reload } = useAsyncData(getResearch)
@@ -123,7 +118,6 @@ const projectOption = computed<EChartsOption>(() => {
       }),
     ],
     series: [
-      // 契约 §8.1 下发国家级/省级两序列，堆叠呈现即各自独立又合计=立项课题数（与 stats 42 自洽）
       {
         name: '国家级课题',
         type: 'bar',

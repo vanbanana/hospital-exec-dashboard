@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -20,11 +21,13 @@ import (
 )
 
 // SessionUser 会话解析出的当前身份,c.Set("session_user") 供 handler/RBAC 消费。
-// dept_id/scope 数据域列留 P3.1 启用时再加(r-auth C3 分期)。
+// dept_id/scope_type 随会话查询读取，生产策略用于按科室限制数据范围。
 type SessionUser struct {
-	ID       int64
-	Username string
-	Role     string
+	ID        int64
+	Username  string
+	Role      string
+	DeptID    *int64
+	ScopeType string
 }
 
 // publicPaths 免会话端点(method+path 精确对)。
@@ -42,7 +45,11 @@ var publicPaths = map[string]struct{}{
 // Session 会话解析;凭证缺失→20001,非法/吊销/停用→20003,过期→20002
 func Session(d *gorm.DB, cookieSecure bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if _, ok := publicPaths[c.Request.Method+" "+c.Request.URL.Path]; ok {
+		_, public := publicPaths[c.Request.Method+" "+c.Request.URL.Path]
+		if c.Request.URL.Path == "/api/v1/screen/snapshot" && os.Getenv("SCREEN_PUBLIC") == "0" {
+			public = false
+		}
+		if public {
 			c.Next()
 			return
 		}
@@ -66,7 +73,7 @@ func Session(d *gorm.DB, cookieSecure bool) gin.HandlerFunc {
 			deny(c, http.StatusUnauthorized, envelope.CodeSessExpire, "凭证已过期")
 			return
 		}
-		u := SessionUser{ID: sess.UserID, Username: sess.Username, Role: sess.Role}
+		u := SessionUser{ID: sess.UserID, Username: sess.Username, Role: sess.Role, DeptID: sess.DeptID, ScopeType: sess.ScopeType}
 		c.Set("session_user", u)
 		if sess.Renew { // 剩余 <6h 滑动续期:异步写不阻塞响应,失败留给下次请求再试
 			go func() {
@@ -84,6 +91,14 @@ func Session(d *gorm.DB, cookieSecure bool) gin.HandlerFunc {
 				c.SetCookie("edss_sid", token, 43200, "/", "", cookieSecure, true)
 			}
 		}
+		// Include data-scope denials raised inside handlers, not only route-policy denials.
+		defer func() {
+			if c.Writer.Status() == http.StatusForbidden {
+				if err := repo.InsertAudit(c.Request.Context(), d, repo.AuditRow{UserID: &u.ID, Username: u.Username, Action: "access_denied", Detail: []byte(`{"reason":"role_or_scope"}`)}); err != nil {
+					slog.Warn("access audit failed", "err", err)
+				}
+			}
+		}()
 		if !rbacCheck(c, u) {
 			return
 		}

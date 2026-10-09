@@ -1,8 +1,7 @@
 <template>
   <div class="wb-page">
-    <WbPageHead title="患者服务" :sub="`满意度 · 投诉表扬 · 就诊体验 · 数据截至 ${systemDate}`">
+    <WbPageHead title="患者服务" :sub="`满意度 · 投诉表扬 · 就诊体验 · 固定统计口径 · 数据截至 ${systemDate}`">
       <WbStaleTag v-if="stale" :loading="loading" @retry="reload" />
-      <WbSeg v-model="range" :options="['本月', '本季', '本年']" />
     </WbPageHead>
 
     <!-- 五态门：data 未落地时面板级 loading/error/empty（§10.1） -->
@@ -74,10 +73,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { EChartsOption } from 'echarts'
 import WbPageHead from '../../components/workbench/WbPageHead.vue'
-import WbSeg from '../../components/workbench/WbSeg.vue'
 import WbStatStrip from '../../components/workbench/WbStatStrip.vue'
 import WbChart from '../../components/workbench/WbChart.vue'
 import WbTable from '../../components/workbench/WbTable.vue'
@@ -100,9 +98,7 @@ import { useAsyncData } from '../../api/useAsyncData'
 import { useSystemDate } from '../../api/useSystemDate'
 import type { WbTableData } from '../../api/types'
 
-// 契约 §9.1 无 range 参数 — WbSeg 仅保留视图交互状态，切换不触发取数
 const systemDate = useSystemDate()
-const range = ref('本月')
 
 // 五态取数经 useAsyncData（frontend-architecture §10.1）
 const { data, loading, error, stale, reload } = useAsyncData(getPatient)

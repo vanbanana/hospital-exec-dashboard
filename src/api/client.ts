@@ -46,11 +46,19 @@ export async function api<T>(key: string, params: ApiParams = {}, opts: ApiOpts 
   const url = `/api/v1/${key}${qs.size ? `?${qs}` : ''}`
   const resp = await fetch(url, {
     method,
+    signal: AbortSignal.timeout(30_000),
     // 会话凭证为 HttpOnly Cookie edss_sid(契约 §2.3),同源显式携带
     credentials: 'same-origin',
     headers: { Accept: 'application/json', ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   })
+  const redirectUnauthorized = () => {
+    if (!key.startsWith('auth/')) {
+      unauthorizedHandler?.()
+      location.assign(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)
+    }
+  }
+  if (resp.status === 401 && !key.startsWith('auth/')) redirectUnauthorized()
   let env: ApiEnvelope<T>
   try {
     env = (await resp.json()) as ApiEnvelope<T>
@@ -82,10 +90,7 @@ export async function api<T>(key: string, params: ApiParams = {}, opts: ApiOpts 
     // 401 会话失效:清会话态+硬跳登录页;auth/* 自检族全豁免——守卫以 profile 20001 判
     // 未登录,拦截会引起 /login?redirect=/login?... 无限套娃(frontend-api §1.7)
     if (env.code === 20001 || env.code === 20002 || env.code === 20003) {
-      if (!key.startsWith('auth/')) {
-        unauthorizedHandler?.()
-        location.assign(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)
-      }
+      if (resp.status !== 401) redirectUnauthorized()
     }
     throw err
   }

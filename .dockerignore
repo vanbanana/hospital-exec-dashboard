@@ -24,3 +24,9 @@ process_assets.py
 .env
 .env.*
 *.log
+
+test-results
+coverage
+backups
+deploy/certs/*.key
+deploy/certs/*.crt

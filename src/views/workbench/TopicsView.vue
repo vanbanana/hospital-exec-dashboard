@@ -61,6 +61,7 @@
 </template>
 
 <script setup lang="ts">
+import { useDefaultRange } from '../../api/preferences'
 import { ref, computed, onMounted, watch } from 'vue'
 import type { Component } from 'vue'
 import type { EChartsOption } from 'echarts'
@@ -92,7 +93,7 @@ import { getTopics } from '../../api/workbench'
 import { useAsyncData } from '../../api/useAsyncData'
 import type { RangeKey, TopicKey } from '../../api/types'
 
-const range = ref('本年')
+const range = useDefaultRange()
 // WbSeg 出参为中文标签,映射为契约 range 枚举(§1.4-1,非法值后端回 10001)
 const RANGE_PARAM: Record<string, RangeKey> = { 本月: '本月', 本季: '本季', 本年: '本年' }
 // key 即契约 §13.1 topic 枚举,ref 与列表同源枚举类型,无需断言

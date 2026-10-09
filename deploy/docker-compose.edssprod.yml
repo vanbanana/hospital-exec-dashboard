@@ -18,7 +18,4 @@ services:
     ports: !override
       - "8093:80"    # http 实测入口;8090-8092 已被并行 lane 占用
       - "8443:443"   # https 实测入口(自签,certs 卷挂载)
-    volumes:
-      # 源相对 project 目录(=deploy/)解析:先跑 certs/gen-selfsigned.sh;
-      # 缺席时镜像内兜底自签生效(见 deploy/Dockerfile web target),nginx 不会拒起
-      - ./certs:/etc/nginx/certs:ro
+    # 使用镜像自签证书；正式证书使用 production 覆盖的文件挂载。

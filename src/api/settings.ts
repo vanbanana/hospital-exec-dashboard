@@ -10,5 +10,5 @@ export function setRuleEnabled(code: string, enabled: boolean) {
 
 /** §15.8 R16 PUT /workbench/settings/preferences — 系统偏好部分更新,回参为完整偏好集 */
 export function savePreferences(patch: PreferencesPatch) {
-  return api<SettingsResp['preferences']>('workbench/settings/preferences', { role: getOperatorRole() }, { method: 'PUT', body: patch })
+  return api<SettingsResp['preferences']>('workbench/settings/preferences', {}, { method: 'PUT', body: patch })
 }

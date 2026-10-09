@@ -51,8 +51,14 @@ func (h *WriteHandler) RuleToggle(c *gin.Context) {
 
 // PrefsSave R16——五键偏好部分更新(sys.user_pref upsert);空对象/未知键→10001,枚举越界→10002
 func (h *WriteHandler) PrefsSave(c *gin.Context) {
-	op, ok := h.operator(c)
+	su, ok := sessionUser(c)
 	if !ok {
+		envelope.Fail(c, http.StatusUnauthorized, envelope.CodeUnauth, "未登录", nil)
+		return
+	}
+	op, err := h.r.FindOperator(c.Request.Context(), su.Username)
+	if err != nil || op == nil {
+		envelope.FailInternal(c, err)
 		return
 	}
 	var raw map[string]json.RawMessage

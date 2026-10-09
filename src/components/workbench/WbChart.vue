@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from '../../charts'
 
 const props = defineProps<{
   option: echarts.EChartsOption
@@ -13,12 +13,16 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null
 let observer: ResizeObserver | null = null
+let resizeFrame = 0
 
 onMounted(() => {
   if (!chartRef.value) return
   chart = echarts.init(chartRef.value)
   chart.setOption(props.option)
-  observer = new ResizeObserver(() => chart?.resize())
+  observer = new ResizeObserver(() => {
+    cancelAnimationFrame(resizeFrame)
+    resizeFrame = requestAnimationFrame(() => chart?.resize())
+  })
   observer.observe(chartRef.value)
 })
 
@@ -32,6 +36,7 @@ watch(
 
 onUnmounted(() => {
   observer?.disconnect()
+  cancelAnimationFrame(resizeFrame)
   chart?.dispose()
 })
 </script>

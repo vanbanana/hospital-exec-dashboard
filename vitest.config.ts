@@ -1,13 +1,13 @@
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
-import path from 'path'
+import { fileURLToPath } from 'node:url'
 
 // 单测配置与 vite.config.ts 解耦：dev server 的 proxy/host 与测试无关，只共享 vue 插件与 @ alias
 export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   test: {

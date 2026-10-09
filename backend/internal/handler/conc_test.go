@@ -147,8 +147,8 @@ func TestSessionSlidingRenew(t *testing.T) {
 	delSessions(t, db, tokRenew, tokFresh, tokExpired) // 防上跑残留
 	defer delSessions(t, db, tokRenew, tokFresh, tokExpired)
 
-	seedSession(t, db, tokRenew, `now() + interval '5 hours'`)   // 剩余5h<6h→续期
-	seedSession(t, db, tokFresh, `now() + interval '7 hours'`)   // 剩余7h>6h→不续
+	seedSession(t, db, tokRenew, `now() + interval '5 hours'`)  // 剩余5h<6h→续期
+	seedSession(t, db, tokFresh, `now() + interval '7 hours'`)  // 剩余7h>6h→不续
 	seedSession(t, db, tokExpired, `now() - interval '1 hour'`) // 已过期
 	r := concSessionRouter(t, db)
 

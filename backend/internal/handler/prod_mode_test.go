@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -55,7 +56,7 @@ func prodTestDB(t *testing.T) *gorm.DB {
 		prodDBPool = db
 	})
 	if prodDBErr != nil {
-		t.Skipf("postgres 不可达: %v", prodDBErr)
+		t.Fatalf("postgres 不可达（集成测试必须执行）: %v", prodDBErr)
 	}
 	return prodDBPool
 }
@@ -78,7 +79,7 @@ func prodRouter(t *testing.T) (*gin.Engine, *gorm.DB) {
 // goroutine 并发写本 tx,*sql.Tx 非并发安全);返回明文 token
 func prodSession(t *testing.T, tx *gorm.DB, userID int64) string {
 	t.Helper()
-	token := "prod-" + strings.ReplaceAll(t.Name(), "/", "-")
+	token := "prod-" + strings.ReplaceAll(t.Name(), "/", "-") + "-" + strconv.FormatInt(userID, 10)
 	sum := sha256.Sum256([]byte(token))
 	if err := tx.Exec(
 		`INSERT INTO sys.user_session(user_id,token_hash,expires_at,user_agent)

@@ -1,4 +1,4 @@
-import * as echarts from 'echarts'
+import * as echarts from '../../charts'
 
 /**
  * 工作台 ECharts 取色唯一出口 —— design-tokens.md §6 R5

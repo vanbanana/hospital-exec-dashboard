@@ -1,7 +1,7 @@
-# 前端架构与交互规范（Frontend Architecture）— EDSS v2.2
+# 前端架构与交互规范（Frontend Architecture）— EDSS v2.4
 
-> 版本：v2.3（前端假数据清零 —— `src/mock/` 摘除、`client.ts` 单轨真后端；v2.2 = 双形态基线 + 契约化数据层 31 端点全接入；设计令牌 tokens.css 统一治理）  
-> 技术栈：Vue 3 + TypeScript + Vite + Vue Router 4 + ECharts 5 + Lucide Vue Next  
+> 版本：v2.4，2026-10-09 静态对齐。页面、模块、授权与共享状态按当前实现登记；范围和后续验收见 [工程计划](engineering-acceptance.md)。
+> 技术栈：Vue 3 + TypeScript + Vite + Vue Router 4 + ECharts 6 + Lucide Vue Next
 > 本文定位：**真实代码与工程结构的唯一事实源**。涵盖目录树、路由表、布局结构、设计系统（Token 与原语）、设计红线、数据链路、数据纪律、错误反馈规范与大屏重建方向。代码与本文冲突时以本文为准修正代码；本文落后于代码时先改本文。
 
 ---
@@ -44,23 +44,26 @@ index.html                        # 中立壳：标题"XX市人民医院 · 院�
 src/
 ├── App.vue                         # 顶层 Router 容器（router-view 根挂载）
 ├── main.ts                         # 应用入口：注册 Router，加载 index.css 与 workbench.css
+├── charts.ts                       # ECharts 图表、组件与 CanvasRenderer 按需注册
 ├── api/                            # 数据访问层
 │   ├── client.ts                   # api<T>(key, params) 统一取数入口（单轨）：经 vite proxy /
 │   │                               #   nginx 打 Go 后端 /api/v1/<key> 并拆 ApiEnvelope；无 mock 轨
-│   ├── types.ts                    # API 契约类型镜像（api-contract v2.0 全量 snake_case，564 行含 §14 屏型）
+│   ├── types.ts                    # API 契约类型镜像（api-contract v2.0 全量 snake_case，含 §14 屏型与可选增补字段）
 │   ├── auth.ts                     # /auth/profile(?role=) + /hospital/profile + login/logout 端点函数；getAuthProfile(role?) 透传 ?role=
 │   ├── session.ts                  # 会话态唯一事实源（模块级单 Promise 缓存 + 401 清态，登录守卫消费）
 │   ├── workbench.ts                # 工作台 18 个端点函数（§3 首页 ×7 + §4~§13 业务页 ×11）
 │   ├── screen.ts                   # /screen/snapshot 端点函数
 │   ├── alertflow.ts                # §15 写侧端点函数（alerts ack/dispatch/close + todos list/status + staff）
 │   ├── settings.ts                 # §15.7/15.8 设置写端点函数（rules 启停 + preferences 写回）
+│   ├── preferences.ts              # 共享偏好、默认范围、轮询与金额显示
+│   ├── useAlertSound.ts            # 用户解锁音频后的新增高风险事件提示
 │   ├── useAsyncData.ts             # 取数五态 composable：{ data, loading, error, stale, reload } + ApiError（§10）
 │   └── useSystemDate.ts            # 页头"数据截至"共享 system_date（auth/profile 单请求；未到位置空，无假日期兜底）
 ├── layouts/                        # 布局架构层
 │   ├── WorkbenchLayout.vue         # 工作台标准布局（左侧固定导航 + 右侧 Header 与滚动区）
 │   └── ScreenLayout.vue            # 大屏布局：.screen-layout 作用域 + 1920×1080 画布缩放适配
 ├── router/                         # 路由配置
-│   └── index.ts                    # 路由定义表（/ 重定向、/workbench 嵌套 12 子路由、/screen、/login、登录态守卫、子域 catch-all；根级无 catch-all）
+│   └── index.ts                    # 路由定义表（/ 重定向、/workbench 14 个导航页 + access 回退页、/screen、/login、登录态守卫、子域 catch-all；根级无 catch-all）
 ├── styles/                         # 样式系统
 │   ├── index.css                   # 全局 reset + body 基座（引入 tokens.css、盒模型重置、字体与 overflow）
 │   ├── tokens.css                  # ★ 设计令牌唯一出处（design-tokens.md）：L0 原色 --p-*(:root)
@@ -80,7 +83,8 @@ src/
 │   │   ├── ScrDeptRank.vue         # 科室效能榜
 │   │   ├── ScrAlertFeed.vue        # 告警跑马灯（纵向滚动）
 │   │   └── ScrTrendTabs.vue        # 7 日趋势页签小图组
-│   └── workbench/                  # 工作台专属组件库（21 文件）
+│   └── workbench/                  # 工作台专属组件库
+│       ├── WbPreferences.vue       # 个人偏好共享表单：读取/保存/失败回滚
 │       ├── WbPageHead.vue          # [原语] 页面标题与操作区
 │       ├── WbSeg.vue               # [原语] 分段选择器（Segmented Control）
 │       ├── WbStatStrip.vue         # [原语] 紧凑指标条（Hairline 竖线分隔；items=[] 渲 WbEmpty）
@@ -92,7 +96,7 @@ src/
 │       ├── WbSkeleton.vue          # [原语] 加载骨架占位（§10.1 loading）
 │       ├── WbStaleTag.vue          # [原语] "数据未更新"角标 + 重试（§10.1 stale）
 │       ├── WorkbenchHeader.vue     # 工作台顶部栏（系统名、搜索、铃铛、头像、日期）
-│       ├── WorkbenchSidebar.vue    # 工作台左侧栏（品牌Logo、12项功能菜单、底纹院训）
+│       ├── WorkbenchSidebar.vue    # 工作台左侧栏（品牌Logo、14项候选导航菜单，按 allowed_pages 过滤、底纹院训）
 │       ├── WbToast.vue             # [原语] 轻量全局提示（success/warning/error 三档，error-codes §4 ElMessage 语义等价物）
 │       ├── WorkbenchHero.vue       # 首页 Hero 横幅（标语阶梯、医院实景、毛笔书法）
 │       ├── WorkbenchKpiCards.vue   # 首页 5 张核心 KPI 统计卡
@@ -106,7 +110,7 @@ src/
 │   ├── LoginView.vue               # /login 登录页（用户名/口令 → auth/login，`.auth-layout` 布局类（token 直消费 :root 的 --wb-*））
 │   ├── screen/
 │   │   └── ScreenView.vue          # /screen 大屏视图（snapshot 取数 + 自管理三态，§15 豁免登记）
-│   └── workbench/                  # 工作台 12 个业务页面
+│   └── workbench/                  # 14 个导航页面 + access 回退视图
 │       ├── HomeView.vue            # /workbench              首页工作台
 │       ├── OverviewView.vue        # /workbench/overview     综合概览
 │       ├── MedicalView.vue         # /workbench/medical      医疗业务
@@ -118,7 +122,10 @@ src/
 │       ├── AssetsView.vue          # /workbench/assets       资产与后勤
 │       ├── CompareView.vue         # /workbench/compare      对比分析
 │       ├── TopicsView.vue          # /workbench/topics       专题分析
-│       └── SettingsView.vue        # /workbench/settings     系统设置
+│       ├── SettingsView.vue        # /workbench/settings     系统设置
+│       ├── TasksView.vue           # /workbench/tasks        科室/全院授权工单
+│       ├── PreferencesView.vue     # /workbench/preferences  当前会话个人偏好
+│       └── AccessView.vue          # /workbench/access       无可用授权页面回退
 └── assets/                         # 静态资源
     ├── screen/                     # 大屏素材
     │   └── hospital_campus.jpg     # 院区写实等距渲染底图（ScrCampusMap 引用）
@@ -132,7 +139,7 @@ src/
         └── slogan_col3.png         # 「健康至上」透明底真迹毛笔书法（WorkbenchHero）
 ```
 
-> [!NOTE] 旧过渡大屏稿已拆除；/screen 已按真基准重建  
+> [!NOTE] 旧过渡大屏稿已拆除；/screen 已按真基准重建
 > 过渡大屏稿（根级 `src/components/` 下 8 个深色组件 + 旧 `src/views/ScreenView.vue`）已于 `e1ec65a` 整体拆除。/screen 现役实现见上方 `views/screen/`、`components/screen/`、`layouts/ScreenLayout.vue` 与 §12；真大屏视觉基准为只读参考工程 `archive/smart-hospital-cockpit/`。
 
 ---
@@ -142,11 +149,11 @@ src/
 ### 3.1 路由架构设计
 - 根路径 `/` 永久重定向到工作台主入口 `/workbench`。
 - 工作台统一由 `WorkbenchLayout.vue` 承载，内部声明 `<router-view />` 承接所有子页面。
-- 除首页 `HomeView` 直接导入外，其余 11 个业务 View 全部采用 `() => import(...)` 懒加载机制，实现物理分包；`/screen` 走 `ScreenLayout` 父路由 + 同步导入 `ScreenView`（裁决：懒加载与否记录——当前同步，整屏单 chunk，随多视图演进再议分包）。
+- 所有页面视图（包括首页、登录、大屏和 access）均采用 () => import(...) 懒加载；WorkbenchLayout 与 ScreenLayout 直接导入。
 - 导航栏 `WorkbenchSidebar.vue` 采用 `router-link` 的 `custom v-slot` 驱动高亮，完全基于 `isActive` 与 `isExactActive` 状态渲染激活效果。
 - `/screen` 由 `layouts/ScreenLayout.vue` 承载（`.screen-layout` 令牌作用域 + 1920×1080 画布缩放，经 `provide('screen-adapt')` 注入适配模式与缩放系数供 `ScrHeader` 胶囊消费）。
 - **已知缺口**：catch-all 仅声明在 `/workbench` children 内（`:pathMatch(.*)*` → 重定向 `/workbench`）；**根级无 catch-all**，访问未注册路径会渲染空白页（无组件匹配）。待补根级 404 或重定向，见 §13.2。
-- **登录态守卫（已随 P3 auth epic 落码）**：`meta.public` 标记豁免路由（`/login`、`/screen` 大屏公开位）；`router.beforeEach` 对非 public 路由 `await currentProfile()` 校验会话，失败 → `/login?redirect=<fullPath>`；已登录访问 `/login` → 回 `/workbench`。会话态唯一事实源 `src/api/session.ts`（模块级单 Promise 缓存，`useSystemDate` 同形模式，不依赖 Pinia）。
+- **登录态守卫（已随 P3 auth epic 落码）**：`meta.public` 标记豁免路由（`/login`、`/screen` 大屏公开位）；`router.beforeEach` 对非 public 路由 `await currentProfile()` 校验会话，失败 → `/login?redirect=<fullPath>`；已登录访问 `/login` → 首个 allowed_pages 页面或 /workbench/access。工作台目标不在 allowed_pages 时同样回到首个授权页。大屏 meta.public 只豁免前端守卫，SCREEN_PUBLIC=0 时 API 仍检查身份与范围。会话态唯一事实源 `src/api/session.ts`（模块级单 Promise 缓存，`useSystemDate` 同形模式，不依赖 Pinia）。
 
 ### 3.2 完整路由定义表
 
@@ -154,7 +161,7 @@ src/
 | :--- | :--- | :--- | :--- | :--- |
 | `/` | — | 重定向到 `/workbench` | 静态 | 默认根重定向着陆页 |
 | `/workbench`（父） | — | `layouts/WorkbenchLayout.vue` | 布局承载 | 工作台框架容器（固定侧栏 + Header + 子路由视口） |
-| `/workbench`（子） | `wb-home` | `views/workbench/HomeView.vue` | 同步加载 | `path: ''` 子路由。院长驾驶舱首页：KPI、趋势、TOP10、指标、预警、待办 |
+| `/workbench`（子） | `wb-home` | `views/workbench/HomeView.vue` | 懒加载 | `path: ''` 子路由。院长驾驶舱首页：KPI、趋势、TOP10、指标、预警、待办 |
 | `/workbench/overview` | `wb-overview` | `views/workbench/OverviewView.vue` | 懒加载 | 综合概览：全院运营大盘、收入结构饼图、服务量构成、实时在院动态 |
 | `/workbench/medical` | `wb-medical` | `views/workbench/MedicalView.vue` | 懒加载 | 医疗业务：门急诊/住院/手术三项细分、分时高峰、科室业务明细表 |
 | `/workbench/operations` | `wb-operations` | `views/workbench/OperationsView.vue` | 懒加载 | 运营管理：月度收支趋势、百元医疗收入消耗费用红线、科室运营指标表 |
@@ -165,15 +172,18 @@ src/
 | `/workbench/assets` | `wb-assets` | `views/workbench/AssetsView.vue` | 懒加载 | 资产与后勤：月度能耗费用、物资库存预警、大型设备使用效益表 |
 | `/workbench/compare` | `wb-compare` | `views/workbench/CompareView.vue` | 懒加载 | 对比分析：科室多维横向对比、与区域同级医院雷达对标、核心指标差距明细表 |
 | `/workbench/topics` | `wb-topics` | `views/workbench/TopicsView.vue` | 懒加载 | 专题分析：DRG病组入组与CMI、医保基金监管、公立医院国考、门诊统筹专项 |
-| `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：HIS/EMR 数据源管理、指标预警阈值、用户与权限、5项系统偏好 |
+| `/workbench/settings` | `wb-settings` | `views/workbench/SettingsView.vue` | 懒加载 | 系统设置：合成来源/用户登记只读，预警规则开关与个人偏好可写 |
+| `/workbench/tasks` | `wb-tasks` | `views/workbench/TasksView.vue` | 懒加载 | 工单筛选、分页、接单与办结；范围由服务端限制 |
+| `/workbench/preferences` | `wb-preferences` | `views/workbench/PreferencesView.vue` | 懒加载 | 当前会话的五项偏好 |
+| `/workbench/access` | `wb-access` | `views/workbench/AccessView.vue` | 懒加载 | 非侧栏页面，账号暂无可用业务页时回退 |
 | `/workbench/:pathMatch(.*)*` | — | 重定向到 `/workbench` | 静态 | 工作台子域 404 兜底回落（仅覆盖 `/workbench/*`） |
 | `/login` | `login` | `views/LoginView.vue` | 懒加载 | 登录页（已随 P3 落码）：用户名/口令表单 → `POST /auth/login`（契约 §2.3）；`meta.public` 守卫豁免；`.auth-layout` 布局类（token 直消费 :root 的 --wb-*）（design-tokens §6 R8） |
 | `/screen`（父） | — | `layouts/ScreenLayout.vue` | 布局承载 | 大屏画布容器（viewport + 等比缩放 + `screen-adapt` provide） |
-| `/screen`（子） | `screen` | `views/screen/ScreenView.vue` | 同步 | 院长驾驶舱大屏：snapshot 单端点 + 10 个 Scr* 组件 |
+| `/screen`（子） | `screen` | `views/screen/ScreenView.vue` | 懒加载 | 院长驾驶舱大屏：snapshot 单端点 + 10 个 Scr* 组件 |
 
 ### 3.3 页面交互清单（点击地图）
 
-当前全工程**无下钻、无行级跳转、无路由参数**——交互仅来自分段器、Tab、本地表单态，以及首页卡片「更多 >」页级导航。按代码实状清点：
+当前未实现五级病例穿透和表格行级下钻。已实现筛选/Tab、页级导航、告警认领派发关闭、工单办理、规则开关和偏好持久化。按代码实状清点：
 
 | 区域 / 页面 | 交互元素 | 数据效果 |
 | :--- | :--- | :--- |
@@ -403,7 +413,7 @@ const systemDate = useSystemDate()
 
 ### 8.1 取数链路（现状）
 
-全工程**唯一**取数路径，11 个业务视图 + 首页 7 张数据卡片全部经此链路取数（HomeView 自身不取数，由各卡片独立调用），组件内无散落的契约形状数据块：
+业务数据唯一取数路径为 API；原 11 个业务视图 + 首页 7 张数据卡片以及新增工单/偏好消费此链路（HomeView 自身不取数，由各卡片独立调用），组件内无散落的契约形状数据块：
 
 ```
 视图/卡片 onMounted|watch → useAsyncData(fetcher)（工作台域唯一入口）
@@ -417,12 +427,14 @@ const systemDate = useSystemDate()
 - 经 `fetch` 打 `/api/v1/<key>`（vite proxy → :8080），拆 `ApiEnvelope`——`code!==0` 抛带数值 `code`/`fields`/`trace_id` 的 Error，HTTP 层失败（无包络）抛 `[api] http N`。
 - `api()` 成功路径直返 `data` 负载。端点缺席/失败不落假数据：走五态空/错态（§10）。
 
-**已登记例外**（三条，不走 useAsyncData）：
+**已登记例外与共享状态**（不全部走 useAsyncData）：
 - `ScreenView` 整屏自管理 loading/error/data 三态（frontend-api §15 豁免登记；顶部红条手动重连）。
 - `WorkbenchHeader`/`WorkbenchSidebar`/`WorkbenchHero` 的 `auth/profile`、`hospital/profile`、`home/alerts` 计数取数：`onMounted` 内 `await` + `.catch(() => null/0)` 兜底展示——chrome 级数据失败静默降级，不进面板五态。
-- 各业务视图页头"数据截至"：`useSystemDate()` 消费 `auth/profile.system_date`（模块级共享单次请求，9 个页头复用；顶栏 WorkbenchHeader 走自有 `getAuthProfile()` chrome 例外），失败/未到位置空（不落假日期）；同属 chrome 级降级。
+- useSystemDate() 与会话/偏好模块共享 profile 的 system_date，并按偏好间隔更新。日期缺席时显示空，不使用墙钟兜底。
+- TasksView 自管理列表/提交状态；WbPreferences 使用 useAsyncData 读取当前会话偏好，提交独立维护 pending 与已确认值。告警/工单写操作采用局部状态与 toast。
+- 壳层品牌文字允许已登记的静态降级；业务数量的静默 null/0 降级仍需后续异常态审查，不能视作全部五态已经验证。
 
-### 8.2 现有 12 页面数据区块清单
+### 8.2 工作台页面数据区块清单
 
 | 页面名称 | 路由路径 | 端点 key | 数据区块 1 | 数据区块 2 | 数据区块 3 | 数据区块 4 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -437,7 +449,9 @@ const systemDate = useSystemDate()
 | **资产与后勤** | `/workbench/assets` | `workbench/assets` | 6 项资产后勤指标条（固定资产总额/大型设备/开机率/库存周转/能耗/工单） | 月度能耗合计面积主线 + 电/水/气三条分项细线（近 6 个月） | 物资库存预警列表（周转天数偏长品类与警戒级别标注） | 大型设备使用效益表（WbTable，CT/MRI/DSA 等机时/人次/收入/评级） |
 | **对比分析** | `/workbench/compare` | `workbench/compare` | 科室横向对比表（WbTable，业务量/收入/效率/质量 4 维度分段器切换，内嵌水平条形） | 与区域同级医院对标雷达图（6 维度综合评分：本院 vs 区域均值） | 核心指标对标明细表（WbTable，本院值/区域均值/标杆值/差距差额） | —（本页无顶部 WbStatStrip 指标条，亦无柱状图） |
 | **专题分析** | `/workbench/topics` | `workbench/topics` | 4 类专题动态切换专属 5 项指标条（DRG / 医保 / 国考 / 门诊统筹） | 专题趋势与分布分析图（DRG入组率线图 / 医保支出线图 / 国考完成度柱图 / 门诊统筹人次线图） | 专题明细数据监测表（WbTable，重点病组DRG / 险种基金 / 国考核心指标 / 常见慢病统筹） | 4 类专题卡片导航选择器（DRG付费 / 医保基金 / 三级国考 / 门诊统筹） |
-| **系统设置** | `/workbench/settings` | `workbench/settings/config` | 数据源管理表格（WbTable，6 项系统对接状态——HIS/LIS/PACS/EMR/HRP/医保结算接口，含异常行） | 指标预警阈值配置表（WbTable，7 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
+| **工单** | `/workbench/tasks` | `todos`、`todos/{id}/status` | 工单筛选 | 分页列表 | 接单/办结表单 | 错误与提交反馈 |
+| **个人偏好** | `/workbench/preferences` | `workbench/settings/preferences`（GET/PUT） | 默认范围 | 刷新间隔 | 声音与金额 | 隐私展示偏好 |
+| **系统设置** | `/workbench/settings` | `workbench/settings/config` + `workbench/settings/preferences` | 合成来源只读表格（WbTable，6 项系统对接状态——HIS/LIS/PACS/EMR/HRP/医保结算接口，含异常行） | 指标预警阈值配置表（WbTable，7 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
 | **工作台 chrome** | 布局件 | `auth/profile` · `hospital/profile` | 顶栏日期/角色称谓（auth）+ 铃铛未闭环计数（home/alerts） | 侧栏院名/英文名/座右铭（hospital） | Hero 标语阶梯（hospital.slogans/pillars） | — |
 | **大屏** | `/screen` | `screen/snapshot` | ScrHeader 时钟/态势/未闭环告警 + ScrKpiStrip 4 项 KPI | ScrDrgQuadrant 象限散点 + ScrCampusMap 四栋楼宇 | ScrDeptRank 效能榜 + ScrAlertFeed 告警跑马灯 | ScrTrendTabs 7 日趋势页签小图组 |
 
@@ -453,12 +467,12 @@ const systemDate = useSystemDate()
 
 契约 §15 R04–R08/R15/R16 写端点与 §2.3–2.4 会话端点的数据链路已按本节落地：
 
-1. **api() 写形**：`api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body? })`——GET 签名不变（21 端点零回归）；写路径同包络拆解。`fetch` 显式 `credentials:'same-origin'` 携带 `edss_sid` Cookie；路径参数（`{id}`/`{code}`）直接拼进 `key` 字面量。
-2. **401 拦截**：`env.code ∈ {20001,20002,20003}` → `clearSession()` + `location.assign('/login?redirect=…')` 硬跳转（`client.ts` 不 import router，防依赖环）。
-3. **写后读**：调用方 `useAsyncData.reload()` 局部重取受影响区块；不做跨组件失效广播（Pinia 落地再议）。
+1. **api() 写形**：`api<T>(key, params?, opts?: { method?: 'GET'|'POST'|'PUT', body? })`——GET 签名不变（读取签名保持兼容）；写路径同包络拆解。`fetch` 显式 `credentials:'same-origin'` 携带 `edss_sid` Cookie；路径参数（`{id}`/`{code}`）直接拼进 `key` 字面量。
+2. **401 拦截**：非 auth/* 请求的 HTTP401 或 env.code ∈ {20001,20002,20003} → `clearSession()` + `location.assign('/login?redirect=…')` 硬跳转（`client.ts` 不 import router，防依赖环）。
+3. **写后读**：调用方 `useAsyncData.reload()` 局部重取受影响区块；业务区块以局部重取为主；个人偏好写成功更新共享响应式状态，不依赖 Pinia。
 4. **写后读一致（真轨持久化）**：工单/告警状态由后端 PG 持久——写后 `reload()` 读到的即真值，刷新后仍在（原 mock 轨 localStorage 持久化机制已随层摘除）。
 5. **操作人传输**：演示期写端点函数自动拼 `?role=<当前演示角色>`（`api/client.ts` 模块级 `getOperatorRole`/`setOperatorRole` 存当前角色，Header 角色下拉切换写回；契约 §15 头部约定。文档初稿写挂 `api/auth.ts`，该文件已划 EA 域，落 client.ts）。
-6. **写操作反馈**：`33002`/`33104` 冲突类 → 警告提示 + 相关区块局部刷新；`10002` → 表单内联错（`data.fields` 逐字段红标，不弹全局消息）；`20004`/`20005` → 警告提示 + 停留。全局提示走 token 化轻量 toast 等价物 `WbToast`（error-codes §4 矩阵的 ElMessage 语义等价承接，已落地）。
+6. **写操作反馈**：`33002`/`33104` 冲突类 → 警告提示 + 相关区块局部刷新；`10002` → Error.fields 透传，表单按已实现映射显示，未映射时显示 message；`20004`/`20005` → 警告提示 + 停留。全局提示走 token 化轻量 toast 等价物 `WbToast`（client 只抛错误，页面负责展示）。
 
 ---
 
@@ -527,7 +541,7 @@ npx vue-tsc -b && npm run build
 - **接线范围**：首页 7 卡片 + 11 业务视图全部改经 `useAsyncData`；页面/卡片 `data===null` 渲面板级 error/skeleton/empty，`stale` 时页头操作区或列表首行挂 `WbStaleTag`，列表区块空集合局部 `WbEmpty`。图表空数据沿用"画空坐标轴"（`?? []` 兜底）。
 - **全局兜底**：`main.ts` 挂 `app.config.errorHandler` 与 `window unhandledrejection`——console 留痕 + `preventDefault` 防裸崩，不吞错。
 - **单轨**：`client.ts` 拆包络按 `error-codes.md` §4 矩阵产出 `ApiError`（`code`/`fields`/`trace_id` 透传），视图五态渲染即最终态。
-- **写操作反馈（已随 P3 落码）**：写端点错误码按 error-codes §4 矩阵——`33002`/`33104` 冲突类 → 警告提示+相关区块局部刷新；`10002` → 表单内联错（fields 逐字段红标，不弹全局消息）；`20101` → 登录页表单内联；`20104` → 锁定提示+15min 倒计时展示；`20004`/`20005` → 警告提示+停留当前页（无独立 /403 页，面板错误态等价）；表单提交中 loading 复用 `useAsyncData.loading` 或提交按钮本地态。
+- **写操作反馈（已随 P3 落码）**：写端点错误码按 error-codes §4 矩阵——`33002`/`33104` 冲突类 → 警告提示+相关区块局部刷新；`10002` → fields 透传，已支持映射的表单显示字段错误，其余显示 message；`20101` → 登录页错误文案；`20104` → 锁定错误文案（未实现倒计时）；`20004`/`20005` → 警告提示+停留当前页（无独立 /403 页，面板错误态等价）；表单提交中 loading 复用 `useAsyncData.loading` 或提交按钮本地态。
 
 ---
 
@@ -537,7 +551,7 @@ npx vue-tsc -b && npm run build
 
 已落地要点：
 1. **统一出处**：`src/styles/tokens.css` = L0 原色 `--p-*`(:root) + L1 语义 `--wb-*`/`--scr-*`（同挂 :root，前缀即形态隔离）；`variables.css` 已删除。
-2. **收敛成果**：r0 审计 570 散落声明点全量收编——tokens.css 外色值/字号/间距/圆角字面量 0 命中（美术稿白名单除外）。
+2. **历史收敛记录**：r0 审计记录为 570 个散落声明点及白名单外 0 命中；这不是本轮重新扫描的结论，新增样式仍按 design-tokens 验收。
 3. **图表同源**：wb=`chartPresets.ts` 静态表（行内注释标 token）、scr=`scrTokens.ts::readScrPalette()` 运行时读取。
 
 ---
@@ -567,20 +581,21 @@ npx vue-tsc -b && npm run build
 ## 13. 演进路线（Evolution Roadmap）
 
 ### 13.1 已完成（落地事实）
-- **契约类型镜像**：`src/api/types.ts`（564 行）逐节镜像 `api-contract.md` v2.0（含 §14 屏型），全量 snake_case。
-- **端点函数层**：`api/workbench.ts` 18 + `api/auth.ts` 4 + `api/screen.ts` 1 + `api/alertflow.ts` 6 + `api/settings.ts` 2，**31/31 契约端点全接入**（`api/session.ts` 为会话态助手，非端点）。
+- **契约类型镜像**：`src/api/types.ts`逐节镜像 `api-contract.md` v2.0（含 §14 屏型），全量 snake_case。
+- **端点函数层**：workbench/auth/screen/alertflow/settings 模块封装页面接口；WbPreferences 经统一 client 读取偏好。session/preferences 为共享状态。覆盖清单见 frontend-api.md §16；后端 sim 与 infra 不属于页面全接入承诺。
 - **取数层（单轨）**：`api/client.ts` 经 vite proxy/nginx 打 Go 后端 `/api/v1/<key>`，包络拆解与错误码映射按 `error-codes.md` §4 落地（HTTP 客户端=原生 fetch，无新依赖）；`src/mock/` 已整层摘除，无假数据兜底。
-- **视图迁移**：11 业务视图 + 首页 7 卡 + `/screen` 全屏，组件内契约形状数据块清零。
+- **视图取数**：14 个导航页和大屏经 API 取数，无运行时业务数值兜底。
 - **五态反馈**：`useAsyncData` + 4 反馈原语 + `main.ts` 全局兜底（§10.2）。
 - **大屏建成**：e6aeb52，见 §12。
-- **设计令牌**：tokens.css 三层模型落地，散值收敛 0 命中（§11）。
+- **设计令牌**：tokens.css 分层模型已落地；历史散值审计见 §11，当前改动须单独核对。
 - **壳/资产/类型**：index.html 中立壳、根级孤儿资产清理、`delta_label` 单源、`WbTable` 类型收敛——均已销。
 
 ### 13.2 P1 待办（缺陷与缺口）
 - **路由缺口**：根级无 catch-all，未知路径渲染空白（§3.1；`/screen` 本身已注册）。
+- **交互缺口**：科研/患者/质量/资产的 range 仅改变 UI；须补契约和实现或明确固定口径。后续验收见 engineering-acceptance.md。
 
 ### 13.3 P2 演进项
-- **状态管理层（Store Layer）**：引入 Pinia，按业务域建立 `useAuthStore`、`useWorkbenchStore`、`useAlertStore`。**目标形态为 组件 → store → api 单向流**；当前"组件直连 api"为过渡形态，store 落地后页面改为调 Action 取数（时钟偏移亦归 store，AGENTS §2-6）。
+- **共享状态**：现有模块/composable 管理会话、偏好和业务日期。Pinia 为按需选项，不是质量缺口；新增依赖仍遵守白名单。
 - ~~设置页持久化~~：已落地（R15/R16 写端点，后端 PG 持久，见 §8.4）。
 - **仿真联动**：后端 sim 控制面已落地（契约 §16，操作手册 `docs/sim-runbook.md`）；前端仍无 UI 挂载位——启用时按契约演进接前端入口。
 
@@ -588,6 +603,21 @@ npx vue-tsc -b && npm run build
 
 ## 14. 测试约定（Testing）
 
-- **单测**：vitest + jsdom + @vue/test-utils，配置 `vitest.config.ts`（alias `@`→`src`，只收 `tests/unit/**/*.spec.ts`）；命令 `npm run test:unit`。对数据层（client/useAsyncData/session/useSystemDate）与组件行为（WbToast owner 占位、ScrCampusMap 阈值）挂回归网，stub fetch/mock module，不打真后端。
+- **单测**：vitest + jsdom + @vue/test-utils，配置 `vitest.config.ts`（alias `@`→`src`，只收 `tests/unit/**/*.spec.ts`）；命令 `npm run test:unit`。对数据层（client/useAsyncData/session/useSystemDate）与组件行为（WbToast owner 占位、ScrCampusMap 阈值）挂回归网，stub fetch/mock module，不打真后端；测试替身不等于允许运行时业务假数据兜底。
 - **e2e**：playwright（chromium only），配置 `playwright.config.ts`（`tests/e2e/`，webServer 起 `npm run dev` 复用 :8080 真后端）；命令 `npm run test:e2e`，浏览器 `npx playwright install chromium`。
 - tests/ 不进 `vue-tsc` 构建域（tsconfig include 仅 `src/`）；门禁仍按 AGENTS §5。
+
+
+## 质量整改行为（2026-10-08）
+
+新增 /workbench/tasks（工单分页、筛选、接单、办结）与 /workbench/access（账号暂无可用页面）。侧栏与路由守卫消费 profile.allowed_pages。模块 preferences.ts 管理服务器返回的偏好，无持久化身份缓存；useAsyncData 接入偏好轮询并在卸载时清理。useDefaultRange 用于页面初始筛选，手动筛选不被后续轮询重置。金额换算由 KPI、指标条共享 displayMoney，图表仍消费契约量纲。预警声音只在用户解锁音频后对新增高风险事件播放。设置提交禁用控件，成功更新共享偏好、失败回滚。工作台与大屏展示演示数据标识，日期来自后端虚拟时钟；profile 随偏好间隔刷新。
+
+所有已认证且角色已登记的账号可进入 /workbench/preferences 编辑自己的偏好；系统设置管理页继续受独立授权约束。表单统一由 WbPreferences 共享，避免两套保存/回滚逻辑。
+
+ECharts 改为按需注册共享模块（canvas、所需图表与组件），首页与大屏路由懒加载，降低初始包体；无其他绘图库。
+
+图表及告警流 ResizeObserver 回调经 requestAnimationFrame 合并，卸载时取消待执行帧，避免同步测量与布局写入循环；侧栏链接提供 href 与当前页语义，支持键盘与浏览器标准链接行为。
+
+督办工单页的筛选、分页按钮与办结表单使用现有 --wb-* 令牌；页面专属布局样式限定在 TasksView，提交期间禁用全部状态操作。
+
+本轮交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。

@@ -1,0 +1,20 @@
+{
+  "recovery_status": "partial_historical_summary_only",
+  "original_raw_report_recovered": false,
+  "verified_in_current_run": false,
+  "source": "docs/quality8-evidence.md; archived agent and command records",
+  "historical_reported": {
+    "actual_seconds": 1800.001,
+    "requests": 83962,
+    "successes": 83879,
+    "http_500": 83,
+    "success_rps": 46.6,
+    "error_pct": 0.099,
+    "p95_bucket_upper_bound_ms": {
+      "snapshot": 500,
+      "todos": 200,
+      "operations": 1000,
+      "overview": 1000
+    }
+  }
+}

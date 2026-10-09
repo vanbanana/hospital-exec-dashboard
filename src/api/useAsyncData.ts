@@ -1,6 +1,7 @@
 // 取数五态封装 — frontend-architecture §10.1 唯一状态源（loading/error/empty/stale/retry）
 // 视图/卡片只声明 fetcher 与触发点（onMounted/watch/重试按钮），状态切换全部由本模块收口
-import { ref, type Ref } from 'vue'
+import { ref, getCurrentInstance, onUnmounted, type Ref } from 'vue'
+import { usePreferencePolling } from './preferences'
 
 /**
  * 统一错误形状 — 对齐 error-codes §1 失败包络（code/message/trace_id）。
@@ -77,5 +78,9 @@ export function useAsyncData<T>(fetcher: () => Promise<T>): AsyncData<T> {
     }
   }
 
+  if (getCurrentInstance()) {
+    usePreferencePolling(async () => { if (!loading.value) await reload() })
+    onUnmounted(() => { seq++ })
+  }
   return { data, loading, error, stale, reload }
 }

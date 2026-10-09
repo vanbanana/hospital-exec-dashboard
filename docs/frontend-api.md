@@ -1,6 +1,6 @@
 # 前端接口文档 — 院长查询与决策支持系统 (EDSS)
 
-> **版本**：v1.0（对齐 `docs/api-contract.md` v2.0 基线）
+> **版本**：v1.1，2026-10-09 静态对齐；字段继续沿用 api-contract v2.0 基线与可选增补。合成数据范围及后续验收见 [工程计划](engineering-acceptance.md)。
 > **制定日期**：2026-09-27
 > **适用端**：前端工程 `src/`（Vue3 + TS + Vite），含 `/workbench` 工作台与 `/screen` 大屏两形态。
 
@@ -20,7 +20,7 @@
 | `docs/error-codes.md` | **定包络**——响应包络、错误码注册表、HTTP 映射、前端统一处理矩阵 |
 | **本文档** | **定用法**——每个端点前端怎么调、参数怎么传、响应字段怎么用、空态/错误态怎么渲染、端点 key 与消费位置 |
 
-**字段级冲突裁决**：本文字段表与契约示例不一致时，**一律以契约为准**，并立即停下回报（同 AGENTS.md §0：文档矛盾不自行裁决）。
+**字段级冲突裁决**：本文字段表与契约示例不一致时，**一律以契约为准**，先报告差异并对齐文档（同 AGENTS.md §0；已有用户授权不重复请求确认，契约语义变化另走演进）。
 
 ### 0.2 维护纪律
 
@@ -32,7 +32,7 @@
 ### 0.3 当前接入形态（真后端单轨）
 
 - 统一取数入口：`api<T>(key, params)`（`src/api/client.ts`），`key` = 契约端点路径去掉前导 `/`（如 `'workbench/overview'`）。
-- 工作台端点均有薄封装函数（`src/api/workbench.ts`），视图**不直接调 `api()`**，经封装函数取数。
+- 工作台端点均有薄封装函数（`src/api/workbench.ts`），视图经封装函数取数；WbPreferences 统一经 client 读取当前会话偏好（下方 §14.1）。
 - **唯一数据轨**：`api()` 经 vite proxy（`/api` → `localhost:8080`；生产由 nginx 同路径反代）打 **Go 后端** `/api/v1/<key>`，拆 `ApiEnvelope` 包络——`code!==0` 抛带数值 `code`/`fields`/`trace_id` 的 Error，`useAsyncData.toApiError` 透传到五态；HTTP 层失败（无包络）抛 `[api] http N`。**无 mock 轨**：任何端点失败/缺席一律走错误态或空态，不回落假数据。
 - **参数校验**：枚举外取值/必填缺席/空串由 Gin handler 下发 `10001`（HTTP400 + `data.fields`），前端透传五态。
 - **Go 后端运行**（详见 `backend/README.md`）：`brew services start postgresql@15` → `cd backend && go run ./cmd/server`（默认 DSN `postgres://localhost/hospital_edss?sslmode=disable`，端口 `PORT`）；前端 `npm run dev`。
@@ -106,9 +106,9 @@
 | `code=10001` 非法参数 | 面板/页面错误态 + 重试入口；前端应先校验枚举防呆 |
 | `code=20001/20003` | 清凭证跳 `/login?redirect=<当前路径>`（`/login` 已随契约 §2.3–2.4 落地启用） |
 | `code=20004` | 警告提示（message）+停留当前页；目标面板渲错误态（无独立 `/403` 路由） |
-| `code=10005` | 节流提示，触发按钮置冷却 |
+| `code=10005` | 错误提示；统一按钮冷却未实现 |
 | 其余非 0 code | 统一错误提示（展示 `message`，附 `trace_id`） |
-| HTTP 5xx / 断网 | 工作台：面板错误态 + 重试；大屏：断线重试态（顶部红条 + 自动重连倒计时） |
+| HTTP 5xx / 断网 | 工作台：面板错误态 + 重试；大屏：错误态手动重试，后台每 30 秒轮询；有旧快照时显示 stale |
 | 重试成功前 | 旧数据保留并标 stale（有刷新态后） |
 
 ### 1.7 写路径与会话约定（P3 契约演进，已随 auth/write epic 落码）
@@ -117,7 +117,7 @@
 
 **会话携带**：契约 §2.3 会话凭证为 HttpOnly Cookie `edss_sid`——`fetch` 显式 `credentials:'same-origin'`；登录成功响应即带全量上下文（同 §2.1 `data`），免二次拉取 `auth/profile`。
 
-**401→登录**：`env.code ∈ {20001,20002,20003}` 时 `client.ts` 统一清会话态并硬跳转 `/login?redirect=<当前路径>`（`auth/login` 自身除外防环）；R12 refresh 未启用前 `20002` 同路径登出。
+**401→登录**：`env.code ∈ {20001,20002,20003}` 时 `client.ts` 统一清会话态并硬跳转 `/login?redirect=<当前路径>`（auth/* 自检族均豁免，由调用方或路由守卫处理）；R12 refresh 未启用前 `20002` 同路径登出。
 
 **写后读一致性**：写成功后由调用方 `useAsyncData.reload()` 局部重取受影响区块（铃铛/大屏等 chrome 计数下次取数自然一致，不做失效广播）。
 
@@ -229,7 +229,7 @@
 - `code=10001`（字段缺失）→ `data.fields` 定位表单红标。
 - `code=20101` → 表单内联错误（不弹全局消息）。
 - `code=20102` → 账号停用页内提示。
-- `code=20104` → 锁定提示 + 15min 倒计时展示。
+- `code=20104` → 显示锁定错误文案；当前登录页没有倒计时。
 - 可返回错误码：`10001`、`10006`、`20101`、`20102`、`20104`。
 
 **端点 key**：`auth/login`（真后端 `/api/v1/auth/login`）（POST；真后端校验口令、置 `edss_sid` Cookie；无会话 `auth/profile` 返 `20001`）
@@ -895,7 +895,7 @@
 
 ## 14. 系统设置 `GET /workbench/settings/config`
 
-- **契约锚点**：§13.2。对应 `src/views/workbench/SettingsView.vue`；单端点供给设置页全部四个区块。
+- **契约锚点**：§13.2。对应 `src/views/workbench/SettingsView.vue`；配置端点供给来源、阈值、用户和配置偏好字段；共享偏好表单另经 GET/PUT preferences 读取保存当前会话值。来源和同步状态是合成登记，不代表真实 HIS/EMR 连接。
 
 **请求参数**：无
 
@@ -912,7 +912,7 @@
 | &nbsp;&nbsp;`name` | string | — | 否 | 指标名 |
 | &nbsp;&nbsp;`rule` | string | — | 否 | 规则表达式文案（`连续 3 日 > 95%`） |
 | &nbsp;&nbsp;`level` | string | — | 否 | `urgent`/`major`/`minor` |
-| &nbsp;&nbsp;`enabled` | bool | — | 否 | 开关态（UI 可本地点击翻转；演示期无写接口，不持久化） |
+| &nbsp;&nbsp;`enabled` | bool | — | 否 | 开关态；POST /workbench/settings/rules/{code} 写入，成功后局部重取 |
 | `users` | object[] | — | 否 | 权限用户 6 项 |
 | &nbsp;&nbsp;`name` | string | — | 否 | 账号/角色名 |
 | &nbsp;&nbsp;`role` | string | — | 否 | 角色文案（`院领导`/`部门负责人`/`科室主任` 等） |
@@ -930,10 +930,28 @@
 
 **空态与错误态**
 
-- 任一列表为空：对应区块空态；`preferences` 缺失：偏好开关区按本地默认值渲染（`alert_sound`/`unit_abbreviation`/`privacy_mask`=true，`default_range`=`本月`）。
-- 可返回错误码：`10001` → 页级错误态 + 重试。
+- 任一列表为空：对应区块空态。WbPreferences 自行读取当前会话偏好，加载中显示骨架，失败显示错误与重试；读成功后才展示可编辑表单，不以本地默认草稿伪装服务器返回。
+- 参数错误 10001；认证错误 20001/20002/20003；权限不足 20004 或生产范围拒绝 20005 → 相应页级错误或登录处理。
 
 **端点 key**：`workbench/settings/config`（真后端 `/api/v1/workbench/settings/config`）
+
+---
+
+### 14.1 当前会话偏好 GET/PUT `/workbench/settings/preferences`
+
+契约锚点：api-contract.md 质量整改增补与 §15.8。消费方：WbPreferences.vue，被 SettingsView 和 PreferencesView 共用。GET 无参数；PUT 部分更新以下五键：
+
+| 字段 | 类型 | 值域 |
+| --- | --- | --- |
+| default_range | string | 本月 / 本季 / 本年 |
+| refresh_interval | string | 5 分钟 / 15 分钟 / 30 分钟 |
+| alert_sound | boolean | true / false |
+| unit_abbreviation | boolean | true / false |
+| privacy_mask | boolean | true / false |
+
+两种方法返回当前会话的完整五键对象；不要求 settings/config 管理页权限，不使用演示角色替换偏好所有者。服务端负责默认值和校验；非法更新返回 10001/10002，会话与范围错误沿用既有 2xxxx。表单加载失败显示重试；提交中禁用控件，成功更新共享偏好，失败回滚至已确认值。金额设置作用于 KPI/指标条，图表保留契约量纲；隐私偏好不能解除服务端强制脱敏。
+
+端点 key 均为 `workbench/settings/preferences`，PUT 经 savePreferences 封装。
 
 ---
 
@@ -943,7 +961,7 @@
 - **当前状态**：**已实施**（e6aeb52）——路由 `/screen` 已注册（`router/index.ts`），视图为 `src/views/screen/ScreenView.vue` + `src/components/screen/Scr*` 组件族 + `src/layouts/ScreenLayout.vue`；视觉基准 `archive/smart-hospital-cockpit/`，画布 1920×1080。
 - **实现注记**：
   - 时钟：`ScrHeader` 以 `server_time` 为锚 + `setInterval` 本地走秒（卸载清理）；`new Date()`/`Date.now()` 仅用于走秒与 ISO 解析，为本节**白名单用法**（机械扫描豁免登记）。
-  - 断线重试：顶部 error-bar 红条 + **手动**「重新连接」按钮（`ScreenView` 自管理三态，未复用 `useAsyncData`——大屏按本节豁免登记；`error-codes.md §4` 的自动重连倒计时为远期规格，当前实现以手动重试为准）。
+  - 断线重试：顶部 error-bar 红条 + **手动**「重新连接」按钮（`ScreenView` 自管理三态，未复用 `useAsyncData`——大屏按本节豁免登记；每 30 秒后台轮询可恢复；没有重连倒计时）。
   - 院名：`ScrHeader` 消费 `hospital/profile.name` + `english_name`（经 `getHospitalProfile()`，失败分别回退 `XX市人民医院` / `HOSPITAL EXECUTIVE COMMAND CENTER` 品牌兜底文案）。
   - 错误态：`ScreenView` 自管理三态（`useAsyncData` 豁免），错误经 `toApiError` 归一为 `ApiError{code,message,trace_id}` 并在错误条展示 code/trace_id。
 
@@ -1019,7 +1037,7 @@
 
 - 子块缺失（如 `buildings=[]`）：对应屏区空态，不阻断整屏。
 - `server_time` 缺失：屏显时钟保持 `--:--:--` 占位，不落编造时刻。
-- HTTP 5xx/断网：大屏进"断线重试"态——顶部红条 + 手动「重新连接」按钮（当前实现；`error-codes §4` 的自动重连倒计时为远期规格）。
+- HTTP 5xx/断网：大屏进"断线重试"态——顶部红条 + 手动「重新连接」按钮；已有快照但轮询失败时保留快照并标 stale。
 - 可返回错误码：`10001`。
 
 **端点 key**：`screen/snapshot`（真后端 `/api/v1/screen/snapshot`）
@@ -1038,7 +1056,7 @@
 | `GET /workbench/home/indicators` | `workbench/home/indicators` | `KeyIndicatorsCard.vue` | ✅ 已接入 |
 | `GET /workbench/home/progress` | `workbench/home/progress` | `WorkProgressCard.vue`（`getHomeProgress`） | ✅ 已接入 |
 | `GET /workbench/home/alerts` | `workbench/home/alerts` | `RiskAlertsCard.vue` | ✅ 已接入 |
-| `GET /workbench/home/notices` | `workbench/home/notices` | `NoticesTodosCard.vue` | ✅ 已接入 |
+| `GET /workbench/home/notices` | `workbench/home/notices` | `NoticesTodosCard.vue`、`TasksView.vue` | ✅ 已接入 |
 | `GET /workbench/overview` | `workbench/overview` | `OverviewView.vue` | ✅ 已接入 |
 | `GET /workbench/medical` | `workbench/medical` | `MedicalView.vue` | ✅ 已接入 |
 | `GET /workbench/operations` | `workbench/operations` | `OperationsView.vue` | ✅ 已接入 |
@@ -1056,15 +1074,16 @@
 | `POST /alerts/{id}/ack` | `POST:alerts/{id}/ack` | `RiskAlertsCard.vue` | ✅ 已接入 |
 | `POST /alerts/{id}/dispatch` | `POST:alerts/{id}/dispatch` | `RiskAlertsCard.vue`（派发弹层） | ✅ 已接入 |
 | `POST /alerts/{id}/close` | `POST:alerts/{id}/close` | `RiskAlertsCard.vue`（关闭弹层） | ✅ 已接入 |
-| `GET /todos` | `todos` | `NoticesTodosCard.vue` | ✅ 已接入 |
-| `POST /todos/{id}/status` | `POST:todos/{id}/status` | `NoticesTodosCard.vue`（接单/办结） | ✅ 已接入 |
+| `GET /todos` | `todos` | `NoticesTodosCard.vue`、`TasksView.vue` | ✅ 已接入 |
+| `POST /todos/{id}/status` | `POST:todos/{id}/status` | `NoticesTodosCard.vue`、`TasksView.vue`（接单/办结） | ✅ 已接入 |
 | `GET /staff` | `staff` | `RiskAlertsCard.vue`（派发承办人联想） | ✅ 已接入 |
 | `POST /workbench/settings/rules/{code}` | `POST:workbench/settings/rules/{code}` | `SettingsView.vue`（阈值开关） | ✅ 已接入 |
-| `PUT /workbench/settings/preferences` | `PUT:workbench/settings/preferences` | `SettingsView.vue`（偏好表单） | ✅ 已接入 |
+| `GET /workbench/settings/preferences` | `workbench/settings/preferences` | `WbPreferences.vue`（设置页/个人偏好页） | ✅ 已接入 |
+| `PUT /workbench/settings/preferences` | `PUT:workbench/settings/preferences` | `WbPreferences.vue`（设置页/个人偏好页） | ✅ 已接入 |
 
-合计 31 端点：**31/31 已接入**。
+本表列出 32 个前端消费的方法/路径组合；不含仅由运维使用的 sim 和 infra。各方法/路径存在不代表所有角色均可调用。
 
-> **分段器（WbSeg）语义注记**：`research`/`patient`/`quality`/`assets` 四端点契约未声明 `range` 参数——这四页的 WbSeg 为**纯交互展示控件**，切换不产生取数（代码内已注释"仅保留视图交互状态"）。后端如为某端点补 range 参数，先走契约演进再接值。
+> **分段器（WbSeg）语义注记**：`research`/`patient`/`quality`/`assets` 四端点契约未声明 `range` 参数——这四页的 WbSeg 仅改变 UI 状态，切换不产生取数，属于待修工程缺口。先补契约并实现或移除/明确固定口径控件，验收见 engineering-acceptance.md。
 >
 > **本地渲染扩展注记**：`WbTableColumn.width?: string` 为前端原语的本地渲染扩展（契约 columns 仅下发 `key/title/align/num`，payload 从不下发 `width`）；视图本地构造列定义时可填，属组件层约定非契约字段。
 
@@ -1092,3 +1111,12 @@
 | R14 | GET/POST | `/sim/*` | 仿真时钟控制（契约 §16 档 A 已定义：clock/tick/reset/jobs） | P3 | 不调用（无 UI 挂载位，演示工具链用 curl） |
 | R15 | POST | `/workbench/settings/rules/{code}` | 阈值启停写回（契约 §15.7） | P3 | ✅ 已接入（§16；§15.7） |
 | R16 | PUT | `/workbench/settings/preferences` | 系统偏好写回（契约 §15.8） | P3 | ✅ 已接入（§16；§15.8） |
+
+
+## 质量整改接口增补（2026-10-08）
+
+GET workbench/settings/preferences 返回当前会话的五键偏好，不要求 settings/config 权限。profile 的 preferences、scope_type、allowed_pages、data_mode 为可选增补字段。导航只消费 allowed_pages；授权仍由后端执行。默认范围、轮询、金额展示、声音与脱敏语义见 api-contract.md 的质量整改增补。
+
+页头告警角标仅在会话 allowed_pages 包含首页及质量页时取数和展示，按个人刷新间隔更新；科室账户不请求全院告警。镜像中的公开静态资产必须可由 nginx worker 读取。
+
+本轮交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。

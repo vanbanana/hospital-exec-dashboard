@@ -93,6 +93,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAlertSound } from '../../api/useAlertSound'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { getHomeAlerts } from '../../api/workbench'
 import { ackAlert, closeAlert, dispatchAlert, getStaff } from '../../api/alertflow'
@@ -108,6 +109,7 @@ import type { AlertLevel, HomeAlertItem, StaffItem } from '../../api/types'
 const { data, loading, error, stale, reload } = useAsyncData(getHomeAlerts)
 
 const items = computed(() => data.value?.list ?? [])
+useAlertSound(items)
 
 // §3.6 演进后出参带 alert_status——processing 态以字段为准;processingIds 只补
 // 本会话内刚写入未 reload 的窗口(认领/派发成功或 33002 回传 current_status 时写入)

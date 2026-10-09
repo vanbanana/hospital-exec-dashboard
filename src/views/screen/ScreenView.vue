@@ -1,5 +1,6 @@
 <template>
   <div class="screen-root">
+    <div class="scr-data-mode">演示数据 · 业务时间以快照为准</div>
     <ScrHeader :status="snap?.status" :server-time="snap?.server_time" />
 
     <div class="screen-body">
@@ -101,6 +102,7 @@ onUnmounted(() => window.clearInterval(timer))
 </script>
 
 <style scoped>
+.scr-data-mode { position:absolute; z-index:var(--scr-z-data-mode); bottom:var(--scr-space-2); right:var(--scr-space-2); color:var(--scr-text-3); font-size:var(--scr-fs-sm); }
 .screen-root {
   width: 100%;
   height: 100%;

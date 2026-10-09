@@ -51,7 +51,7 @@ func writeTestDB(t *testing.T) *gorm.DB {
 		writeDBPool = db
 	})
 	if writeDBErr != nil {
-		t.Skipf("postgres 不可达: %v", writeDBErr)
+		t.Fatalf("postgres 不可达（集成测试必须执行）: %v", writeDBErr)
 	}
 	return writeDBPool
 }
@@ -386,7 +386,7 @@ func TestWriteTodoList(t *testing.T) {
 		nw["current_value"] != 0.9212 || nw["metric_code"] != "BED_USE_RATE" {
 		t.Fatalf("三点锚点=%v", nw)
 	}
-	if nw["assignee_name"] != "郑平泽" || nw["dept_name"] != "骨科" {
+	if nw["assignee_name"] != "郑**" || nw["dept_name"] != "骨科" {
 		t.Fatalf("承办人/科室=%v/%v", nw["assignee_name"], nw["dept_name"])
 	}
 	if s, ok := nw["created_at"].(string); !ok || s != "2026-10-28 09:00" {

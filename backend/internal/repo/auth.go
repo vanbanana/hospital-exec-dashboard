@@ -75,13 +75,15 @@ type SessionRow struct {
 	UserStatus int
 	Username   string
 	Role       string
+	DeptID     *int64
+	ScopeType  string
 }
 
 // ResolveSession tokenHash 查会话;0 行(令牌未知) → (nil,nil) 由中间件回 20003
 func ResolveSession(ctx context.Context, db *gorm.DB, tokenHash string) (*SessionRow, error) {
 	var s SessionRow
 	tx := db.WithContext(ctx).
-		Raw(`SELECT s.user_id,s.revoked_at IS NOT NULL AS revoked,s.expires_at <= now() AS expired,s.expires_at - now() < interval '6 hours' AS renew,u.user_status,u.username,u.role
+		Raw(`SELECT s.user_id,s.revoked_at IS NOT NULL AS revoked,s.expires_at <= now() AS expired,s.expires_at - now() < interval '6 hours' AS renew,u.user_status,u.username,u.role,u.dept_id,u.scope_type
 FROM sys.user_session s JOIN sys."user" u ON u.id=s.user_id WHERE s.token_hash=$1`, tokenHash).
 		Scan(&s)
 	if tx.Error != nil {

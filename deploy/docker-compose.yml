@@ -1,13 +1,20 @@
 # EDSS prod 三服务拓扑:web(nginx) → backend(edss) → db(postgres)
-# 变量全部 ${VAR:-default} 兜底——无 .env 也能直接起;有 .env 自动被 --env-file 读入(见 Makefile)
+# 本地演示默认值；SEED_ON_BOOT 空值不回退。生产必须叠加 production 覆盖。
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   db:
+    logging: *logging
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: hospital_edss
       # 默认口令仅本地演示兜底——共享/生产部署前必须经 .env 覆盖 POSTGRES_PASSWORD
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD-edss}
       # 会话默认时区——业务历=东八区;sim.clock/审计展示语义层已 AT TIME ZONE 钉死,此为双保险
       TZ: Asia/Shanghai
     volumes:
@@ -20,12 +27,14 @@ services:
     # 5432 不 publish:仅内网,防撞本机 brew pg(architecture §6)
 
   backend:
+    logging: *logging
+    image: hospital-edss-backend:${EDSS_IMAGE_TAG:-local}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
       target: backend
     environment:
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-edss}@db:5432/hospital_edss?sslmode=disable
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:${POSTGRES_PASSWORD-edss}@db:5432/hospital_edss?sslmode=disable}
       PORT: "8080"
       DB_MAX_OPEN: ${DB_MAX_OPEN:-25}
       DB_MAX_IDLE: ${DB_MAX_IDLE:-5}
@@ -35,10 +44,11 @@ services:
       # 生产两闸(P1):DEMO_ROLE_SWITCH=0 关演示角色切换(契约 §2.1 演进注);
       # AUTH_COOKIE_SECURE=1 须配 HTTPS 入口(nginx 443 block),http 部署保持默认空
       DEMO_ROLE_SWITCH: ${DEMO_ROLE_SWITCH:-1}
-      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-0}
+      SCREEN_PUBLIC: ${SCREEN_PUBLIC:-1}
       # nginx 反代经 compose 内网转发——放开 docker 网段使 XFF 生效,否则 audit ip 记成容器桥地址
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12}
-      SEED_ON_BOOT: ${SEED_ON_BOOT:-1}
+      SEED_ON_BOOT: ${SEED_ON_BOOT-0}
     # $$ 防 compose 插值——判等在容器内 sh 发生;SEED_ON_BOOT=1 显式判等才灌种子,
     # 原 ${VAR:+-seed} 对任意非空值(含显式 =0)都为真,关停种子灌库关不掉
     command: sh -c 'if [ "$$SEED_ON_BOOT" = "1" ]; then edss-migrate -seed; else edss-migrate; fi && exec edss'
@@ -57,6 +67,8 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
 
   web:
+    logging: *logging
+    image: hospital-edss-web:${EDSS_IMAGE_TAG:-local}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -64,7 +76,8 @@ services:
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata: {}

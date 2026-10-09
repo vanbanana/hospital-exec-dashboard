@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -27,7 +28,26 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	return &Config{
+	for _, key := range []string{"SIM_ENABLED", "DEMO_ROLE_SWITCH", "AUTH_COOKIE_SECURE", "SCREEN_PUBLIC"} {
+		if v, ok := os.LookupEnv(key); ok && v != "" && v != "0" && v != "1" {
+			return nil, fmt.Errorf("%s must be 0 or 1", key)
+		}
+	}
+	for _, key := range []string{"DB_MAX_OPEN", "DB_MAX_IDLE", "DB_MAX_LIFETIME_MIN", "PORT"} {
+		if v := os.Getenv(key); v != "" {
+			n, e := strconv.Atoi(v)
+			if e != nil || n < 1 || (key == "PORT" && n > 65535) {
+				return nil, fmt.Errorf("%s must be a valid positive integer", key)
+			}
+		}
+	}
+	switch envOr("LOG_LEVEL", "info") {
+	case "debug", "info", "warn", "error":
+	default:
+		return nil, fmt.Errorf("LOG_LEVEL is invalid")
+	}
+
+	cfg := &Config{
 		DatabaseURL:      envOr("DATABASE_URL", "postgres://localhost/hospital_edss?sslmode=disable"),
 		Port:             envOr("PORT", "8080"),
 		AuthCookieSecure: envOr("AUTH_COOKIE_SECURE", "") == "1",
@@ -38,7 +58,11 @@ func Load() (*Config, error) {
 		DBMaxLifetimeMin: envInt("DB_MAX_LIFETIME_MIN", 30),
 		LogLevel:         envOr("LOG_LEVEL", "info"),
 		TrustedProxies:   envList("TRUSTED_PROXY_CIDRS", "127.0.0.1,::1"),
-	}, nil
+	}
+	if cfg.DBMaxIdle > cfg.DBMaxOpen {
+		return nil, fmt.Errorf("DB_MAX_IDLE must not exceed DB_MAX_OPEN")
+	}
+	return cfg, nil
 }
 
 // DemoRoleSwitchOn 与 Load 同判据的独立读取口——cmd/server 装配缝(main.go)不在

@@ -17,5 +17,6 @@ func registerWrite(v1 *gin.RouterGroup, d *Deps) {
 	v1.POST("/todos/:id/status", h.TodoStatus)               // §15.5 R08
 	v1.GET("/staff", h.StaffList)                            // §15.6 R10
 	v1.POST("/workbench/settings/rules/:code", h.RuleToggle) // §15.7 R15
-	v1.PUT("/workbench/settings/preferences", h.PrefsSave)   // §15.8 R16
+	v1.GET("/workbench/settings/preferences", h.PrefsGet)
+	v1.PUT("/workbench/settings/preferences", h.PrefsSave) // §15.8 R16
 }

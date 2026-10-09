@@ -1,0 +1,10 @@
+[Unit]
+Description=EDSS minute resource snapshots
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=60
+Unit=edss-resources.service
+
+[Install]
+WantedBy=timers.target

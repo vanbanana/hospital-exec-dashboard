@@ -30,10 +30,11 @@ func NewWriteRepo(db *gorm.DB, clk *clock.Source) *WriteRepo {
 
 // Operator §15 头部操作人——?role= 或会话用户解析出的 sys.user 行
 type Operator struct {
-	ID       int64
-	Username string
-	Role     string
-	DeptID   *int64
+	ID        int64
+	Username  string
+	Role      string
+	DeptID    *int64
+	ScopeType string
 	// SessionUser 演示切换双身份注记:?role= 与会话用户不一致时记实际登录人
 	// (审计溯源用;handler 填充,不入 SQL 投影)
 	SessionUser string
@@ -43,7 +44,7 @@ type Operator struct {
 func (r *WriteRepo) FindOperator(ctx context.Context, username string) (*Operator, error) {
 	var op Operator
 	tx := r.db.WithContext(ctx).
-		Raw(`SELECT id,username,role,dept_id FROM sys."user" WHERE username=$1 AND user_status=1`, username).
+		Raw(`SELECT id,username,role,dept_id,scope_type FROM sys."user" WHERE username=$1 AND user_status=1`, username).
 		Scan(&op)
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -356,6 +357,7 @@ func (r *WriteRepo) AlertClose(ctx context.Context, op Operator, alertID int64, 
 type TodoFilter struct {
 	Status     *string
 	AssigneeID *int64
+	DeptID     *int64
 	Offset     int
 	Limit      int
 }
@@ -387,10 +389,13 @@ func (r *WriteRepo) TodoList(ctx context.Context, f TodoFilter) ([]TodoRow, int6
 		return nil, 0, err
 	}
 	if err := r.db.WithContext(ctx).Exec(`UPDATE ads.todo_order SET todo_status='expired',updated_at=$1
-		WHERE todo_status IN ('open','doing') AND deadline<$1`, now).Error; err != nil {
+		WHERE todo_status IN ('open','doing') AND deadline<$1 AND ($2::bigint IS NULL OR EXISTS (SELECT 1 FROM dim.staff s WHERE s.id=ads.todo_order.assignee_id AND s.dept_id=$2))`, now, f.DeptID).Error; err != nil {
 		return nil, 0, err
 	}
 	filter := func(d *gorm.DB) *gorm.DB {
+		if f.DeptID != nil {
+			d = d.Where("EXISTS (SELECT 1 FROM dim.staff ds WHERE ds.id=t.assignee_id AND ds.dept_id=?)", *f.DeptID)
+		}
 		if f.Status != nil {
 			d = d.Where("t.todo_status = ?", *f.Status)
 		}
@@ -489,11 +494,11 @@ func (r *WriteRepo) TodoTransit(ctx context.Context, op Operator, todoID int64, 
 		// 写侧同判过期:R07 惰性清扫只挂在列表读,stored open|doing 且 deadline<now 的
 		// 工单可能被绕过列表直写——按 deadline 语义判逾期即拒(契约 §15.5 33104:
 		// expired 禁变更);存态仍由列表清扫落库,此处不写(写必随 33104 回滚,无意义)
-		if (row.TodoStatus == "open" || row.TodoStatus == "doing") && !row.Deadline.After(now) {
+		if (row.TodoStatus == "open" || row.TodoStatus == "doing") && row.Deadline.Before(now) {
 			return &StatusConflict{Current: "expired"}
 		}
 		// dept_leader 仅可办本科室单:sys.user.dept_id 比对承办人 staff.dept_id(§15.5 20005)
-		if op.Role == "dept_leader" && (op.DeptID == nil || *op.DeptID != row.AssigneeDeptID) {
+		if (op.Role == "dept_leader" || op.ScopeType == "dept") && (op.DeptID == nil || *op.DeptID != row.AssigneeDeptID) {
 			return ErrScopeDeny
 		}
 		from := row.TodoStatus

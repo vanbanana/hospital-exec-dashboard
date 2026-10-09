@@ -51,7 +51,7 @@ func snapDB(t *testing.T) *gorm.DB {
 		snapDBPool = db
 	})
 	if snapDBErr != nil {
-		t.Skipf("postgres 不可达: %v", snapDBErr)
+		t.Fatalf("postgres 不可达（集成测试必须执行）: %v", snapDBErr)
 	}
 	return snapDBPool
 }

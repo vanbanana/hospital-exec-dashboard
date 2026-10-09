@@ -5,6 +5,7 @@
     <main class="workbench-main">
       <WorkbenchHeader />
       <div class="workbench-scroll">
+        <p v-if="profileState?.data_mode === 'demo'" class="data-mode-note">演示数据 · 数据截至 {{ profileState.system_date }}</p>
         <router-view />
       </div>
     </main>
@@ -12,11 +13,15 @@
 </template>
 
 <script setup lang="ts">
+import { currentProfile, profileState } from '../api/session'
+import { usePreferencePolling } from '../api/preferences'
+usePreferencePolling(async () => { await currentProfile(true).catch(() => null) })
 import WorkbenchSidebar from '../components/workbench/WorkbenchSidebar.vue'
 import WorkbenchHeader from '../components/workbench/WorkbenchHeader.vue'
 </script>
 
 <style scoped>
+.data-mode-note { color: var(--wb-text-3); font-size: var(--wb-fs-sm); margin-bottom: var(--wb-space-2); }
 .workbench-layout {
   width: 100vw;
   height: 100vh;

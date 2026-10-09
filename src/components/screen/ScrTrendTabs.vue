@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from '../../charts'
 import ScrPanel from './ScrPanel.vue'
 import ScrChart from './ScrChart.vue'
 import { readScrPalette } from './scrTokens'

@@ -223,7 +223,19 @@ func (h *WriteHandler) StaffList(c *gin.Context) {
 		}
 		deptID = &n
 	}
+	if su, ok := sessionUser(c); ok && !demoSwitchOn(c) && su.ScopeType == "dept" {
+		if su.DeptID == nil || (deptID != nil && *deptID != *su.DeptID) {
+			envelope.Fail(c, http.StatusForbidden, envelope.CodeScopeDeny, "无权访问其他科室", nil)
+			return
+		}
+		deptID = su.DeptID
+	}
 	rows, err := h.r.StaffOptions(c.Request.Context(), deptID)
+	if err != nil {
+		envelope.FailInternal(c, err)
+		return
+	}
+	mask, err := h.maskNames(c)
 	if err != nil {
 		envelope.FailInternal(c, err)
 		return
@@ -231,7 +243,7 @@ func (h *WriteHandler) StaffList(c *gin.Context) {
 	list := make([]gin.H, 0, len(rows))
 	for _, s := range rows {
 		list = append(list, gin.H{
-			"id": s.ID, "code": s.Code, "name": s.Name, "title": s.Title,
+			"id": s.ID, "code": s.Code, "name": privacyName(s.Name, mask), "title": s.Title,
 			"dept_id": s.DeptID, "dept_name": s.DeptName, "is_leader": s.IsLeader,
 		})
 	}

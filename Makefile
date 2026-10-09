@@ -6,17 +6,17 @@ ENV_FILE := $(if $(wildcard .env),--env-file .env,)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help dev dev-api backend build vet test migrate migrate-status baseline seed up down logs ci ci-mech
+.PHONY: help dev dev-api backend build build-images vet test migrate migrate-status baseline seed up down logs ci ci-mech ops-backup ops-monitor ops-resources ops-run
 
 help: ## 列出全部目标
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-16s %s\n", $$1, $$2}'
 
 # ---- 前端 ----
-dev: ## vite dev,mock 数据轨(:5173)
+dev: ## vite dev 真后端链路(:5173)
 	npm run dev
 
-dev-api: ## vite dev 真链路:VITE_USE_MOCK=0 经 proxy 打 :8080
-	VITE_USE_MOCK=0 npm run dev
+dev-api: ## vite dev 真链路:经 proxy 打 :8080
+	npm run dev
 
 build: ## 前端构建(vue-tsc -b && vite build → dist/)
 	npm run build
@@ -60,10 +60,26 @@ seed: ## apply 后接跑 seed/ 全部文件(幂等)
 
 # ---- compose(prod 三服务)----
 up: ## compose 构建并后台起 web+backend+db
-	$(COMPOSE) $(ENV_FILE) up -d --build
+	EDSS_ENV_FILE="$${EDSS_ENV_FILE:-$(if $(wildcard .env),.env,)}" scripts/build-images.sh
+	$(COMPOSE) $(ENV_FILE) up -d
+
+build-images: ## 串行构建镜像，构建前检查可用空间
+	EDSS_ENV_FILE="$${EDSS_ENV_FILE:-$(if $(wildcard .env),.env,)}" scripts/build-images.sh
 
 down: ## compose 停服(卷保留)
 	$(COMPOSE) $(ENV_FILE) down
 
 logs: ## compose 跟随日志
 	$(COMPOSE) $(ENV_FILE) logs -f
+
+ops-backup: ## 按已导出的运维配置备份、校验并保留归档
+	python3 scripts/ops.py backup-cycle
+
+ops-monitor: ## 单次就绪/备份/磁盘/连接池/延迟巡检（告警返回非零）
+	python3 scripts/ops.py monitor
+
+ops-resources: ## 当前 Compose 容器 CPU/内存/IO 与磁盘快照
+	python3 scripts/ops.py resources
+
+ops-run: ## 无 systemd 环境的前台周期备份/巡检/采样
+	python3 scripts/ops.py run

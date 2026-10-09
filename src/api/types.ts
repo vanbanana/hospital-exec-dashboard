@@ -82,6 +82,10 @@ export interface RoleOption {
 }
 
 export interface AuthProfileResp {
+  preferences?: SettingsResp['preferences']
+  scope_type?: 'all' | 'domain' | 'dept'
+  allowed_pages?: string[]
+  data_mode?: 'demo'
   user: AuthUser
   available_roles: RoleOption[]
   system_date: string

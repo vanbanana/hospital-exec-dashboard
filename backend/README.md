@@ -1,8 +1,8 @@
 # backend/ — EDSS Go 服务 + 数据库迁移与种子（PostgreSQL）
 
-> **状态**：可实施生产库设计（演示期用同一套种子灌出契约锚点数据）。
-> **来源**：由 `/tmp/modeling/schema/` 10 个建模 lane 经 3 轮独立审核（0 BLOCKER/0 MAJOR）后装配。
-> **目标**：PostgreSQL 15+（开发验证用 15.15 实测通过；compose 用 postgres:16-alpine）。
+> **状态（2026-10-09 静态对齐）**：持久化合成种子与虚拟业务时钟供数；安全部署配置与部分范围控制已实现。无法获取真实医院数据是固定约束，接入与医院指标对账不纳入工程验收。现状见 [清单](../docs/current-state.md)，后续标准见 [计划](../docs/engineering-acceptance.md)。
+> **历史来源**：早期由 /tmp/modeling/schema/ 编排装配；外部临时资产和旧审核结论不作为当前可复现验收证据。当前 SQL 正本在本仓库 migrations/ 与 seed/。
+> **基准**：Go1.27、PostgreSQL 16（CI/Compose）；PG15.15 兼容为历史验证。
 
 ## 目录
 
@@ -16,7 +16,7 @@ internal/
   clock/         # sim.clock 唯一业务时间源(禁 time.Now 业务化)
   router/        # 引擎 + register_<epic>.go 分域注册
   handler/ repo/ # 分域实现:e1 context/home · e2 ops · e3 staff · e4 screen/topics · P3 auth/write/sim/system
-migrations/      # 结构迁移,按文件名序号顺序执行(0000 → 0900),非幂等 → 追踪表收口
+migrations/      # 结构迁移,按文件名序号顺序执行(0000 → 1000，含 0420/0510),非幂等 → 追踪表收口
 seed/            # 确定性种子,按文件名序号顺序执行(1001 → 5001),幂等可重跑
 ```
 
@@ -25,12 +25,14 @@ seed/            # 确定性种子,按文件名序号顺序执行(1001 → 5001)
 ## 跑法
 
 ```bash
-export GOPROXY=https://goproxy.cn,direct   # proxy.golang.org 本机不可达
+export GOPROXY=https://proxy.golang.org,direct
 go run ./cmd/server                      # :8080
 go vet ./... && go test ./... && go build ./...
 ```
 
-env（`internal/config` 启动期 fail-fast，全有默认值，演示环境零配置可跑）：
+需要 Go 1.27、已迁移并初始化的 PostgreSQL。云环境没有宿主 Go SDK 时，从仓库根目录使用 `scripts/cloud-dev.sh start|test`；流程见 `docs/production-deploy.md`。
+
+env（`internal/config` 启动期 fail-fast，数据库必须可达）：
 
 | env | 默认 | 语义 |
 | :--- | :--- | :--- |
@@ -40,13 +42,14 @@ env（`internal/config` 启动期 fail-fast，全有默认值，演示环境零�
 | `DB_MAX_IDLE` | `5` | 空闲连接数 |
 | `DB_MAX_LIFETIME_MIN` | `30` | 连接最大存活（分钟） |
 | `LOG_LEVEL` | `info` | slog 级别：`debug\|info\|warn\|error` |
-| `SIM_ENABLED` | `1` | `0`=/sim/* 路由不注册（命中 NoRoute → 10003） |
-| `DEMO_ROLE_SWITCH` | `1` | `0`=生产形态：`?role=` 演示切换关闭（读侧忽略/写侧异名 `20004`），`available_roles` 收敛会话自身一档（契约 §2.1 演进注；`router.Build` 经 `config.DemoRoleSwitchOn()` 直读 env，main 装配缝待接 Deps） |
+| `SIM_ENABLED` | `1` | `0`=/sim/* 路由不注册；合法会话到 NoRoute → 10003，无会话先返回 20001 |
+| `DEMO_ROLE_SWITCH` | `1` | `0`=生产形态：`?role=` 演示切换关闭（读侧忽略/写侧异名 `20004`），`available_roles` 收敛会话自身一档（契约 §2.1 演进注；router.Build 经 config.DemoRoleSwitchOn() 读取 env） |
 | `AUTH_COOKIE_SECURE` | （空） | `1`=`edss_sid` Cookie 追加 `Secure`（HTTPS 部署置位） |
+| `SCREEN_PUBLIC` | `1` | `0`=大屏 API 也必须登录并通过角色/范围校验 |
 | `TRUSTED_PROXY_CIDRS` | `127.0.0.1,::1` | XFF 可信代理 CIDR（逗号分隔）；反代异机/异容器部署须放开代理网段，否则 `audit_log`/`user_session` 的 ip 记成代理地址；置空字符串 = 不信任何代理 |
 
 - 契约端点：`/api/v1/` + 契约路径（`auth/profile`、`workbench/**`、`screen/snapshot`）
-- 前端切换：`vite.config` 已代理 `/api`→`:8080`；`VITE_USE_MOCK=0 npm run dev` 即真链路
+- 前端：`vite.config` 已代理 `/api`→`:8080`；`npm run dev` 即真链路
 
 ## 迁移执行器（edss-migrate）
 
@@ -79,7 +82,7 @@ go run ./cmd/migrate -seed      # apply 完成后按名序跑 seed/ 全部文件
 
 | 端点 | 探什么 | 出什么 |
 | :--- | :--- | :--- |
-| `GET /health` | 无依赖 | `{"status":"up"}`，恒 200——LB 存活探针，nginx 透出 |
+| `GET /health` | 无依赖 | 统一成功包络中的 `data={"status":"up"}`，恒 200——LB 存活探针，nginx 透出 |
 | `GET /ready` | DB Ping（500ms 超时）+ `sim.clock`、`dws.hospital_oper_day` 行数 ≥1 | 全过 200（返回两表行数）；任一失败 503——compose healthcheck 用，nginx **不透出** |
 | `GET /stats` | — | `uptime_s`/`requests_total`/`in_flight`/`by_status`/DB 池 `sql.DBStats`——内部运维面，nginx **不透出** |
 
@@ -94,7 +97,7 @@ slog JSON → stdout，每请求一行（RequestLog 中间件）：
 | `errors` | 仅 `c.Errors` 非空时附（内部 err 已上链） |
 
 - `status≥500` → `Error`，其余 `Info`；panic 经 Recovery 打 `value`+`stack`+`trace_id` 后回 10000。
-- 级别由 `LOG_LEVEL` 控制，未知值回 `info`。
+- 级别由 `LOG_LEVEL` 控制，未知值启动失败。
 - `SIGINT`/`SIGTERM` → `http.Server.Shutdown`（10s drain）→ 连接池 `Close`；日志序列 `shutdown: draining` → `shutdown: complete`。
 
 ## 端口归一（照 `docs/architecture.md` §6）
@@ -103,7 +106,7 @@ dev 形态（本机）：
 
 | 端口 | 用途 | 必开 | 备注 |
 | :--- | :--- | :--- | :--- |
-| 5173 | vite dev 唯一 canonical（proxy /api→:8080） | ✅ | 5174/5175 = 占用时 vite 自动递增漂移，非受配端口 |
+| 5173 | vite dev 唯一端口（proxy /api→:8080） | ✅ | 占用即失败，避免静默漂移 |
 | 8080 | Go API | 真链路时 | `PORT` env |
 | 5432 | 本地 PG | 真链路时 | brew postgresql@15/16 |
 | — | vite proxy `/api`→`localhost:8080` | — | target 硬编码于 `vite.config.ts` |
@@ -112,21 +115,22 @@ prod 形态（compose 三服务，本仓库 `deploy/`）：
 
 | 端口 | 用途 | 暴露面 |
 | :--- | :--- | :--- |
-| 80 | nginx：`/` 静态 SPA + `/api` 反代 + `/health` 透出（TLS 终结在更外层 LB） | 公网唯一入口，`WEB_PORT` 改绑 |
+| 80 | nginx：`/` 静态 SPA + `/api` 反代 + `/health` 透出；基础栈 HTTP，production 在 web 容器终结 TLS | 基础 WEB_PORT；production HTTP 跳转 HTTPS |
+| 443 | production 覆盖 HTTPS | 默认 HTTPS_PORT=443；正式证书文件挂载 |
 | 8080 | backend | 内网；`127.0.0.1:${BACKEND_PORT}` 调试透出 |
 | 5432 | postgres | 仅内网，不 publish |
 
 ## compose 部署（`deploy/`，build context=仓库根）
 
 ```bash
-make up        # = docker compose -f deploy/docker-compose.yml up -d --build
+make up        # 基础演示配置；新库须先显式 SEED_ON_BOOT=1，非生产安全覆盖
 make logs      # 跟随日志
 make down      # 停服(pgdata 卷保留)
 ```
 
 拓扑：`web`（nginx:80，SPA + `/api` 反代 + `/health`）→ `backend`（edss:8080）→ `db`（postgres:16-alpine，仅内网）。
 启动序：db `pg_isready` healthy → backend 容器内 `edss-migrate`（`SEED_ON_BOOT=1` 时追加 `-seed` 首启灌演示种子）→ `exec edss` → `/ready` 探活。
-`deploy/Dockerfile` 单文件多 target（`backend`/`web`）；`.env.example` 有全部可调变量，compose 变量均 `${VAR:-def}` 兜底——无 `.env` 也能起。
+`deploy/Dockerfile` 单文件多 target（`backend`/`web`）；`.env.example` 有全部可调变量，基础配置默认不灌种子；全新演示库显式设置 `SEED_ON_BOOT=1`，之后设置 0。生产覆盖与正式证书步骤见 `docs/production-deploy.md`。
 
 ## 演示账号
 
@@ -138,11 +142,11 @@ make down      # 停服(pgdata 卷保留)
 | `ops_director` | 运营办主任（运营质量域） | `Edss@2026` |
 | `dept_leader` | 骨科主任（本科室） | `Edss@2026` |
 
-其余 4 个种子账号（`admin`/`vp_medical`/`med_director`/`fin_director`）口令未重置（EA 交接口径，避免越权改超出口径的账号）。
+其余种子账号口令以 seed/1001_sys_defs.sql 为准（admin 的公开演示口令为 Admin@123）。生产策略只识别已登记角色；账号存在不代表其可读取所有聚合页。共享安全部署须轮换公开演示口令并吊销旧会话。
 
-> **登录锁定语义（§2.3）**：同一用户名 15 分钟内 `login_fail` ≥5 次 → `20104` 拒绝（计数源=`sys.audit_log`，故锁定期内的撞锁尝试不再写 `login_fail`，防自我续锁；`reason=banned` 行不计入）。已知取舍：攻击者拿已知用户名连错 5 次即可锁该账号 15 分钟——契约口径按用户名计数而非按 IP，演示环境接受此 DoS 面；如需解锁直接清该用户近期 `login_fail` 审计行或等窗口过期。
+> **登录锁定语义（§2.3）**：同一用户名 15 分钟内 `login_fail` ≥5 次 → `20104` 拒绝（计数源=`sys.audit_log`，故锁定期内的撞锁尝试不再写 `login_fail`，防自我续锁；`reason=banned` 行不计入）。已知取舍：攻击者拿已知用户名连错 5 次即可锁该账号 15 分钟——契约口径按用户名计数而非按 IP，演示环境接受此 DoS 面；应等待窗口过期；仓库没有专用解锁接口，不应通过删除审计历史作为常规解锁流程。
 
-## 迁移清单（migrations/ 13 文件）
+## 迁移清单（migrations/ 18 文件）
 
 | 序 | 文件 | 内容 |
 |---|---|---|
@@ -156,6 +160,11 @@ make down      # 停服(pgdata 卷保留)
 | 0500 | `0500_sim.sql` | 仿真时钟/参数/日志 |
 | 0900 | `0900_sys_user_dept_fk.sql` | **延迟挂载**：`fk_user_department` ON DELETE RESTRICT（防科室删除静默升格账号权限） |
 | 0910 | `0910_sys_user_session.sql` | sys.user_session 会话表 + 演示账号口令重置 |
+| 0420 | `0420_todo_open_uq.sql` | 活跃工单唯一约束 |
+| 0510 | `0510_sim_clock_tz.sql` | 仿真时钟时区修正 |
+| 1000 | `1000_ops_query_indexes.sql` | 登录失败审计与工单倒序分页索引（维护窗口应用） |
+| 1010 | `1010_outpatient_daily_rollup.sql` | 门诊日汇总及事务内触发维护 |
+| 1020 | `1020_charge_daily_rollup.sql` | 收费日/科室汇总及事务内触发维护 |
 
 ## 种子清单（seed/ 13 文件，相位序）
 
@@ -175,7 +184,7 @@ make down      # 停服(pgdata 卷保留)
 - **确定性**：零 `random()`/零 `now()`——伪随机一律 `md5(主键)` 派生，全库可复现。
 - **锚点**（详见 `docs/database-schema.md` §勾稽）：BASE_DATE=2026-10-28；在院 1,846 / 床用 92.1% / 月出院 8,109 / ALOS 6.8 / 月门急诊 123,443 / 月医疗收入 14,800 万（住院 71%·门诊 25%·其他 4%）。
 - **费用真源**：`dwd.charge_day`（门诊次均≈300 元 / 住院次均≈13,000 元）；`outpatient_hourly.fee_total` 逐日归一到 charge_day。
-- `backend/` 下 SQL 与 `/tmp/modeling/schema/` lane 源文件一一对应；改数据请改 lane 源再装配，勿直接改本目录。
+- 修改数据结构/口径先更新契约与库表文档，再修改本仓库 migrations/seed/；/tmp/modeling 只是历史来源，不是开发前置条件。
 
 ## 测试与压测
 
@@ -183,23 +192,30 @@ make down      # 停服(pgdata 卷保留)
 
 | 库 | env | 用途 |
 | :--- | :--- | :--- |
-| `hospital_edss` | `DATABASE_URL` | 只读用例基座（断言种子锚点，绝不写） |
+| `hospital_edss` | `DATABASE_URL` | 读取断言基座（合成种子锚点）；请求可能维护会话/审计，不等于数据库只读权限 |
 | `hospital_edss_w` | `DATABASE_URL_W` | 写用例克隆库——tx 回滚用例零残留；并发用例（`conc_test.go`）真实提交、入场归一+defer 清场 |
 
 - 重建克隆库：`bash scripts/clone_test_db.sh`（`SRC_DB`/`DST_DB` env 可覆写；克隆期源库须无活动连接，先停 server）。
-- 跑法：`go test -count=1 ./...`；竞态全量 `go test -race ./internal/...`；PG 不可达时用例 `Skip` 不Fail（CI 须先备两库）。
+- 跑法：`go test -count=1 ./...`；竞态全量 `go test -race ./internal/...`；PG 不可达时用例直接失败（本地与 CI 均须先备两库）。
 - 机械自查仍适用：**测试文件同样不许出现 `time.Now`**——等异步副作用用"有界次数 + `time.Sleep`"轮询 DB 态（见 `conc_test.go` 续期用例）。
 
-**压测基线**（`cmd/loadbench`，纯 stdlib）：
+**压测工具**（cmd/loadbench，Go 标准库，无第三方依赖）：
 
 ```bash
-go run ./cmd/loadbench -c 32 -d 15 -base http://localhost:8080
+# 公开演示负载；只适用于 SCREEN_PUBLIC=1
+ go run ./cmd/loadbench -profile public -c 8 -d 60 -warmup 5
+# 认证业务负载：先在进程环境配置 EDSS_LOAD_USERNAME / EDSS_LOAD_PASSWORD
+ go run ./cmd/loadbench -profile business -c 16 -d 1800 -warmup 30 -rps 50 -json /tmp/edss-load-report.json
 ```
 
-- 负载：worker 奇偶分流 `GET /api/v1/screen/snapshot`（重读端点）与 `GET /health`（下限参照），均免会话；keep-alive 连接池 `-c*2`。
-- 输出：每端点 + TOTAL 的 `n / rps / p50ms / p95ms / p99ms / maxms / err%`；错误样本不计延迟分位。
-- `cmd/loadbench/main.go` 的 `time.Now` 属运维层延迟计时（`requestlog.go` 同类），机械自查豁免清单需收录该文件。
+工具先检查健康、登录和目标接口；响应体完整读取及业务包络计入耗时和失败。固定直方图保持内存有界，分位报告为桶上界近似；成功与失败均计入，吞吐按实际时长（含最后响应排空）计算。按端点阈值返回退出码，JSON 报告 0600 且不覆盖。默认目标不包含写操作压测；工单 GET、会话登录/续期仍有数据库维护写入。
 
-## 断言脚本
+内网 /stats 保留旧字段，新增 started_at、latency_bounds_ms、by_route 和 runtime；路由标签有界，进程重启清零。运行规范、告警、备份及系统定时器见 [运维与性能手册](../docs/operations-performance.md)。本轮已执行非空恢复、故障演练及认证查询压测；只按整改记录中的数据规模和负载评价，未声明最大容量。
+
+## 历史断言脚本
+
+以下路径属于历史编排产物，未包含于仓库，不能用作可复现验收。当前门禁使用仓库内 Go/Vitest/Playwright 与 Compose 配置测试。
 
 基准目录 `/tmp/backend-orch/`（编排产物，非本仓库）——`e{1,2,4}-check.sh` 在顶层、`e3-check.sh` 在 `collections/` 子目录（`PORT=808N bash …`）；newman 集合 `collections/e{1..4}.json`。EO epic 门禁脚本 `/tmp/p3-orch/eo-check.sh`（health/ready/stats/migrate/graceful/回归抽查）。
+
+cloud-dev.sh test 对已经存在的独立写域库也先执行未应用迁移；只在首次建库时播种，避免升级后继续使用旧 schema。

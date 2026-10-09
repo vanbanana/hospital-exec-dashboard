@@ -239,6 +239,7 @@
   --scr-radius-tag: 3px;
   --scr-radius-badge: 2px;
   --scr-shadow-panel: 0 8px 24px rgba(0, 4, 15, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05); /* 复合值 */
+  --scr-z-data-mode: 30;
   --scr-fs-axis: 10px; /* REF 折线轴标；与 fs-xs 同值不同槽（轴标语义） */
   --scr-fs-xxs: 8px;
   --scr-fs-xs: 10px;

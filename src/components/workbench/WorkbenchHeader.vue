@@ -22,7 +22,7 @@
         </div>
 
         <!-- Notification Bell：角标 = 风险预警条数（复用 home/alerts），点击落预警承载页（质量与安全），无数据隐藏徽标 -->
-        <div class="notice-badge-wrapper" @click="$router.push('/workbench/quality')">
+        <div v-if="canViewAlerts" class="notice-badge-wrapper" @click="$router.push('/workbench/quality')">
           <Bell class="bell-icon" :size="19" />
           <span v-if="alertCount > 0" class="badge-dot">{{ alertCount }}</span>
         </div>
@@ -73,16 +73,23 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Search, Bell, ChevronDown, LogOut } from 'lucide-vue-next'
 import { getAuthProfile, logout } from '../../api/auth'
-import { currentProfile } from '../../api/session'
+import { currentProfile, profileState } from '../../api/session'
 import { setOperatorRole } from '../../api/client'
+import { usePreferencePolling } from '../../api/preferences'
 import { getHomeAlerts } from '../../api/workbench'
 import type { AuthProfileResp } from '../../api/types'
 
 const profile = ref<AuthProfileResp | null>(null)
+watch(profileState, p => { profile.value = p; session.value = p })
 const session = ref<AuthProfileResp | null>(null)
 const alertCount = ref(0)
 const roleOpen = ref(false)
 const profileEl = ref<HTMLElement | null>(null)
+const canViewAlerts = computed(() => !!session.value && (!session.value.allowed_pages || (session.value.allowed_pages.includes('/workbench') && session.value.allowed_pages.includes('/workbench/quality'))))
+async function refreshAlerts() {
+  alertCount.value = canViewAlerts.value ? await getHomeAlerts().then(r => r.list.length).catch(() => 0) : 0
+}
+usePreferencePolling(refreshAlerts)
 
 // 会话真身（?role= 只切 display 层 profile，session 不动）
 const ROLE_SWITCH_ALLOW: readonly string[] = ['admin', 'president']
@@ -132,7 +139,7 @@ onMounted(async () => {
   const p = await currentProfile().catch(() => null)
   session.value = p
   profile.value = p
-  alertCount.value = await getHomeAlerts().then((r) => r.list.length).catch(() => 0)
+  await refreshAlerts()
 })
 
 // system_date(YYYY-MM-DD) + weekday → "2026年10月28日 星期三"

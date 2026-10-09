@@ -1,0 +1,11 @@
+[Unit]
+Description=EDSS hourly backup
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=30
+Unit=edss-backup.service
+
+[Install]
+WantedBy=timers.target

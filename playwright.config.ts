@@ -4,13 +4,14 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
+  expect: { timeout: 10_000 },
   retries: 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.EDSS_WEB_BASE_URL ?? 'http://localhost:5173',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
+  webServer: process.env.EDSS_WEB_BASE_URL ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:5173',
     // 开发机上 dev server 常已在跑，直接复用；CI 环境(F2)无驻留进程时自动拉起
