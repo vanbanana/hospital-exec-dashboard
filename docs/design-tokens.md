@@ -2,7 +2,7 @@
 
 > 本文档是前端**全部视觉取值的唯一治理规范**。颜色 / 字号 / 间距 / 圆角 / 阴影 / 字重 / 行高 / 层级 / 透明度 / 动效时长，一律经令牌消费；**字面量只允许出现在 `src/styles/tokens.css` 中**。
 >
-> 依据：DTCG（Design Tokens Community Group）三层模型 + Tailwind/Radix 命名惯例；存量盘点见 `/tmp/audit-fe-r0/tokens.md`（r0 审计：散落 ≈570 声明点，token 化率 28%）。
+> 依据：DTCG 三层令牌模型，令牌定义以 src/styles/tokens.css 为准。
 
 ## 1. 分层模型
 
@@ -268,7 +268,7 @@ rg -o --no-filename 'var\(--[\w-]+' src/
 收敛目标：色值字面量 `tokens.css` 外 0 命中；`chartPresets.ts` 以外 `.ts` 0 命中；图表 `fontSize` 仅经 `wbChartFs`/scrTokens fs 槽。
 
 
-## 2026-10-08 演示来源标识
+## 演示来源标识
 
 新增 --scr-z-data-mode=30 用于大屏数据来源标识；颜色、字号、位置复用 --scr-text-3 / --scr-fs-sm / --scr-space-2。工作台标识复用 --wb-text-3 / --wb-fs-sm / --wb-space-2。
 

@@ -1,7 +1,6 @@
 # 前端接口文档 — 院长查询与决策支持系统 (EDSS)
 
-> **版本**：v1.1，2026-10-09 静态对齐；字段继续沿用 api-contract v2.0 基线与可选增补。合成数据范围及后续验收见 [工程计划](engineering-acceptance.md)。
-> **制定日期**：2026-09-27
+> **版本**：v1.1，字段继续沿用 api-contract v2.0 基线与可选增补。合成数据范围及后续验收见 [工程计划](engineering-acceptance.md)。
 > **适用端**：前端工程 `src/`（Vue3 + TS + Vite），含 `/workbench` 工作台与 `/screen` 大屏两形态。
 
 ---
@@ -958,7 +957,7 @@
 ## 15. 科技大屏快照 `GET /screen/snapshot`
 
 - **契约锚点**：§14.1。大屏一站式加载快照，单端点供给整屏。
-- **当前状态**：**已实施**（e6aeb52）——路由 `/screen` 已注册（`router/index.ts`），视图为 `src/views/screen/ScreenView.vue` + `src/components/screen/Scr*` 组件族 + `src/layouts/ScreenLayout.vue`；视觉基准 `archive/smart-hospital-cockpit/`，画布 1920×1080。
+- **当前状态**：**已实施**——路由 `/screen` 已注册（`router/index.ts`），视图为 `src/views/screen/ScreenView.vue` + `src/components/screen/Scr*` 组件族 + `src/layouts/ScreenLayout.vue`；视觉基准 `archive/smart-hospital-cockpit/`，画布 1920×1080。
 - **实现注记**：
   - 时钟：`ScrHeader` 以 `server_time` 为锚 + `setInterval` 本地走秒（卸载清理）；`new Date()`/`Date.now()` 仅用于走秒与 ISO 解析，为本节**白名单用法**（机械扫描豁免登记）。
   - 断线重试：顶部 error-bar 红条 + **手动**「重新连接」按钮（`ScreenView` 自管理三态，未复用 `useAsyncData`——大屏按本节豁免登记；每 30 秒后台轮询可恢复；没有重连倒计时）。
@@ -1113,10 +1112,10 @@
 | R16 | PUT | `/workbench/settings/preferences` | 系统偏好写回（契约 §15.8） | P3 | ✅ 已接入（§16；§15.8） |
 
 
-## 质量整改接口增补（2026-10-08）
+## 质量整改接口增补
 
 GET workbench/settings/preferences 返回当前会话的五键偏好，不要求 settings/config 权限。profile 的 preferences、scope_type、allowed_pages、data_mode 为可选增补字段。导航只消费 allowed_pages；授权仍由后端执行。默认范围、轮询、金额展示、声音与脱敏语义见 api-contract.md 的质量整改增补。
 
 页头告警角标仅在会话 allowed_pages 包含首页及质量页时取数和展示，按个人刷新间隔更新；科室账户不请求全院告警。镜像中的公开静态资产必须可由 nginx worker 读取。
 
-本轮交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。
+当前交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。

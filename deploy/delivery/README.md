@@ -11,7 +11,7 @@
 ./manage.sh initialize
 ```
 
-打开 http://localhost:8088/workbench 。本机云端验证采用相同端口。首次初始化会执行 18 个迁移与 13 个确定性种子，可能需要几分钟。数据是合成数据，业务时间由仿真时钟提供；不代表实时医院数据。
+打开 http://localhost:8088/workbench 。首次初始化会执行 18 个迁移与 13 个确定性种子，数据是合成数据，业务时间由仿真时钟提供；不代表实时医院数据。
 
 登录演示账号：president / Edss@2026。科室权限验证账号：dept_leader / Edss@2026。这是公开演示口令；对外共享前必须轮换账号口令并吊销旧会话。数据库口令由 manage.sh 随机生成并写入权限 0600 的 .env，不包含在交付包里。
 
@@ -44,10 +44,10 @@ TLS_KEY_FILE=/absolute/path/privkey.pem
 
 先在本地绑定模式下 initialize 并轮换公开账号口令，再执行 `./manage.sh https-up`。HTTPS 模式启用 Secure Cookie，HTTP 重定向到域名的 443；证书文件缺失直接报错。使用 `./manage.sh stop` 停机后，HTTPS 栈应使用 https-up 恢复；不要用普通 up 降回 HTTP。
 
-当前 Codex 云环境无公网端口发布能力、没有部署凭据，Cloudflare 隧道 API 请求被网络策略拒绝；交付包在该环境完成本地容器部署验证，不附带公网地址或永久云托管。
+公网部署由接收方提供服务器、DNS、安全组与正式证书，本包不包含永久托管服务。
 
 ## 包内容与验证
 
-images.tar.gz：web、backend、PostgreSQL 三个离线镜像；source.tar.gz：对应 Git 提交源码；SOURCE_COMMIT：源码版本；SHA256SUMS：完整性校验；compose.yml / https.yml：运行配置；manage.sh：加载、初始化、启停和备份。VERIFY.json 记录本次实际执行的验证；不会把历史压测当成本次结果。
+images.tar.gz：web、backend、PostgreSQL 三个离线镜像；source.tar.gz：对应 Git 提交源码；SOURCE_COMMIT：源码版本；SHA256SUMS：完整性校验；compose.yml / https.yml：运行配置；manage.sh：加载、初始化、启停和备份。VERIFY.json 记录镜像包的验证范围。
 
 基础镜像包含公共发行版组件，交付不表示容器漏洞扫描已完成。源码重新打包命令：`GO=/path/to/go1.27 scripts/package-docker.sh /absolute/output-directory`。

@@ -1,8 +1,8 @@
 # 前端架构与交互规范（Frontend Architecture）— EDSS v2.4
 
-> 版本：v2.4，2026-10-09 静态对齐。页面、模块、授权与共享状态按当前实现登记；范围和后续验收见 [工程计划](engineering-acceptance.md)。
+> 版本：v2.4，页面、模块、授权与共享状态按当前实现登记；范围和后续验收见 [工程计划](engineering-acceptance.md)。
 > 技术栈：Vue 3 + TypeScript + Vite + Vue Router 4 + ECharts 6 + Lucide Vue Next
-> 本文定位：**真实代码与工程结构的唯一事实源**。涵盖目录树、路由表、布局结构、设计系统（Token 与原语）、设计红线、数据链路、数据纪律、错误反馈规范与大屏重建方向。代码与本文冲突时以本文为准修正代码；本文落后于代码时先改本文。
+> 本文定位：**真实代码与工程结构的唯一事实源**。涵盖目录树、路由表、布局结构、设计系统（Token 与原语）、设计红线、数据链路、数据纪律、错误反馈规范与大屏交互规范。代码与本文冲突时以本文为准修正代码；本文落后于代码时先改本文。
 
 ---
 
@@ -13,7 +13,7 @@
 | 形态 | 路由入口 | 状态 | 视觉风格 | 目标场景 | 核心诉求 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **管理工作台（主形态）** | `/workbench` | **现役** | 浅灰蓝医疗专业风（`#f0f5fc` 系） | 院长/院领导/主任日常桌面端办公 | 重"管"：多维筛选、下钻明细、运营监测、报表表格 |
-| **指挥大屏（展示形态）** | `/screen` | **现役**（e6aeb52 建成）：`ScreenLayout` 画布 + `ScreenView` + 10 个 `Scr*` 组件，契约 §14 `screen/snapshot` 供给 | 深海蓝科技风 | 会议室大屏、指挥调度中心、大厅展示 | 重"看"：宏观态势、三维院区、风险轮播、指标跑马灯 |
+| **指挥大屏（展示形态）** | `/screen` | **现役**（已实施）：`ScreenLayout` 画布 + `ScreenView` + 10 个 `Scr*` 组件，契约 §14 `screen/snapshot` 供给 | 深海蓝科技风 | 会议室大屏、指挥调度中心、大厅展示 | 重"看"：宏观态势、三维院区、风险轮播、指标跑马灯 |
 
 数据链路总览（唯一取数路径，详见 §8；三条已登记例外见 §8.1 末）：
 
@@ -95,7 +95,7 @@ src/
 │       ├── WbErrorPanel.vue        # [原语] 面板级错误态 + code/trace_id + 重试（§10.1 error/retry）
 │       ├── WbSkeleton.vue          # [原语] 加载骨架占位（§10.1 loading）
 │       ├── WbStaleTag.vue          # [原语] "数据未更新"角标 + 重试（§10.1 stale）
-│       ├── WorkbenchHeader.vue     # 工作台顶部栏（系统名、搜索、铃铛、头像、日期）
+│       ├── WorkbenchHeader.vue     # 工作台顶部栏（系统名、大屏入口、搜索、铃铛、头像）
 │       ├── WorkbenchSidebar.vue    # 工作台左侧栏（品牌Logo、14项候选导航菜单，按 allowed_pages 过滤、底纹院训）
 │       ├── WbToast.vue             # [原语] 轻量全局提示（success/warning/error 三档，error-codes §4 ElMessage 语义等价物）
 │       ├── WorkbenchHero.vue       # 首页 Hero 横幅（标语阶梯、医院实景、毛笔书法）
@@ -140,7 +140,7 @@ src/
 ```
 
 > [!NOTE] 旧过渡大屏稿已拆除；/screen 已按真基准重建
-> 过渡大屏稿（根级 `src/components/` 下 8 个深色组件 + 旧 `src/views/ScreenView.vue`）已于 `e1ec65a` 整体拆除。/screen 现役实现见上方 `views/screen/`、`components/screen/`、`layouts/ScreenLayout.vue` 与 §12；真大屏视觉基准为只读参考工程 `archive/smart-hospital-cockpit/`。
+> 过渡大屏稿（根级 `src/components/` 下 8 个深色组件 + 旧 `src/views/ScreenView.vue`）已拆除。/screen 现役实现见上方 `views/screen/`、`components/screen/`、`layouts/ScreenLayout.vue` 与 §12；真大屏视觉基准为只读参考工程 `archive/smart-hospital-cockpit/`。
 
 ---
 
@@ -217,10 +217,10 @@ src/
 
 ```
 +------------------------------------------------------------------------------------+
-|  [Sidebar 204px]  |  [Header 64px: Title | Search | Notice | User Profile | Date]   |
+|  [Sidebar 204px]  |  [Header 64px: Title | Screen | Search | Notice | User Profile]   |
 |                   +----------------------------------------------------------------+
 |  Hospital Logo    |  [Scrollable View Container: padding 2px 16px 14px]            |
-|  12 Nav Items     |                                                                |
+|  14 Nav Items     |                                                                |
 |  (Active state)   |  <router-view />                                               |
 |                   |                                                                |
 |  Building Sketch  |  (Page Content: WbPageHead -> WbStatStrip -> Panels/Grids)     |
@@ -236,7 +236,7 @@ src/
    - 底部定位建筑正立面线稿底纹（透明度 `0.7`），底端水平居中排布「厚德 精医 仁爱 创新」院训。
 2. **顶部栏（`WorkbenchHeader.vue`）**：
    - 高度固定 `64px`，顶层悬浮对齐，右侧排布圆角药丸搜索输入框（`320px` 宽）、消息提醒铃铛（红色未读角标 = `home/alerts` 未闭环计数）、院长个人信息展示区（头像 + `auth/profile.title` 角色称谓；头像下拉已实现——含角色切换与「退出登录」）。
-   - 日期消费 `auth/profile.system_date+weekday`（契约 §2.1 下发 `2026-10-28/星期三`）；取数失败回退演示基准日 `BASE_DATE=2026-10-28`（周三）本地格式化。
+   - 顶栏显示大屏入口与身份控件，不重复显示日期；页面业务日期来自 useSystemDate 对真实 profile.system_date 的消费，失败保持空串，不回退编造日期。搜索无后端契约，当前禁用。
 3. **滚动工作区（`WorkbenchLayout.vue .workbench-scroll`）**：
    - 采用弹性自适应高度 `flex: 1; min-height: 0; overflow-y: auto;`。
    - 统一页面级外边距与纵向节奏：`padding: 2px 16px 14px;`。
@@ -317,7 +317,7 @@ src/
 ```
 ```ts
 const systemDate = useSystemDate()
-// 渲染为 "门急诊 · 住院 · 手术明细分析 · 数据截至 {system_date}"；取数失败回退演示基准日
+// 渲染为 "门急诊 · 住院 · 手术明细分析 · 数据截至 {system_date}"；取数失败日期保持空
 ```
 
 ### 6.2 `WbSeg.vue` — 医疗风分段控制器
@@ -430,7 +430,7 @@ const systemDate = useSystemDate()
 **已登记例外与共享状态**（不全部走 useAsyncData）：
 - `ScreenView` 整屏自管理 loading/error/data 三态（frontend-api §15 豁免登记；顶部红条手动重连）。
 - `WorkbenchHeader`/`WorkbenchSidebar`/`WorkbenchHero` 的 `auth/profile`、`hospital/profile`、`home/alerts` 计数取数：`onMounted` 内 `await` + `.catch(() => null/0)` 兜底展示——chrome 级数据失败静默降级，不进面板五态。
-- useSystemDate() 与会话/偏好模块共享 profile 的 system_date，并按偏好间隔更新。日期缺席时显示空，不使用墙钟兜底。
+- useSystemDate() 与会话/偏好模块共享 profile 的 system_date，并监听 profileState 变化。日期缺席时显示空，不使用墙钟兜底。
 - TasksView 自管理列表/提交状态；WbPreferences 使用 useAsyncData 读取当前会话偏好，提交独立维护 pending 与已确认值。告警/工单写操作采用局部状态与 toast。
 - 壳层品牌文字允许已登记的静态降级；业务数量的静默 null/0 降级仍需后续异常态审查，不能视作全部五态已经验证。
 
@@ -452,7 +452,7 @@ const systemDate = useSystemDate()
 | **工单** | `/workbench/tasks` | `todos`、`todos/{id}/status` | 工单筛选 | 分页列表 | 接单/办结表单 | 错误与提交反馈 |
 | **个人偏好** | `/workbench/preferences` | `workbench/settings/preferences`（GET/PUT） | 默认范围 | 刷新间隔 | 声音与金额 | 隐私展示偏好 |
 | **系统设置** | `/workbench/settings` | `workbench/settings/config` + `workbench/settings/preferences` | 合成来源只读表格（WbTable，6 项系统对接状态——HIS/LIS/PACS/EMR/HRP/医保结算接口，含异常行） | 指标预警阈值配置表（WbTable，7 项指标预警阈值与启用开关） | 用户与权限管理表格（WbTable，用户账号、角色标签、科室授权与启用状态） | 5 项系统偏好表单设置（默认时间范围、数据刷新频率、预警声音、单位缩写、敏感脱敏） |
-| **工作台 chrome** | 布局件 | `auth/profile` · `hospital/profile` | 顶栏日期/角色称谓（auth）+ 铃铛未闭环计数（home/alerts） | 侧栏院名/英文名/座右铭（hospital） | Hero 标语阶梯（hospital.slogans/pillars） | — |
+| **工作台 chrome** | 布局件 | `auth/profile` · `hospital/profile` | 顶栏大屏入口/角色称谓（auth）+ 铃铛未闭环计数（home/alerts） | 侧栏院名/英文名/座右铭（hospital） | Hero 标语阶梯（hospital.slogans/pillars） | — |
 | **大屏** | `/screen` | `screen/snapshot` | ScrHeader 时钟/态势/未闭环告警 + ScrKpiStrip 4 项 KPI | ScrDrgQuadrant 象限散点 + ScrCampusMap 四栋楼宇 | ScrDeptRank 效能榜 + ScrAlertFeed 告警跑马灯 | ScrTrendTabs 7 日趋势页签小图组 |
 
 ### 8.3 数据纪律（单轨真后端）
@@ -551,14 +551,14 @@ npx vue-tsc -b && npm run build
 
 已落地要点：
 1. **统一出处**：`src/styles/tokens.css` = L0 原色 `--p-*`(:root) + L1 语义 `--wb-*`/`--scr-*`（同挂 :root，前缀即形态隔离）；`variables.css` 已删除。
-2. **历史收敛记录**：r0 审计记录为 570 个散落声明点及白名单外 0 命中；这不是本轮重新扫描的结论，新增样式仍按 design-tokens 验收。
+2. **令牌检查**：新增样式按 design-tokens 验收，不以过程中的扫描数量替代当前检查。
 3. **图表同源**：wb=`chartPresets.ts` 静态表（行内注释标 token）、scr=`scrTokens.ts::readScrPalette()` 运行时读取。
 
 ---
 
-## 12. 大屏实现（Big-Screen Implementation，e6aeb52 建成）
+## 12. 大屏实现（Big-Screen Implementation）
 
-> 本节原为"重建规划"。`/screen` 已于 e6aeb52 建成，以下为**建成现状**记录；后续迭代按正常演进流程走（契约先行）。
+> 本节描述 ScreenLayout、ScreenView 与 Scr* 组件的实现及交互；功能演进先更新契约。
 
 ### 12.1 建成物
 - **布局/画布**：`src/layouts/ScreenLayout.vue` —— `.screen-layout` 作用域 + 1920×1080 画布 + 等比缩放适配（resize 监听配对清理）。
@@ -586,7 +586,7 @@ npx vue-tsc -b && npm run build
 - **取数层（单轨）**：`api/client.ts` 经 vite proxy/nginx 打 Go 后端 `/api/v1/<key>`，包络拆解与错误码映射按 `error-codes.md` §4 落地（HTTP 客户端=原生 fetch，无新依赖）；`src/mock/` 已整层摘除，无假数据兜底。
 - **视图取数**：14 个导航页和大屏经 API 取数，无运行时业务数值兜底。
 - **五态反馈**：`useAsyncData` + 4 反馈原语 + `main.ts` 全局兜底（§10.2）。
-- **大屏建成**：e6aeb52，见 §12。
+- **大屏实现**：见 §12。
 - **设计令牌**：tokens.css 分层模型已落地；历史散值审计见 §11，当前改动须单独核对。
 - **壳/资产/类型**：index.html 中立壳、根级孤儿资产清理、`delta_label` 单源、`WbTable` 类型收敛——均已销。
 
@@ -608,7 +608,7 @@ npx vue-tsc -b && npm run build
 - tests/ 不进 `vue-tsc` 构建域（tsconfig include 仅 `src/`）；门禁仍按 AGENTS §5。
 
 
-## 质量整改行为（2026-10-08）
+## 质量整改行为
 
 新增 /workbench/tasks（工单分页、筛选、接单、办结）与 /workbench/access（账号暂无可用页面）。侧栏与路由守卫消费 profile.allowed_pages。模块 preferences.ts 管理服务器返回的偏好，无持久化身份缓存；useAsyncData 接入偏好轮询并在卸载时清理。useDefaultRange 用于页面初始筛选，手动筛选不被后续轮询重置。金额换算由 KPI、指标条共享 displayMoney，图表仍消费契约量纲。预警声音只在用户解锁音频后对新增高风险事件播放。设置提交禁用控件，成功更新共享偏好、失败回滚。工作台与大屏展示演示数据标识，日期来自后端虚拟时钟；profile 随偏好间隔刷新。
 
@@ -620,10 +620,10 @@ ECharts 改为按需注册共享模块（canvas、所需图表与组件），首
 
 督办工单页的筛选、分页按钮与办结表单使用现有 --wb-* 令牌；页面专属布局样式限定在 TasksView，提交期间禁用全部状态操作。
 
-本轮交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。
+当前交互整改：根级未知路径回退到工作台并经过权限守卫；科研、患者、质量、资产 API 不支持 range，因此移除这些页面时间切换，副标题注明固定统计口径，各图表仍以接口标签表达自身周期。
 
 
-## 工作台与大屏切换（2026-10-09）
+## 工作台与大屏切换（）
 
 工作台顶栏提供图标和文字「数据大屏」，同窗口导航 /screen，returnTo 查询参数记录当前工作台 fullPath（含查询与锚点）。入口依据真实会话 allowed_pages 包含 /workbench/overview 显示，不依据演示角色；后端大屏授权继续生效。
 
@@ -631,4 +631,4 @@ ECharts 改为按需注册共享模块（canvas、所需图表与组件），首
 
 普通点击或键盘 Enter 返回时尝试退出全屏；退出失败仍继续导航。链接保留修饰键及新标签打开行为。入口复用现有令牌；工作台在 ≤1440px 隐藏副标，在 ≤1100px 隐藏禁用搜索框，为入口保留空间。
 
-2026-10-09 顶栏日期调整：移除工作台右上角 system_date/weekday 文字及空的第二行，右侧入口与身份区改为单行居中。业务日期仍由页面数据日期提示／统计口径展示；大屏时钟保留。
+顶栏日期调整：移除工作台右上角 system_date/weekday 文字及空的第二行，右侧入口与身份区改为单行居中。业务日期仍由页面数据日期提示／统计口径展示；大屏时钟保留。

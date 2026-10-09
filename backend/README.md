@@ -1,8 +1,7 @@
 # backend/ — EDSS Go 服务 + 数据库迁移与种子（PostgreSQL）
 
-> **状态（2026-10-09 静态对齐）**：持久化合成种子与虚拟业务时钟供数；安全部署配置与部分范围控制已实现。无法获取真实医院数据是固定约束，接入与医院指标对账不纳入工程验收。现状见 [清单](../docs/current-state.md)，后续标准见 [计划](../docs/engineering-acceptance.md)。
-> **历史来源**：早期由 /tmp/modeling/schema/ 编排装配；外部临时资产和旧审核结论不作为当前可复现验收证据。当前 SQL 正本在本仓库 migrations/ 与 seed/。
-> **基准**：Go1.27、PostgreSQL 16（CI/Compose）；PG15.15 兼容为历史验证。
+> **状态**：持久化合成种子与虚拟业务时钟供数；安全部署配置与部分范围控制已实现。无法获取真实医院数据是固定约束，接入与医院指标对账不纳入工程验收。现状见 [清单](../docs/current-state.md)，后续标准见 [计划](../docs/engineering-acceptance.md)。
+> **基准**：Go1.27、PostgreSQL 16（CI/Compose）。
 
 ## 目录
 
@@ -16,7 +15,7 @@ internal/
   clock/         # sim.clock 唯一业务时间源(禁 time.Now 业务化)
   router/        # 引擎 + register_<epic>.go 分域注册
   handler/ repo/ # 分域实现:e1 context/home · e2 ops · e3 staff · e4 screen/topics · P3 auth/write/sim/system
-migrations/      # 结构迁移,按文件名序号顺序执行(0000 → 1000，含 0420/0510),非幂等 → 追踪表收口
+migrations/      # 结构迁移,按文件名序号顺序执行(0000 → 1020，含 0420/0510),非幂等 → 追踪表收口
 seed/            # 确定性种子,按文件名序号顺序执行(1001 → 5001),幂等可重跑
 ```
 
@@ -184,7 +183,7 @@ make down      # 停服(pgdata 卷保留)
 - **确定性**：零 `random()`/零 `now()`——伪随机一律 `md5(主键)` 派生，全库可复现。
 - **锚点**（详见 `docs/database-schema.md` §勾稽）：BASE_DATE=2026-10-28；在院 1,846 / 床用 92.1% / 月出院 8,109 / ALOS 6.8 / 月门急诊 123,443 / 月医疗收入 14,800 万（住院 71%·门诊 25%·其他 4%）。
 - **费用真源**：`dwd.charge_day`（门诊次均≈300 元 / 住院次均≈13,000 元）；`outpatient_hourly.fee_total` 逐日归一到 charge_day。
-- 修改数据结构/口径先更新契约与库表文档，再修改本仓库 migrations/seed/；/tmp/modeling 只是历史来源，不是开发前置条件。
+- 修改数据结构/口径先更新契约与库表文档，再修改本仓库 migrations/seed/。
 
 ## 测试与压测
 
@@ -210,12 +209,7 @@ make down      # 停服(pgdata 卷保留)
 
 工具先检查健康、登录和目标接口；响应体完整读取及业务包络计入耗时和失败。固定直方图保持内存有界，分位报告为桶上界近似；成功与失败均计入，吞吐按实际时长（含最后响应排空）计算。按端点阈值返回退出码，JSON 报告 0600 且不覆盖。默认目标不包含写操作压测；工单 GET、会话登录/续期仍有数据库维护写入。
 
-内网 /stats 保留旧字段，新增 started_at、latency_bounds_ms、by_route 和 runtime；路由标签有界，进程重启清零。运行规范、告警、备份及系统定时器见 [运维与性能手册](../docs/operations-performance.md)。本轮已执行非空恢复、故障演练及认证查询压测；只按整改记录中的数据规模和负载评价，未声明最大容量。
+内网 /stats 保留旧字段，新增 started_at、latency_bounds_ms、by_route 和 runtime；路由标签有界，进程重启清零。运行规范、告警、备份及系统定时器见 [运维与性能手册](../docs/operations-performance.md)。运行验收须记录实际数据规模、负载和结果，不声明未经验证的最大容量。
 
-## 历史断言脚本
 
-以下路径属于历史编排产物，未包含于仓库，不能用作可复现验收。当前门禁使用仓库内 Go/Vitest/Playwright 与 Compose 配置测试。
-
-基准目录 `/tmp/backend-orch/`（编排产物，非本仓库）——`e{1,2,4}-check.sh` 在顶层、`e3-check.sh` 在 `collections/` 子目录（`PORT=808N bash …`）；newman 集合 `collections/e{1..4}.json`。EO epic 门禁脚本 `/tmp/p3-orch/eo-check.sh`（health/ready/stats/migrate/graceful/回归抽查）。
-
-cloud-dev.sh test 对已经存在的独立写域库也先执行未应用迁移；只在首次建库时播种，避免升级后继续使用旧 schema。
+cloud-dev.sh test 对已有独立写库先执行未应用迁移，仅首次建库播种。

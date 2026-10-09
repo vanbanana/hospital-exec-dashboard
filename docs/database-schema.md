@@ -1,7 +1,7 @@
 # 数据库设计 — EDSS（v2.0 终装配版）
 
-> **版本**：v2.1；2026-10-09 静态对齐。**种子业务锚点**为 2026-10-28，与文档日期无关。取代 v1.1 的历史建模基线继续保留。
-> **状态**：仓库内 18 个迁移与 13 个种子文件，六 schema 共 60 张业务表（不含 public.schema_migrations），见 [当前清单](current-state.md)。旧建模审核和 PG15 验证属于历史证据；实际迁移重跑依赖台账，种子可显式重跑。真实医院数据不在验收范围内，合成样本勾稽仍须验证。
+> **版本**：v2.1；**种子业务锚点**为 2026-10-28，与文档日期无关。
+> **状态**：仓库内 18 个迁移与 13 个种子文件，六 schema 共 60 张业务表（不含 public.schema_migrations），见 [当前清单](current-state.md)。实际迁移重跑依赖台账，种子可显式重跑。真实医院数据不在验收范围内，合成样本勾稽仍须验证。
 > **适用范围**：PostgreSQL 16（语法兼容验证至 PG15.15）；服务 `/workbench` 工作台与 `/screen` 大屏两套形态。
 
 ---
@@ -29,7 +29,7 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 
 ## 2. 表总目录（60 表 × lane × 粒度 × 种子规模）
 
-> 行数列为 lane 种子实测/规格值（BASE_DATE=2026-10-28，窗口 2025-01-01~2026-12-31），已按当前库实测校核一轮；"—"=空表/缓建。
+> 行数列为 lane 种子实测/规格值（BASE_DATE=2026-10-28，窗口 2025-01-01~2026-12-31），部署验收时独立核对；"—"=空表/缓建。
 
 ### sys（8 表 · L1 sys-org + 0910 后挂）
 
@@ -143,7 +143,7 @@ L2 公共维度        ──►   dim  主维表（日期/院区/楼宇/科室/
 
 ## 4. 关键勾稽锚点表（目标 vs lane 实测，R3 轮）
 
-> lane 实测列为生成批次快照，当前库实测以 ±10% 容差带理解；本列已按 2026-09-27 库实测刷新一轮。
+> lane 实测列为生成批次快照，当前库实测以 ±10% 容差带理解；部署验收时应对实际库独立核对。
 
 | 锚点 | 目标（scale-decision v2.2） | lane 实测 | 判定 |
 | :-- | :-- | :-- | :-- |
@@ -211,24 +211,12 @@ DDL 全链先 apply，种子**按相位不按 lane 文件边界**（clean-DB 实
 Ⅳ  仿真：seed/5001_sim.sql（业务时钟依赖，不能跳过）
 ```
 
-铁律：`INSERT INTO sys.metric_def`/`sys.dict` 集中在 Ⅰa 文件（lane 文件内防御性 ON CONFLICT 供稿段幂等无害）；user 回填必在 department 之后；L8 事实先于 L5 聚合（dws 读 dwd.critical_value）。理想态 26 文件拆分记录是历史设计，当前启动不依赖外部 seed-manifest.md。
+铁律：`INSERT INTO sys.metric_def`/`sys.dict` 集中在 Ⅰa 文件（lane 文件内防御性 ON CONFLICT 供稿段幂等无害）；user 回填必在 department 之后；L8 事实先于 L5 聚合（dws 读 dwd.critical_value）。当前种子清单以 backend/seed 为准。
 
-## 6. 遗留 open-items（交接清单）
+## 6. 数据边界与汇总维护
 
-| 项 | 内容 | 状态 |
-| :-- | :-- | :-- |
-| O-E4 | `dept_rank_day` eff_score 实算值 vs 契约字面（骨科 96.10 vs 94.2）——序已回锚（骨科1/心内2），契约 §14.1 注6 已声明屏值事实化±10% | ✅ R3 已消解 |
-| O-E7 | 高职占比：契约已改 12.0%（=284/2,368 实算） | ✅ 已消解 |
-| O-E8 | 住培/继教/转化率、医保结算明细、benchmark region/bench 为 manual 占位（无库内真源） | 演示期接受 |
-| 契约残留（R3 遗留） | scale_revenue_trend×10+unit、compare 派生值、stats 当月口径注、weekday 修正——**全部已修**（commit 9f6e1e5） | ✅ 已消解 |
-| 种子空表与运行态 | dim.drug 种子为空；sys.audit_log/ads.todo_order 在运行时写入，不应把种子零行当作功能未实现；sim 三表保留 | 已登记 |
-| 口径注记 | L5 成本/结余为合成口径（系数收敛 4.2%）为合成模型，不等待医院成本源；drg_case 窗口裁 14 月（103,656 行）；`research disciplines.funds` 走 metric_value 口径禁用 Σproject | 已登记，非阻塞 |
-| 文档微痕 | 个别 lane README/注释残留 `8,110`/`847,000` 旧字样（数值断言不受影响） | 清扫项 |
+部分模型使用合成系数和登记指标，不能代表真实医院口径。dim.drug 的种子为空；audit_log 与 todo_order 在运行时写入，不能把种子零行视为功能未实现。跨页指标仅在同口径、同窗口和同范围下比较。
 
----
+1010 迁移创建 dws.outpatient_daily，按东八区自然日汇总门诊小时事实；1020 创建 dws.charge_daily，按日期及科室汇总收费类别。迁移先锁源表并回填，再创建 INSERT/UPDATE/DELETE 与 TRUNCATE 触发维护。事实与汇总同事务提交或回滚，无 TTL 缓存或手动刷新依赖。
 
-> 历史附录：早期建模过程资产曾存于 `/tmp/modeling/`：`conventions.md`（公约）、`schema/plan.md`（总账+DAG）、`schema/seed-manifest.md`（种子相位装配正本）、`escalations.md`（33 条裁决/门禁台账）、`scale-decision.md`（规模裁决书 v2.2）、各 lane `README/columns/open-items`。
-
-本轮性能整改新增 `1010_outpatient_daily_rollup.sql`：`dws.outpatient_daily` 按东八区自然日保存门诊小时表的同口径五项累计。迁移先锁源表、回填，再注册 INSERT/UPDATE/DELETE 语句级增量触发器与 TRUNCATE 清空触发器；源事实与汇总在同一事务内提交或回滚，不使用 TTL 缓存、不依赖手工刷新。只加表/函数/触发器，现有表结构不改；业务表增加至 59、迁移增加至 17。整日窗口走汇总，非整日窗口仍按小时事实查询。维护窗口应用，需独立比较原始 SQL、时区边界、修改/删除/回滚和并发写入结果。
-
-门诊汇总后仍有收费查询瓶颈，新增 `1020_charge_daily_rollup.sql` 和 `dws.charge_daily`：按日期/科室汇总收费类别，保持院级总额与 level=2 科室过滤原语义，INSERT/UPDATE/DELETE/TRUNCATE 与源表同事务更新。迁移执行前锁源表，不允许与写入并发回填。业务表 60 张、迁移 18 个；恢复校验新增触发器定义/启用状态及业务 schema 函数摘要。前台调度资源快照包含 cloud-dev 独立 API，巡检日志保留连接池与运行时数值。
+整日门诊查询读日汇总，非整日窗口仍查小时事实。当前总量为 60 张业务表、18 个迁移、13 个种子；恢复校验包含触发器及函数摘要。迁移在维护窗口应用，独立比较原始 SQL、时区边界、修改、删除、回滚与并发结果。

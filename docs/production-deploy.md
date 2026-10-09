@@ -1,6 +1,6 @@
 # 部署与恢复手册
 
-> 2026-10-09 静态对齐。production 是安全部署配置，数据仍为 demo。无需医院数据即可验证部署、权限和恢复；真实医院接入/对账不纳入验收。现状见 [current-state.md](current-state.md)，后续标准见 [engineering-acceptance.md](engineering-acceptance.md)。
+> production 是安全部署配置，数据仍为 demo。无需医院数据即可验证部署、权限和恢复；真实医院接入/对账不纳入验收。现状见 [current-state.md](current-state.md)，后续标准见 [engineering-acceptance.md](engineering-acceptance.md)。
 
 ## 1. 本地开发（云环境）
 
@@ -14,7 +14,7 @@ npm run dev -- --host 127.0.0.1
 scripts/cloud-dev.sh test
 ```
 
-start 只在 schema_migrations 缺席的全新库灌演示种子，正常重启只迁移。初始化中断时检查日志后显式 scripts/cloud-dev.sh seed 继续；绝不能对真实库执行 seed。项目默认 edss-dev，命名卷 edss-dev_pgdata 保留；接续已有环境使用对应 EDSS_DEV_PROJECT（本会话 edss-remediation）；不使用 down -v。
+start 只在 schema_migrations 缺席的全新库灌演示种子，正常重启只迁移。初始化中断时检查日志后显式 scripts/cloud-dev.sh seed 继续；绝不能对真实库执行 seed。项目默认 edss-dev，命名卷 edss-dev_pgdata 保留；接续已有环境使用对应 EDSS_DEV_PROJECT；不使用 down -v。
 
 cloud-dev.sh 仅管理本项目内网 db 的 hospital_edss 演示库，拒绝其他 DATABASE_URL，防止将自动演示初始化用于外部数据库。其他目标库使用手动迁移和部署流程。
 
@@ -80,9 +80,9 @@ npm run build；npm run test:unit；npm run test:e2e；python3 tests/deploy-conf
 
 提供 backup-cycle、monitor、resources 命令及 systemd 定时器。异常写 JSON 日志并返回非零；不自动发邮件或外部消息，也不自动安装定时器。正式启用前明确备份目录权限、磁盘预算、日志保留及告警接收渠道。
 
-新 1000 迁移仅加索引，按普通事务建索引会阻塞写入，应在维护窗口执行。/stats 新指标需重启新版后端才能使用；当前运行服务未自动重建。认证压测只在隔离合成库运行，固定硬件、数据量及阈值，实际结果再登记。
+新 1000 迁移仅加索引，按普通事务建索引会阻塞写入，应在维护窗口执行。/stats 新指标需重启新版后端才能使用；已有运行服务需显式重建。认证压测只在隔离合成库运行，固定硬件、数据量及阈值，实际结果再登记。
 
-镜像必须保证非 root 服务用户可读全部 migrations/seed SQL：Dockerfile COPY 后显式归一目录/文件读取权限，不依赖本地 umask。部署前运行镜像文件访问检查，再验证全新合成库初始化和已有库升级；本轮曾由新增文件 0600 触发迁移 permission denied，须保留回归证据。
+镜像必须保证非 root 服务用户可读全部 migrations/seed SQL：Dockerfile COPY 后显式归一目录/文件读取权限，不依赖本地 umask。部署前运行镜像文件访问检查，再验证全新合成库初始化和已有库升级；不要依赖打包机的 umask，须检查文件权限。
 
 ## 8. 离线 Docker 交付
 
