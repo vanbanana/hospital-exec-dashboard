@@ -1,0 +1,63 @@
+name: hospital-edss-delivery
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: hospital_edss
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Use manage.sh to configure database password}
+      TZ: Asia/Shanghai
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d hospital_edss"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  migrate:
+    image: hospital-edss-backend:delivery
+    profiles: [tools]
+    logging: *logging
+    entrypoint: [edss-migrate]
+    command: []
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/hospital_edss?sslmode=disable
+    depends_on:
+      db: {condition: service_healthy}
+  backend:
+    image: hospital-edss-backend:delivery
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/hospital_edss?sslmode=disable
+      TZ: Asia/Shanghai
+      PORT: "8080"
+      SIM_ENABLED: "0"
+      DEMO_ROLE_SWITCH: "0"
+      SCREEN_PUBLIC: "0"
+      AUTH_COOKIE_SECURE: "0"
+      TRUSTED_PROXY_CIDRS: 172.16.0.0/12
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget -Y off -qO- http://127.0.0.1:8080/ready >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  web:
+    image: hospital-edss-web:delivery
+    restart: unless-stopped
+    logging: *logging
+    ports: ["${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-8088}:80"]
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget -Y off -qO- http://127.0.0.1/health >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  pgdata: {}

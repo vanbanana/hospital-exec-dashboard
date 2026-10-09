@@ -188,7 +188,7 @@ src/
 | 区域 / 页面 | 交互元素 | 数据效果 |
 | :--- | :--- | :--- |
 | 侧栏 `WorkbenchSidebar` | 12 项 `router-link` 菜单 | 路由切换，`isActive`/`isExactActive` 驱动高亮 |
-| 顶栏 `WorkbenchHeader` | 数据大屏入口 / 搜索框 / 铃铛 / 院长头像区 / 日期 | 日期与角色消费 `auth/profile`（system_date+weekday+title）；铃铛角标消费 `home/alerts` 计数；头像区点击展开角色下拉（`available_roles`，选中经 `?role=` 重取切上下文）；搜索仍为禁用静态展示 |
+| 顶栏 `WorkbenchHeader` | 数据大屏入口 / 搜索框 / 铃铛 / 院长头像区 | 角色消费 `auth/profile`（title）；业务日期由页面数据日期提示展示；铃铛角标消费 `home/alerts` 计数；头像区点击展开角色下拉（`available_roles`，选中经 `?role=` 重取切上下文）；搜索仍为禁用静态展示 |
 | 侧栏 `WorkbenchSidebar` | 品牌区 / 院训底纹 | 院名与英文名、座右铭消费 `hospital/profile` |
 | 首页 `WorkbenchHero` | 标语阶梯 | `hospital/profile.slogans/pillars` 驱动 |
 | 首页 `TrendChartCard` | 4 个趋势 Tab（门急诊人次 / 住院人次 / 手术台次 / 医疗收入） | 本地切换 `currentTab`，复用已取回的 `home/trends` 数据换序列 |
@@ -235,7 +235,7 @@ src/
    - 导航项无固定高度（自动高度约 `37px`），间距 `2px`，内边距 `9px 12px`；激活项呈现 `--wb-accent` 纯色背景填充与 `rgba(37,99,235,0.25)` 柔和投影（非渐变）。
    - 底部定位建筑正立面线稿底纹（透明度 `0.7`），底端水平居中排布「厚德 精医 仁爱 创新」院训。
 2. **顶部栏（`WorkbenchHeader.vue`）**：
-   - 高度固定 `64px`，顶层悬浮对齐，右侧排布圆角药丸搜索输入框（`320px` 宽）、消息提醒铃铛（红色未读角标 = `home/alerts` 未闭环计数）、院长个人信息展示区（头像 + `auth/profile.title` 角色称谓；头像下拉已实现——含角色切换与「退出登录」）以及标准中文日期。
+   - 高度固定 `64px`，顶层悬浮对齐，右侧排布圆角药丸搜索输入框（`320px` 宽）、消息提醒铃铛（红色未读角标 = `home/alerts` 未闭环计数）、院长个人信息展示区（头像 + `auth/profile.title` 角色称谓；头像下拉已实现——含角色切换与「退出登录」）。
    - 日期消费 `auth/profile.system_date+weekday`（契约 §2.1 下发 `2026-10-28/星期三`）；取数失败回退演示基准日 `BASE_DATE=2026-10-28`（周三）本地格式化。
 3. **滚动工作区（`WorkbenchLayout.vue .workbench-scroll`）**：
    - 采用弹性自适应高度 `flex: 1; min-height: 0; overflow-y: auto;`。
@@ -630,3 +630,5 @@ ECharts 改为按需注册共享模块（canvas、所需图表与组件），首
 大屏顶栏始终提供「返回工作台」，快照加载或失败时仍可用；不新增 auth/profile 请求。returnTo 只接受单个字符串且为 /workbench、/workbench/、/workbench? 或 /workbench# 开头的本地路径；数组、外部地址、带反斜杠或控制字符的值回退 /workbench。工作台既有路由守卫继续校验登录与页面授权。
 
 普通点击或键盘 Enter 返回时尝试退出全屏；退出失败仍继续导航。链接保留修饰键及新标签打开行为。入口复用现有令牌；工作台在 ≤1440px 隐藏副标，在 ≤1100px 隐藏禁用搜索框，为入口保留空间。
+
+2026-10-09 顶栏日期调整：移除工作台右上角 system_date/weekday 文字及空的第二行，右侧入口与身份区改为单行居中。业务日期仍由页面数据日期提示／统计口径展示；大屏时钟保留。

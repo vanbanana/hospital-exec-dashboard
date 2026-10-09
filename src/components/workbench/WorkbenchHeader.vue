@@ -65,10 +65,6 @@
         </div>
       </div>
 
-      <!-- Date Display：auth/profile system_date + weekday -->
-      <div class="header-bottom-date">
-        {{ dateText }}
-      </div>
     </div>
   </header>
 </template>
@@ -149,13 +145,6 @@ onMounted(async () => {
   await refreshAlerts()
 })
 
-// system_date(YYYY-MM-DD) + weekday → "2026年10月28日 星期三"
-const dateText = computed(() => {
-  const p = profile.value
-  if (!p?.system_date) return ''
-  const [y, m, d] = p.system_date.split('-').map(Number)
-  return `${y}年${m}月${d}日 ${p.weekday}`
-})
 </script>
 
 <style scoped>
@@ -200,9 +189,7 @@ const dateText = computed(() => {
 
 .header-right {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--wb-space-1);
+  align-items: center;
 }
 
 .header-top-row {
@@ -372,11 +359,7 @@ const dateText = computed(() => {
   color: var(--wb-text-3);
 }
 
-.header-bottom-date {
-  font-size: var(--wb-fs-sm);
-  color: var(--wb-text-3);
-  letter-spacing: var(--wb-ls-sm);
-}
+
 
 .screen-link {
   display: inline-flex;

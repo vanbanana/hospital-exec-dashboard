@@ -83,3 +83,9 @@ npm run build；npm run test:unit；npm run test:e2e；python3 tests/deploy-conf
 新 1000 迁移仅加索引，按普通事务建索引会阻塞写入，应在维护窗口执行。/stats 新指标需重启新版后端才能使用；当前运行服务未自动重建。认证压测只在隔离合成库运行，固定硬件、数据量及阈值，实际结果再登记。
 
 镜像必须保证非 root 服务用户可读全部 migrations/seed SQL：Dockerfile COPY 后显式归一目录/文件读取权限，不依赖本地 umask。部署前运行镜像文件访问检查，再验证全新合成库初始化和已有库升级；本轮曾由新增文件 0600 触发迁移 permission denied，须保留回归证据。
+
+## 8. 离线 Docker 交付
+
+交付包包含 linux/amd64 前端、后端、PostgreSQL 镜像，源码归档、SHA256、Compose 和启停／初始化／备份脚本。交付镜像用本地已验证的 Go 静态二进制与前端 dist 构建；Alpine 基础镜像不执行网络 apk，公共 Mozilla 根证书与东八区 zoneinfo 从构建机标准目录复制，云代理 CA 不进入镜像。无需接收方安装 Node/Go 或下载业务依赖。
+
+初次使用随机生成数据库口令，首次 initialize 显式播种合成数据。已有数据库只能迁移，禁止自动重播种。默认 web 仅监听 127.0.0.1；共享云服务器需配置域名、TLS 和可用的部署凭据。真实权限默认启用，演示角色切换关闭，SIM 控制面关闭，大屏需要登录；数据仍为合成数据。公网部署使用正式 TLS 配置和 Secure Cookie，并轮换公开演示账号口令。

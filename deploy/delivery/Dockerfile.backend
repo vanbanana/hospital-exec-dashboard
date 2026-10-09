@@ -1,0 +1,14 @@
+FROM alpine:3.24
+RUN adduser -D edss
+ENV TZ=Asia/Shanghai
+COPY ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY Shanghai /usr/share/zoneinfo/Asia/Shanghai
+COPY edss edss-migrate /usr/local/bin/
+COPY migrations /app/migrations
+COPY seed /app/seed
+RUN chmod -R a+rX /app /usr/local/bin/edss /usr/local/bin/edss-migrate /usr/share/zoneinfo \
+ && chmod a+r /etc/ssl/certs/ca-certificates.crt
+WORKDIR /app
+USER edss
+EXPOSE 8080
+CMD ["edss"]
